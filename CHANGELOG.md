@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.1.0
+## [0.1.0] - 2026-11-18
 
 * Initial version: `Get-ModuleInventory`, `Get-ModuleUpdate`, `Get-ModuleLocation`, `Update-ManagedModule`, `Uninstall-ManagedModule`, `Uninstall-OldModuleVersion` and the `Show-ModuleManager` terminal UI (alias `modman`).
 * `Update-ManagedModule` shows a progress bar while installing, and the terminal UI shows one result line per module instead of the package manager's verbose output.
