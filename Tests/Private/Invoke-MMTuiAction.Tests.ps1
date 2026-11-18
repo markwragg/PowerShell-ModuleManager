@@ -16,6 +16,7 @@ Describe 'Invoke-MMTuiAction and Receive-MMTuiTask' {
             Update-MMTuiRows $s; Update-MMTuiVisible $s
             $s.Rows[0].Selected = $true
             $script:MMLoadedModule = $null
+            $pathBefore = $env:PSModulePath
 
             Invoke-MMTuiAction $s 'Testing' -Data @{ Count = 2 } -Action {
                 param($Data, $Options)
@@ -28,6 +29,7 @@ Describe 'Invoke-MMTuiAction and Receive-MMTuiTask' {
                 Write-Error 'it broke'
                 Write-Host "Modules: $(@(Get-MMInstalledVersion | ForEach-Object { $_.Name } | Sort-Object -Unique) -join ',')"
                 Write-Host "Loaded passed in: $(@(Get-MMLoadedModule | Where-Object { $_.Name -eq 'ModuleManager' }).Count)"
+                Write-Host "PSModulePath: $env:PSModulePath"
             } -OnComplete {
                 param($State, $Data)
                 $State.Completed = $Data.Count
@@ -55,6 +57,10 @@ Describe 'Invoke-MMTuiAction and Receive-MMTuiTask' {
             ($s.Log | Where-Object Text -Like 'Count 2*').Style | Should -Be 'Green'
             $text | Should -Contain 'WARNING: careful'
             ($s.Log | Where-Object Text -EQ 'ERROR: it broke').Style | Should -Be 'Red'
+            # Opening a runspace in Windows PowerShell adds the default module folders to the
+            # (process-wide) PSModulePath; the action, and this session afterwards, must still use ours.
+            $text | Should -Contain "PSModulePath: $pathBefore"
+            $env:PSModulePath | Should -Be $pathBefore
             $text | Should -Contain 'Modules: MMAlpha,MMBeta,MMDependent,MMGamma'
             # The UI session's loaded modules (including ModuleManager itself) were passed in.
             $text | Should -Contain 'Loaded passed in: 1'

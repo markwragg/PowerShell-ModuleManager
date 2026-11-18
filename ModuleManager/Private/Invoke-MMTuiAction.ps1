@@ -34,12 +34,18 @@ function Invoke-MMTuiAction {
     }
     # No host: Write-Host goes to the information stream, and progress to Streams.Progress,
     # instead of drawing over the UI.
+    # Some PowerShell 7 versions add the default module folders to PSModulePath when a runspace
+    # opens. The variable is shared by the whole process, so put back the path this session uses,
+    # both here and in the runspace before it does anything.
+    $modulePathVariable = $env:PSModulePath
     $runspace = [runspacefactory]::CreateRunspace($iss)
     $runspace.Open()
+    $env:PSModulePath = $modulePathVariable
     $ps = [powershell]::Create()
     $ps.Runspace = $runspace
     [void]$ps.AddScript({
-            param($ModulePath, $ActionText, $Data, $Options, $Loaded, $Gallery)
+            param($ModulePath, $ActionText, $Data, $Options, $Loaded, $Gallery, $PSModulePathValue)
+            $env:PSModulePath = $PSModulePathValue
             $module = Import-Module -Name $ModulePath -Force -PassThru -ErrorAction Stop
             & $module {
                 param($Loaded, $Gallery)
@@ -49,7 +55,7 @@ function Invoke-MMTuiAction {
             & $module ([scriptblock]::Create($ActionText)) $Data $Options *>&1
         }.ToString()).
         AddArgument($modulePath).AddArgument($Action.ToString()).AddArgument($Data).AddArgument($State.Options).
-        AddArgument($loaded).AddArgument($script:MMGalleryCache.Clone())
+        AddArgument($loaded).AddArgument($script:MMGalleryCache.Clone()).AddArgument($modulePathVariable)
 
     $output = [System.Management.Automation.PSDataCollection[psobject]]::new()
     $State.Log.Clear()

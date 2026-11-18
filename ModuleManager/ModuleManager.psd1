@@ -30,7 +30,7 @@ CompanyName = 'wragg.io'
 Copyright = '(c) 2026 Mark Wragg. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A PowerShell module for understanding and managing your installed PowerShell modules: compare installed versions with the latest in the gallery, see where every version is installed, and update, uninstall or clean up old versions from the command line or an interactive terminal UI.'
+Description = 'Understand and manage your installed PowerShell modules from the command line or a cross-platform terminal UI (modman). See every installed version and where it lives, check for updates in parallel, and update, uninstall or clean up old versions. Dependency-aware: it will not remove versions other modules need (such as those the Az rollup pins), updates dependencies first, and warns when a loaded module is too old. Works with PSResourceGet or PowerShellGet on Windows PowerShell 5.1 and PowerShell 7 on Windows, Linux and macOS.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '5.1'
@@ -69,7 +69,7 @@ FormatsToProcess = @('ModuleManager.Format.ps1xml')
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','Uninstall-OldModuleVersion','Show-ModuleManager','Uninstall-ManagedModule','Update-ManagedModule')
+FunctionsToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','Show-ModuleManager','Uninstall-ManagedModule','Uninstall-OldModuleVersion','Update-ManagedModule')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
@@ -95,7 +95,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = 'Module','Management','Update','Uninstall','TUI','PSResourceGet','PowerShellGet','Windows','Linux','MacOS'
+        Tags = 'Module','ModuleManagement','Update','Uninstall','Cleanup','OldVersions','Dependencies','Az','TUI','TerminalUI','modman','PSResourceGet','PowerShellGet','PSEdition_Core','PSEdition_Desktop','Windows','Linux','MacOS'
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/markwragg/PowerShell-ModuleManager/blob/main/LICENSE'
