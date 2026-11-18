@@ -1,5 +1,7 @@
 # PowerShell-ModuleManager
 
+[<img src="modulemanager-logo.png" align="right" width="100">](https://www.powershellgallery.com/packages/modulemanager)
+
 [![Build Status](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml/badge.svg)](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml)
 ![coverage](https://img.shields.io/badge/coverage-0%25-red.svg)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/ModuleManager?label=PS%20Gallery)](https://www.powershellgallery.com/packages/ModuleManager)
