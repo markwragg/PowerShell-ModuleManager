@@ -27,6 +27,9 @@ function Get-MMInstalledVersion {
         $moduleDirs = @()
         try { $moduleDirs = [IO.Directory]::GetDirectories($root.Path) }
         catch { Write-Verbose "Cannot read $($root.Path): $($_.Exception.Message)"; continue }
+        # Folder order is alphabetical on Windows but unspecified on Linux, so sort it to give the
+        # same output (and the same order in messages) everywhere.
+        [Array]::Sort($moduleDirs, [StringComparer]::OrdinalIgnoreCase)
 
         foreach ($moduleDir in $moduleDirs) {
             $moduleName = [IO.Path]::GetFileName($moduleDir)
@@ -48,6 +51,8 @@ function Get-MMInstalledVersion {
             if ($versions.Count) {
                 # Only the newest version's description/author/dependencies are shown or used,
                 # so older versions get a lighter read (just the prerelease label).
+                # Oldest first, by version rather than folder name (so 9.0 comes before 10.0).
+                $versions.Sort([Comparison[object]] { param($a, $b) $a[0].CompareTo($b[0]) })
                 foreach ($v in $versions) {
                     New-MMInstalledVersion -Name $moduleName -FolderVersion $v[0] -ModuleBase $v[1] `
                         -ManifestPath $v[2] -Root $root -Loaded $loaded -Full ($v[0] -eq $highest)

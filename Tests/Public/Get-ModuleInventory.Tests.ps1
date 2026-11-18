@@ -22,6 +22,20 @@ Describe 'Get-ModuleInventory' {
         $alpha.PSObject.TypeNames | Should -Contain 'ModuleManager.ModuleInfo'
     }
 
+    It 'Scans modules in name order, and versions in version order, on every platform' {
+        # Folder order is unspecified on Linux; 10.0 before 9.0 would also show a text sort.
+        New-FakeModule $UserRoot 'mmOrder' '10.0' | Out-Null
+        New-FakeModule $UserRoot 'mmOrder' '9.0' | Out-Null
+        New-FakeModule $UserRoot 'MMAardvark' '1.0' | Out-Null
+        try {
+            $scanned = @(InModuleScope ModuleManager { Get-MMInstalledVersion -Name 'MMAardvark', 'MMAlpha', 'mmOrder' -Scope CurrentUser, Other })
+            @($scanned | ForEach-Object { "$($_.Name) $($_.Version)" }) | Should -Be @(
+                'MMAardvark 1.0', 'MMAlpha 1.0.0', 'MMAlpha 1.1.0', 'MMAlpha 2.0.0-beta1', 'mmOrder 9.0', 'mmOrder 10.0', 'MMAlpha 0.9'
+            )
+        }
+        finally { Reset-FakeModules }
+    }
+
     It 'Ignores commented-out manifest keys' {
         (Get-ModuleInventory MMGamma).Prerelease | Should -BeNullOrEmpty
     }
