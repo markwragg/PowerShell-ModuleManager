@@ -1,7 +1,7 @@
 # PowerShell-ModuleManager
 
 [![Build Status](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml/badge.svg)](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml)
-![coverage](https://img.shields.io/badge/coverage-0%25-red.svg)
+![coverage](https://img.shields.io/badge/coverage-70%25-orange.svg)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/ModuleManager?label=PS%20Gallery)](https://www.powershellgallery.com/packages/ModuleManager)
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/ModuleManager?color=D3D3D3)](https://www.powershellgallery.com/packages/ModuleManager)
 
