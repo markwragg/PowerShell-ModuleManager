@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <ViewDefinitions>
+
+    <View>
+      <Name>ModuleManager.ModuleInfo</Name>
+      <ViewSelectedBy>
+        <TypeName>ModuleManager.ModuleInfo</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Name</Label><Width>36</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Version</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>#</Label><Width>3</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Scope</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Repository</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Loaded</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Path</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Version</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>VersionCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Scope</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.Repository) { $_.Repository } else { '(manual)' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.IsLoaded) { 'yes' } else { '' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Path</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>ModuleManager.ModuleUpdate</Name>
+      <ViewSelectedBy>
+        <TypeName>ModuleManager.ModuleUpdate</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Name</Label><Width>36</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Installed</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Latest</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>#</Label><Width>3</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Scope</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Repository</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>InstalledVersion</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>LatestVersion</PropertyName></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  $s = $_.Status
+                  $style = $null
+                  if (Get-Variable -Name PSStyle -ErrorAction Ignore) {
+                    switch ($s) {
+                      'UpdateAvailable' { $style = $PSStyle.Foreground.BrightYellow }
+                      'UpToDate'        { $style = $PSStyle.Foreground.BrightGreen }
+                      'LocalNewer'      { $style = $PSStyle.Foreground.BrightCyan }
+                      'Error'           { $style = $PSStyle.Foreground.BrightRed }
+                      'NotInRepository' { $style = $PSStyle.Foreground.BrightBlack }
+                    }
+                  }
+                  if ($style) { "$style$s$($PSStyle.Reset)" } else { $s }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><PropertyName>VersionCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Scope</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Repository</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>ModuleManager.InstalledVersion</Name>
+      <ViewSelectedBy>
+        <TypeName>ModuleManager.InstalledVersion</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Name</Label><Width>32</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Version</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Scope</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Repository</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Loaded</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>ModuleBase</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Version</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Scope</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.Repository) { $_.Repository } else { '(manual)' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.IsLoaded) { 'yes' } else { '' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>ModuleBase</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>ModuleManager.ModuleRoot</Name>
+      <ViewSelectedBy>
+        <TypeName>ModuleManager.ModuleRoot</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Order</Label><Width>5</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Scope</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Modules</Label><Width>7</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Versions</Label><Width>8</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>SizeMB</Label><Width>8</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Path</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Order</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Scope</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Modules</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Versions</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>SizeMB</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.Exists) { $_.Path } else { "$($_.Path) (missing)" }</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+  </ViewDefinitions>
+</Configuration>
