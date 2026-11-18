@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.1.1] - 2026-11-18
 
 * Fixed the terminal UI showing several "Failed" lines for one failed update.
 * Fixed the checkbox and version running together in the terminal UI's details view.
