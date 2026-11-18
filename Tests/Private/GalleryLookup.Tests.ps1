@@ -1,9 +1,12 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '..\TestHelpers.ps1')
-    # Load the package managers while PSModulePath is still the real one, so their commands can be mocked.
-    Import-Module Microsoft.PowerShell.PSResourceGet, PowerShellGet -ErrorAction SilentlyContinue
+    # These tests mock the package managers' commands, so the real modules must be loaded and visible from
+    # inside the module under test. -Global matters: the build runs Pester from within psake (a module), and a
+    # plain Import-Module would land in psake's scope, out of sight of InModuleScope ModuleManager.
+    Import-Module Microsoft.PowerShell.PSResourceGet, PowerShellGet -Global -ErrorAction SilentlyContinue
     Initialize-MMTestEnvironment
-    Reset-FakeModules
+    # No Reset-FakeModules here: nothing below needs the fake module tree, and pointing PSModulePath at it
+    # would hide the package managers from command lookup and from the lookup runspaces.
 }
 
 AfterAll {
