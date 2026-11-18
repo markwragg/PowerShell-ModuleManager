@@ -39,6 +39,13 @@ function Request-MMTuiUpdate {
                 if ($m.UpdatedAsDependencyOf) { $note = "  (dependency of $($m.UpdatedAsDependencyOf))"; $asDependency++ }
                 Write-Host "  Updated  $($m.Name) $($m.Version)$note" -ForegroundColor Green
             }
+            # -ErrorVariable also collects errors that were caught along the way (such as the
+            # package manager's own error behind each 'Failed to update' error), so report the
+            # module's own errors, or else each distinct message once.
+            $failed = @($failed | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
+            $own = @($failed | Where-Object { $_.FullyQualifiedErrorId -like 'ModuleManager.*' })
+            if ($own) { $failed = $own }
+            else { $failed = @($failed | Group-Object -Property { $_.Exception.Message } | ForEach-Object { $_.Group[0] }) }
             foreach ($e in $failed) { Write-Host "  Failed   $($e.Exception.Message)" -ForegroundColor Red }
             $summary = "$($updated.Count) updated"
             if ($asDependency) { $summary += " ($asDependency as dependencies)" }

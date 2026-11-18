@@ -81,4 +81,77 @@ Describe 'Get-MMTuiFrame' {
             $s.LogScroll | Should -Be (40 - $s.LogBody)
         }
     }
+
+    It 'Shows module families, the repository check, and scrolls to keep the cursor in view' {
+        Add-FakeFamily
+        try {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                foreach ($n in 'MMRoll.Core', 'MMRoll.Extra') { ($s.Rows | Where-Object Name -EQ $n).Status = 'UpdateAvailable' }
+                ($s.Rows | Where-Object Name -EQ 'MMAlpha').Info.IsLoaded = $true
+                Update-MMTuiVisible $s
+                $s.Job = [pscustomobject]@{ Done = 3; Total = 9 }
+                $plain = (Get-MMTuiFrame $s 110 20) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+                $plain | Should -Match 'MMRoll \(\+2\)'
+                $plain | Should -Match '2 updates'
+                $plain | Should -Match 'Checking repositories 3/9'
+                $plain | Should -Match 'MMAlpha \*'
+
+                $s.Expanded['mmroll'] = $true
+                Update-MMTuiVisible $s
+                $plain = (Get-MMTuiFrame $s 110 20) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+                $plain | Should -Match "$($script:MMGlyph.LastBranch) MMRoll\.Extra"
+
+                # A short screen: moving to the end scrolls down, and back to the top scrolls up.
+                Set-MMTuiCursor $s ($s.Visible.Count - 1)
+                $null = Get-MMTuiFrame $s 110 8
+                $s.Top | Should -BeGreaterThan 0
+                Set-MMTuiCursor $s 0
+                $null = Get-MMTuiFrame $s 110 8
+                $s.Top | Should -Be 0
+            }
+        }
+        finally { Reset-FakeModules }
+    }
+
+    It 'Says when nothing matches, and shows the confirmation prompt' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s
+            $s.Filter = 'no such module'
+            Update-MMTuiVisible $s
+            $s.Mode = 'confirm'
+            $s.Confirm = @{ Prompt = 'Uninstall everything?'; ReturnMode = 'list' }
+            $plain = (Get-MMTuiFrame $s 100 15) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match 'No modules match'
+            $plain | Should -Match 'Uninstall everything\? \[y/N\]'
+        }
+    }
+
+    It 'Shows the details of a module, with selected and loaded versions' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s
+            $row = $s.Rows | Where-Object Name -EQ 'MMAlpha'
+            $row.Latest = '2.0.0'
+            $row.Result = [pscustomobject]@{ Repository = 'PSGallery' }
+            $installs = @($row.Info.Installations)
+            $installs[1].IsLoaded = $true
+            $s.Detail = $row
+            $s.Mode = 'confirm'
+            $s.Confirm = @{ Prompt = 'Uninstall MMAlpha 1.1.0?'; ReturnMode = 'details' }
+            $s.DSelected[$installs[1].ModuleBase] = $true
+            $s.DCursor = 3
+            $plain = (Get-MMTuiFrame $s 120 9) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match 'latest in PSGallery: 2\.0\.0'
+            $plain | Should -Match '\(manual\)'
+            $s.DTop | Should -BeGreaterThan 0
+            $s.DCursor = 0
+            $plain = (Get-MMTuiFrame $s 120 30) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match '\[x\] 1\.1\.0'
+            $plain | Should -Match 'yes'
+            $s.DTop | Should -Be 0
+        }
+    }
 }

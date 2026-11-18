@@ -90,12 +90,18 @@ $script:MMLookupScript = {
                     if (-not $d) { continue }
                     if ($Backend -eq 'PSResourceGet') { "$($d.Name)|$($d.VersionRange)" }
                     else {
+                        # PowerShellGet gives a hashtable per dependency, with only the keys that apply.
+                        $v = @{}
+                        foreach ($k in 'Name', 'RequiredVersion', 'MinimumVersion', 'MaximumVersion') {
+                            if ($d -is [System.Collections.IDictionary]) { $v[$k] = $d[$k] }
+                            elseif ($d.PSObject.Properties[$k]) { $v[$k] = $d.$k }
+                        }
                         $range = ''
-                        if ($d.RequiredVersion) { $range = "[$($d.RequiredVersion)]" }
-                        elseif ($d.MinimumVersion -and $d.MaximumVersion) { $range = "[$($d.MinimumVersion), $($d.MaximumVersion)]" }
-                        elseif ($d.MinimumVersion) { $range = "[$($d.MinimumVersion), )" }
-                        elseif ($d.MaximumVersion) { $range = "(, $($d.MaximumVersion)]" }
-                        "$($d.Name)|$range"
+                        if ($v.RequiredVersion) { $range = "[$($v.RequiredVersion)]" }
+                        elseif ($v.MinimumVersion -and $v.MaximumVersion) { $range = "[$($v.MinimumVersion), $($v.MaximumVersion)]" }
+                        elseif ($v.MinimumVersion) { $range = "[$($v.MinimumVersion), )" }
+                        elseif ($v.MaximumVersion) { $range = "(, $($v.MaximumVersion)]" }
+                        "$($v.Name)|$range"
                     }
                 })
 

@@ -1,5 +1,10 @@
 # Change Log
 
+## !Deploy
+
+* Fixed the terminal UI showing several "Failed" lines for one failed update.
+* Fixed the checkbox and version running together in the terminal UI's details view.
+
 ## [0.1.0] - 2026-11-18
 
 * Initial version: `Get-ModuleInventory`, `Get-ModuleUpdate`, `Get-ModuleLocation`, `Update-ManagedModule`, `Uninstall-ManagedModule`, `Uninstall-OldModuleVersion` and the `Show-ModuleManager` terminal UI (alias `modman`).

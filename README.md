@@ -34,17 +34,29 @@ Install-PSResource ModuleManager
 
 ## Quick start
 
+Interactive UI (Alias: `modman`):
+
 ```powershell
-Show-ModuleManager          # interactive UI (alias: modman)
+Show-ModuleManager
 ```
 
 ![alt text](/Media/Show-ModuleManager.png)
 
+See what can be updated:
+
 ```powershell
-Get-ModuleUpdate -Outdated  # what can be updated?
+Get-ModuleUpdate -Outdated
 ```
-
-
+```plaintext
+Name                                 Installed        Latest           Status             # Scope        Repository
+----                                 ---------        ------           ------             - -----        ----------
+AIShell                              1.0.3-preview3   1.0.8-preview8   UpdateAvailable    1 CurrentUser  PSGallery
+Assert                               0.9.5            0.9.7            UpdateAvailable    1 CurrentUser  PSGallery
+AWSPowerShell.NetCore                4.1.842          5.0.338          UpdateAvailable    1 CurrentUser  PSGallery
+Az                                   13.2.0           17.0.0           UpdateAvailable    9 CurrentUser  PSGallery
+Az.Accounts                          5.4.0            5.5.5            UpdateAvailable   23 CurrentUser  PSGallery
+...
+```
 
 ## Cmdlets
 
@@ -64,9 +76,17 @@ All of these accept wildcards and pipeline input:
 
 ```powershell
 Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -WhatIf
+```
+```powershell
 Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
+```
+```powershell
 Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
+```
+```powershell
 Get-ModuleLocation -Summary -IncludeSize
+```
+```powershell
 Uninstall-OldModuleVersion Az.* -WhatIf
 ```
 
@@ -169,7 +189,6 @@ and [Pester](https://pester.dev). To install the build dependencies and run the 
 ./Build/build.ps1 -TaskList 'CombineFunctionsAndStage', 'Analyze', 'Test'
 ```
 
-The unit tests build fake module trees in a temporary folder and point `PSModulePath` at them. They never
-touch your real modules or the network.
+The unit tests build fake module trees in a temporary folder and point `PSModulePath` at them. They never touch your real modules or the network.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how releases are deployed.

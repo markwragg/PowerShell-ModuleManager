@@ -103,7 +103,7 @@ function Show-ModuleManager {
         [int]$ThrottleLimit = 16
     )
 
-    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+    if (-not (Test-MMInteractiveConsole)) {
         throw 'Show-ModuleManager needs an interactive console. Use Get-ModuleInventory or Get-ModuleUpdate instead.'
     }
 
@@ -135,11 +135,12 @@ function Show-ModuleManager {
                     $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true
                 }
             }
-            if ([Console]::WindowWidth - 1 -ne $state.Width -or [Console]::WindowHeight -ne $state.Height) { $dirty = $true }
+            $size = Get-MMConsoleSize
+            if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) { $dirty = $true }
             if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
 
-            if (-not [Console]::KeyAvailable) { Start-Sleep -Milliseconds 30; continue }
-            $key = [Console]::ReadKey($true)
+            $key = Read-MMTuiKey
+            if ($null -eq $key) { Start-Sleep -Milliseconds 30; continue }
             Invoke-MMTuiKey -State $state -Key $key
             Update-MMTuiVisible $state
             $dirty = $true

@@ -25,8 +25,8 @@ function Add-MMTuiDetailLines {
     }
     $Lines.Add((' ' * $Width))
 
-    $cols = @{ Sel = 4; Version = 18; Scope = 12; Repo = 12; Date = 11; Loaded = 7 }
-    $cols.Path = [Math]::Max(10, $Width - 4 - 18 - 12 - 12 - 11 - 7)
+    $cols = @{ Sel = 5; Version = 18; Scope = 12; Repo = 12; Date = 11; Loaded = 7 }
+    $cols.Path = [Math]::Max(10, $Width - 5 - 18 - 12 - 12 - 11 - 7)
     $Lines.Add((Format-MMTuiLine @(
                 , @((Format-MMCell '' $cols.Sel), $null)
                 , @((Format-MMCell 'Version' $cols.Version), 'Header')

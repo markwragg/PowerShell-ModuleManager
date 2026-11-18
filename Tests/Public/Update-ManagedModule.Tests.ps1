@@ -114,4 +114,63 @@ Describe 'Update-ManagedModule' {
             }
         }
     }
+
+    Context 'Modules it cannot update' {
+
+        BeforeEach {
+            Reset-FakeModules
+            Set-FakeGalleryCache
+        }
+
+        It 'Warns about modules it could not check, and says why it skips the rest' {
+            InModuleScope ModuleManager {
+                $hit = $script:MMGalleryCache[(Get-MMCacheKey 'MMGamma' 'PSGallery' $false)]
+                $hit.Status = 'Error'; $hit.Error = 'service unavailable'
+            }
+            $verbose = Update-ManagedModule MMBeta, MMDependent, MMGamma -Confirm:$false -Verbose -WarningVariable warnings -WarningAction SilentlyContinue 4>&1
+            $warnings | Should -HaveCount 1
+            $warnings[0] | Should -Match 'Could not check MMGamma in PSGallery: service unavailable'
+            ($verbose | Out-String) | Should -Match 'MMBeta was not found in PSGallery'
+            ($verbose | Out-String) | Should -Match 'MMDependent 1\.0\.0 is UpToDate'
+            Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 0 -Exactly
+        }
+
+        It 'Carries on after a failed install' {
+            Mock -ModuleName ModuleManager Invoke-MMInstall { throw 'network down' }
+            $errors = @()
+            Update-ManagedModule MMAlpha -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable errors
+            # -ErrorVariable also holds the caught errors behind it; the cmdlet's own error is the one to report.
+            $own = @($errors | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.FullyQualifiedErrorId -like 'ModuleManager.UpdateFailed*' })
+            $own | Should -HaveCount 1
+            $own[0].Exception.Message | Should -Match 'Failed to update MMAlpha: network down'
+        }
+
+        It 'Needs elevation to update a module installed for all users' {
+            Mock -ModuleName ModuleManager Get-MMScope { 'AllUsers' }
+            Mock -ModuleName ModuleManager Test-MMIsAdmin { $false }
+            $errors = @()
+            Update-ManagedModule MMAlpha -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable errors
+            $errors[0].FullyQualifiedErrorId | Should -BeLike 'ModuleManager.RequiresElevation*'
+            Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 0 -Exactly
+        }
+
+        It 'Installs for the current user when the existing version is somewhere else' {
+            Mock -ModuleName ModuleManager Get-MMScope { 'Other' }
+            Update-ManagedModule MMAlpha -Confirm:$false
+            Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 1 -ParameterFilter { $Scope -eq 'CurrentUser' }
+        }
+
+        It 'Warns that a loaded module needs a new session to use the update' {
+            $base = Join-Path (Join-Path $script:UserRoot 'MMAlpha') '2.0.0'
+            InModuleScope ModuleManager -Parameters @{ Base = $base } {
+                $script:MMLoadedModule = @([pscustomobject]@{ Name = 'MMAlpha'; Version = [version]'2.0.0'; ModuleBase = $Base; PrivateData = $null })
+            }
+            try {
+                Update-ManagedModule MMAlpha -Confirm:$false -WarningVariable warnings -WarningAction SilentlyContinue
+                $warnings | Should -HaveCount 1
+                $warnings[0] | Should -Match 'MMAlpha is loaded in this session'
+            }
+            finally { InModuleScope ModuleManager { $script:MMLoadedModule = $null } }
+        }
+    }
 }

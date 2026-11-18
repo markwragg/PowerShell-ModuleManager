@@ -55,4 +55,39 @@ Describe 'Uninstall-OldModuleVersion' {
             (Get-ModuleInventory MMRoll.Core).Versions | Should -Be @('3.0.0')
         }
     }
+
+    Context 'Versions it skips' {
+
+        It 'Only removes versions in the given -Scope' {
+            Mock -ModuleName ModuleManager Get-MMScope { if ($Path -like '*other*') { 'Other' } else { 'CurrentUser' } }
+            $removed = @(Uninstall-OldModuleVersion MMAlpha -Scope Other -Confirm:$false -PassThru)
+            @($removed | ForEach-Object { $_.Version }) | Should -Be @('0.9')
+            (Get-ModuleInventory MMAlpha).VersionCount | Should -Be 3
+        }
+
+        It 'Never removes versions that ship with PowerShell' {
+            Mock -ModuleName ModuleManager Get-MMScope { if ($Path -like '*other*') { 'System' } else { 'CurrentUser' } }
+            Uninstall-OldModuleVersion -Confirm:$false
+            Test-Path (Join-Path (Join-Path $script:OtherRoot 'MMAlpha') '0.9') | Should -BeTrue
+            (Get-ModuleInventory MMAlpha).Versions | Should -Be @('2.0.0-beta1')
+        }
+
+        It 'Skips loaded versions, with a warning, unless -Force is used' {
+            $base = Join-Path (Join-Path $script:UserRoot 'MMAlpha') '1.0.0'
+            InModuleScope ModuleManager -Parameters @{ Base = $base } {
+                $script:MMLoadedModule = @([pscustomobject]@{ Name = 'MMAlpha'; Version = [version]'1.0.0'; ModuleBase = $Base; PrivateData = $null })
+            }
+            try {
+                Mock -ModuleName ModuleManager Remove-Module { }
+                Uninstall-OldModuleVersion MMAlpha -Confirm:$false -WarningVariable warnings -WarningAction SilentlyContinue
+                $warnings | Should -HaveCount 1
+                $warnings[0] | Should -Match 'Skipping MMAlpha 1\.0\.0: it is loaded'
+                Test-Path $base | Should -BeTrue
+
+                Uninstall-OldModuleVersion MMAlpha -Force -Confirm:$false
+                Test-Path $base | Should -BeFalse
+            }
+            finally { InModuleScope ModuleManager { $script:MMLoadedModule = $null } }
+        }
+    }
 }

@@ -16,4 +16,8 @@
     psake            = '4.7.4'
     PSDeploy         = '1.0.1'
     PSScriptAnalyzer = '1.25.0'
+
+    # Not used by the build, but the tests mock its commands, so it must be installed
+    # (Windows PowerShell doesn't include it).
+    'Microsoft.PowerShell.PSResourceGet' = '1.3.1'
 }
