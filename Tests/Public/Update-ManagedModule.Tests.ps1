@@ -107,9 +107,9 @@ Describe 'Update-ManagedModule' {
         }
 
         It 'Removes old versions once, after all updates, keeping versions still pinned' {
-            Mock -ModuleName ModuleManager Remove-OldModuleVersion {}
+            Mock -ModuleName ModuleManager Uninstall-OldModuleVersion {}
             Update-ManagedModule MMRoll, MMRoll.Core -RemoveOldVersions -Confirm:$false
-            Should -Invoke -ModuleName ModuleManager Remove-OldModuleVersion -Times 1 -Exactly -ParameterFilter {
+            Should -Invoke -ModuleName ModuleManager Uninstall-OldModuleVersion -Times 1 -Exactly -ParameterFilter {
                 ($Name | Sort-Object) -join ',' -eq 'MMRoll,MMRoll.Core'
             }
         }

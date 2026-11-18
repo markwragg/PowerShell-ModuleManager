@@ -46,7 +46,7 @@ Get-ModuleUpdate -Outdated  # what can be updated?
 | `Get-ModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
 | `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). Supports `-WhatIf` and `-Confirm`. |
-| `Remove-OldModuleVersion` | Keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
+| `Uninstall-OldModuleVersion` | Keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
 | `Show-ModuleManager` | The terminal UI. |
 
 See the [Documentation](/Documentation/) folder for full help on each cmdlet.
@@ -58,7 +58,7 @@ Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -WhatIf
 Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
 Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
 Get-ModuleLocation -Summary -IncludeSize
-Remove-OldModuleVersion Az.* -WhatIf
+Uninstall-OldModuleVersion Az.* -WhatIf
 ```
 
 ## Terminal UI
@@ -136,9 +136,9 @@ entries in the manifest. This matters for families like Az: the `Az` rollup modu
 every `Az.*` module, and the `Az.*` modules need a minimum version of `Az.Accounts`.
 
 - **Removing.** `Uninstall-ManagedModule` refuses to remove a version that a module staying installed needs, and
-  `Remove-OldModuleVersion` keeps such versions, with one warning (details with `-Verbose`). For example, old
+  `Uninstall-OldModuleVersion` keeps such versions, with one warning (details with `-Verbose`). For example, old
   `Az.*` versions are kept while the `Az` version that pins them is installed. Remove them together with
-  `Remove-OldModuleVersion Az, Az.*`.
+  `Uninstall-OldModuleVersion Az, Az.*`.
 - **Updating.** `Update-ManagedModule` updates dependencies first (`Az.Accounts`, then `Az.*`, then `Az`). If an
   update installs another module as a dependency, that module is skipped later in the same run, and `-PassThru`
   shows it with `UpdatedAsDependencyOf`. `-RemoveOldVersions` runs once at the end, so an old rollup and the

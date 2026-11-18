@@ -17,8 +17,8 @@ Describe "ModuleManager Module Tests PS$PSVersion" {
     It 'Should export only the public functions and the modman alias' {
         $exported = (Get-Module $Module).ExportedCommands.Keys | Sort-Object
         $exported | Should -Be @(
-            'Get-ModuleInventory', 'Get-ModuleLocation', 'Get-ModuleUpdate', 'modman', 'Remove-OldModuleVersion',
-            'Show-ModuleManager', 'Uninstall-ManagedModule', 'Update-ManagedModule'
+            'Get-ModuleInventory', 'Get-ModuleLocation', 'Get-ModuleUpdate', 'modman', 'Show-ModuleManager',
+            'Uninstall-ManagedModule', 'Uninstall-OldModuleVersion', 'Update-ManagedModule'
         )
     }
 }

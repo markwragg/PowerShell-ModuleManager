@@ -13,7 +13,7 @@ function Request-MMTuiRemoveOld {
         param($State, $Data)
         Invoke-MMTuiAction $State "Removing old versions of $($Data.Names.Count) module(s)" -Data $Data -Action {
             param($Data)
-            Remove-OldModuleVersion -Name $Data.Names -Keep 1 -Confirm:$false -Verbose
+            Uninstall-OldModuleVersion -Name $Data.Names -Keep 1 -Confirm:$false -Verbose
         } -OnComplete {
             param($State)
             foreach ($r in $State.Rows) { $r.Selected = $false }

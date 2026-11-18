@@ -1,4 +1,4 @@
-# Remove-OldModuleVersion
+# Uninstall-OldModuleVersion
 
 ## SYNOPSIS
 Removes older versions of modules, keeping only the newest.
@@ -6,7 +6,7 @@ Removes older versions of modules, keeping only the newest.
 ## SYNTAX
 
 ```
-Remove-OldModuleVersion [[-Name] <String[]>] [-Keep <Int32>] [-Scope <String[]>] [-Force] [-PassThru]
+Uninstall-OldModuleVersion [[-Name] <String[]>] [-Keep <Int32>] [-Scope <String[]>] [-Force] [-PassThru]
  [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
@@ -28,14 +28,14 @@ confirmation by default.
 
 ### EXAMPLE 1
 ```
-Remove-OldModuleVersion -WhatIf
+Uninstall-OldModuleVersion -WhatIf
 ```
 
 Previews which old versions would be removed.
 
 ### EXAMPLE 2
 ```
-Remove-OldModuleVersion Pester -Keep 2 -Confirm:$false
+Uninstall-OldModuleVersion Pester -Keep 2 -Confirm:$false
 ```
 
 Keeps the two newest versions of Pester and removes the rest, without prompting.

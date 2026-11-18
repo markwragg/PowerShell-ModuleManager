@@ -1,4 +1,4 @@
-function Remove-OldModuleVersion {
+function Uninstall-OldModuleVersion {
     <#
     .SYNOPSIS
         Removes older versions of modules, keeping only the newest.
@@ -31,12 +31,12 @@ function Remove-OldModuleVersion {
         Output an object for each version that was removed.
 
     .EXAMPLE
-        Remove-OldModuleVersion -WhatIf
+        Uninstall-OldModuleVersion -WhatIf
 
         Previews which old versions would be removed.
 
     .EXAMPLE
-        Remove-OldModuleVersion Pester -Keep 2 -Confirm:$false
+        Uninstall-OldModuleVersion Pester -Keep 2 -Confirm:$false
 
         Keeps the two newest versions of Pester and removes the rest, without prompting.
     #>

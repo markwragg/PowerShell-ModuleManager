@@ -191,7 +191,7 @@ function Update-ManagedModule {
             # depend on each other (an old Az rollup and the Az.* versions it pins) go together.
             if ($RemoveOldVersions -and $updated.Count) {
                 Write-Progress -Activity $activity -Status 'Removing old versions' -PercentComplete 100
-                Remove-OldModuleVersion -Name @($updated.Keys) -Keep 1 -Confirm:$false -WhatIf:$false
+                Uninstall-OldModuleVersion -Name @($updated.Keys) -Keep 1 -Confirm:$false -WhatIf:$false
             }
         }
         finally { Write-Progress -Activity $activity -Completed }
