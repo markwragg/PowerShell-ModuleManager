@@ -24,7 +24,7 @@ The module is published in the PowerShell Gallery, so if you have PowerShell 5.1
 Install-Module ModuleManager
 ```
 
-Or
+Or:
 
 ```powershell
 Install-PSResource ModuleManager
@@ -34,8 +34,15 @@ Install-PSResource ModuleManager
 
 ```powershell
 Show-ModuleManager          # interactive UI (alias: modman)
+```
+
+![alt text](/Media/Show-ModuleManager.png)
+
+```powershell
 Get-ModuleUpdate -Outdated  # what can be updated?
 ```
+
+
 
 ## Cmdlets
 
