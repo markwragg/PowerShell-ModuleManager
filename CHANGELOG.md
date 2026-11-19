@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.1.2] - 2026-11-19
 
 * [feature] The terminal UI can uninstall loaded modules: when some of the versions being uninstalled or removed are loaded, the confirmation offers f to unload them from the session first. Modules that use .NET assemblies, ModuleManager itself and the package manager are skipped with the reason, as they can't be unloaded safely.
 * [feature] Versions selected in the terminal UI's details view stay selected when you go back to the list, so you can select versions of several modules and uninstall them together with X. The title bar shows how many are selected, and the list marks modules with selected versions `[-]`.
