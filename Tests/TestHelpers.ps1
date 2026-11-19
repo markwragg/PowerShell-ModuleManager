@@ -118,8 +118,9 @@ function Reset-FakeModules {
 function Set-FakeModulePath {
     <#
         Points PSModulePath at the fake module tree again. PSModulePath is shared by the whole process,
-        and something in CI (PowerShell 7.6, not 7.7) adds the real module folders to it between
-        tests, so the tests then see CI's build modules. Says what was added, so it can be tracked down.
+        and PowerShell 7.6 (not 7.7) adds its default module folders back to it (seen in CI during
+        a test that only mocks commands, so likely command lookup), after which the tests see the
+        real modules. Warns with what was removed, so a new cause shows up in the test output.
     #>
     $fake = @($script:UserRoot, $script:OtherRoot) -join [IO.Path]::PathSeparator
     if ($env:PSModulePath -and $env:PSModulePath -ne $fake -and $env:PSModulePath -like "*$($script:UserRoot)*") {

@@ -276,10 +276,8 @@ Describe 'Terminal UI keys' {
 }
 
 Describe 'Terminal UI actions' {
-    BeforeEach { Set-FakeModulePath }
-
-
     BeforeEach {
+        Set-FakeModulePath
         # Run each action here rather than in a background runspace, so its code is covered.
         Mock -ModuleName ModuleManager Invoke-MMTuiAction {
             $State.Log.Clear()
@@ -489,10 +487,8 @@ Describe 'Terminal UI actions' {
 }
 
 Describe 'Uninstalling loaded modules' {
-    BeforeEach { Set-FakeModulePath }
-
-
     BeforeEach {
+        Set-FakeModulePath
         Mock -ModuleName ModuleManager Invoke-MMTuiAction {
             $State.Log.Clear()
             & $Action $Data $State.Options
