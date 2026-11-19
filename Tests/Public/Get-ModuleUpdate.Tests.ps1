@@ -20,6 +20,18 @@ Describe 'Get-ModuleUpdate' {
         ($u | Where-Object Name -EQ 'MMGamma').Status | Should -Be 'LocalNewer'
     }
 
+    It 'Reports modules unlisted from the repository as Unlisted' {
+        InModuleScope ModuleManager {
+            $script:MMGalleryCache[(Get-MMCacheKey 'MMBeta' 'PSGallery' $false)].Status = 'Unlisted'
+        }
+        try {
+            $u = Get-ModuleUpdate MMBeta
+            $u.Status | Should -Be 'Unlisted'
+            $u.LatestVersion | Should -BeNullOrEmpty
+        }
+        finally { Set-FakeGalleryCache }
+    }
+
     It 'Filters with -Outdated' {
         (Get-ModuleUpdate -Outdated).Name | Should -Be @('MMAlpha')
     }

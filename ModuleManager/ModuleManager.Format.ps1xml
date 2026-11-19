@@ -65,6 +65,7 @@
                       'LocalNewer'      { $style = $PSStyle.Foreground.BrightCyan }
                       'Error'           { $style = $PSStyle.Foreground.BrightRed }
                       'NotInRepository' { $style = $PSStyle.Foreground.BrightBlack }
+                      'Unlisted'        { $style = $PSStyle.Foreground.BrightMagenta }
                     }
                   }
                   if ($style) { "$style$s$($PSStyle.Reset)" } else { $s }

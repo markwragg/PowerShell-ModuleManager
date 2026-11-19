@@ -95,6 +95,7 @@ function Update-ManagedModule {
             switch ($u.Status) {
                 'UpdateAvailable' { $pending.Add($u) }
                 'NotInRepository' { Write-Verbose "$($u.Name) was not found in $($u.Repository); skipping." }
+                'Unlisted' { Write-Verbose "$($u.Name) has been unlisted from $($u.Repository); skipping." }
                 'Error' { Write-Warning "Could not check $($u.Name) in $($u.Repository): $($u.Error)" }
                 default { Write-Verbose "$($u.Name) $($u.InstalledVersion) is $($u.Status); skipping." }
             }

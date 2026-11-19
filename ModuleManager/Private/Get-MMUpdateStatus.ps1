@@ -7,6 +7,7 @@ function Get-MMUpdateStatus {
     if (-not $Result) { return 'Unknown' }
     switch ($Result.Status) {
         'NotFound' { return 'NotInRepository' }
+        'Unlisted' { return 'Unlisted' }
         'Error' { return 'Error' }
     }
     $c = Compare-MMVersion $Result.ModuleVersion $Result.PrereleaseLabel $Module.ModuleVersion $Module.Prerelease

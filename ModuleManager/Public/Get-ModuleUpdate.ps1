@@ -17,6 +17,8 @@ function Get-ModuleUpdate {
           UpToDate         The newest installed version matches the repository.
           LocalNewer       The installed version is newer than the repository version.
           NotInRepository  The module was not found in the repository.
+          Unlisted         The module is in the repository but its publisher has unlisted it
+                           (usually because it is deprecated), so it can't be updated.
           Error            The repository could not be queried.
 
     .PARAMETER Name

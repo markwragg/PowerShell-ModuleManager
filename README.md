@@ -78,7 +78,7 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 | Cmdlet | Synopsis |
 | --- | --- |
 | `Get-ModuleInventory` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. |
-| `Get-ModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository` or `Error`. |
+| `Get-ModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated) or `Error`. |
 | `Get-ModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
 | `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). Supports `-WhatIf` and `-Confirm`. |

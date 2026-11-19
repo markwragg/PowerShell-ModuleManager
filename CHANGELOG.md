@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy
+
+* [feature] Modules whose publisher has unlisted them from the repository (usually because they're deprecated, such as `Az.DeploymentManager`) are reported as `Unlisted` instead of `NotInRepository`, by `Get-ModuleUpdate` and in the terminal UI.
+
 ## [0.2.0] - 2026-11-19
 
 * [feature] The terminal UI can manage the modules on another computer: `modman -ComputerName Server01` (with optional `-Credential` and `-ConfigurationName`) or `modman -Session $session` (any transport, such as SSH). The UI runs locally and everything else runs remotely; ModuleManager is sent for the session, so it doesn't need to be installed there.

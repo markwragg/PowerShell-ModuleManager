@@ -62,12 +62,17 @@ function Start-MMGalleryLookup {
     foreach ($group in $groups) {
         $first = $group.Group[0]
         $names = @($group.Group | ForEach-Object { $_.Name })
+        $installed = @{}
+        foreach ($r in $group.Group) {
+            if ($r.PSObject.Properties['InstalledVersion'] -and $r.InstalledVersion) { $installed[$r.Name] = [string]$r.InstalledVersion }
+        }
         for ($i = 0; $i -lt $names.Count; $i += $BatchSize) {
             $chunk = @($names[$i..([Math]::Min($i + $BatchSize, $names.Count) - 1)])
             $ps = [powershell]::Create()
             $ps.RunspacePool = $pool
             [void]$ps.AddScript($script:MMLookupScript.ToString()).
-                AddArgument($chunk).AddArgument($first.Repository).AddArgument([bool]$first.Prerelease).AddArgument($backend)
+                AddArgument($chunk).AddArgument($first.Repository).AddArgument([bool]$first.Prerelease).AddArgument($backend).
+                AddArgument($installed)
             $job.Tasks.Add([pscustomobject]@{
                     PowerShell = $ps
                     Handle     = $ps.BeginInvoke()

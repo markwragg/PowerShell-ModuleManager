@@ -83,6 +83,39 @@ Describe 'The repository lookup script' {
                 (& $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PSResourceGet').Status | Should -Be 'NotFound'
             }
         }
+
+        It 'Reports Unlisted when only the installed version can be found' {
+            InModuleScope ModuleManager {
+                # Unlisted packages are hidden from a search by name, but found by exact version.
+                Mock Find-PSResource { }
+                Mock Find-PSResource {
+                    [pscustomobject]@{ Name = 'MMThing'; Version = [version]'1.1.0'; Prerelease = ''; PublishedDate = [datetime]'1900-01-01'; Dependencies = @() }
+                } -ParameterFilter { $Version -eq '1.1.0' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PSResourceGet' -Installed @{ MMThing = '1.1.0' }
+                $r.Status | Should -Be 'Unlisted'
+                $r.Version | Should -BeNullOrEmpty
+                $r.Error | Should -BeNullOrEmpty
+                Should -Invoke Find-PSResource -Times 1 -Exactly -ParameterFilter { $Version -eq '1.1.0' -and $Repository -eq 'PSGallery' }
+            }
+        }
+
+        It 'Reports NotFound when the installed version is not in the repository either' {
+            InModuleScope ModuleManager {
+                Mock Find-PSResource { throw "Package 'MMThing' could not be found" }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PSResourceGet' -Installed @{ MMThing = '1.1.0' }
+                $r.Status | Should -Be 'NotFound'
+                Should -Invoke Find-PSResource -Times 2 -Exactly
+            }
+        }
+
+        It "Doesn't look for the installed version when the search failed" {
+            InModuleScope ModuleManager {
+                Mock Find-PSResource { throw 'The remote server returned an error: (503)' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PSResourceGet' -Installed @{ MMThing = '1.1.0' }
+                $r.Status | Should -Be 'Error'
+                Should -Invoke Find-PSResource -Times 1 -Exactly
+            }
+        }
     }
 
     Context 'With PowerShellGet' {
@@ -109,6 +142,18 @@ Describe 'The repository lookup script' {
                 $r.Version | Should -Be $Expected
                 $r.PrereleaseLabel | Should -Be $Label
                 $r.Dependencies | Should -Be @('MMExact|[1.0.0]', 'MMRange|[1.0, 2.0]', 'MMMin|[1.5, )', 'MMMax|(, 4.0]', 'MMAny|')
+            }
+        }
+
+        It 'Reports Unlisted when only the installed version can be found' {
+            InModuleScope ModuleManager {
+                Mock Find-Module { throw "No match was found for the specified search criteria and module name 'MMThing'." }
+                Mock Find-Module {
+                    [pscustomobject]@{ Name = 'MMThing'; Version = '1.1.0'; PublishedDate = [datetime]'1900-01-01'; Dependencies = @() }
+                } -ParameterFilter { $RequiredVersion -eq '1.1.0' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' -Installed @{ MMThing = '1.1.0' }
+                $r.Status | Should -Be 'Unlisted'
+                $r.Error | Should -BeNullOrEmpty
             }
         }
     }
@@ -158,6 +203,22 @@ Describe 'Start-MMGalleryLookup, Receive-MMGalleryLookup and Wait-MMGalleryLooku
             $results | ForEach-Object { $_.Status | Should -BeIn 'NotFound', 'Error' }
             $job.Pool | Should -BeNullOrEmpty
             Test-MMGalleryLookupComplete -Job $job | Should -BeTrue
+        }
+    }
+
+    It 'Passes each module''s installed version to the lookup' {
+        InModuleScope ModuleManager {
+            $requests = @(
+                [pscustomobject]@{ Name = 'MMOne'; Repository = 'MMNoSuchRepository'; Prerelease = $false; InstalledVersion = '1.1.0' }
+                [pscustomobject]@{ Name = 'MMTwo'; Repository = 'MMNoSuchRepository'; Prerelease = $false }
+            )
+            $job = Start-MMGalleryLookup -Request $requests
+            try {
+                $installed = $job.Tasks[0].PowerShell.Commands.Commands[0].Parameters[4].Value
+                $installed['MMOne'] | Should -Be '1.1.0'
+                $installed.ContainsKey('MMTwo') | Should -BeFalse
+            }
+            finally { $null = Wait-MMGalleryLookup -Job $job }
         }
     }
 
@@ -269,12 +330,13 @@ Describe 'Package manager detection' {
         InModuleScope ModuleManager {
             $script:MMRepositories = @('PSGallery', 'Internal')
             $modules = @(
-                [pscustomobject]@{ Name = 'MMOne'; Repository = 'Internal'; Prerelease = $null }
-                [pscustomobject]@{ Name = 'MMTwo'; Repository = 'Gone'; Prerelease = 'beta' }
+                [pscustomobject]@{ Name = 'MMOne'; Repository = 'Internal'; Prerelease = $null; Version = '1.0.0' }
+                [pscustomobject]@{ Name = 'MMTwo'; Repository = 'Gone'; Prerelease = 'beta'; Version = '2.0.0-beta' }
                 [pscustomobject]@{ Name = 'MMThree'; Repository = $null; Prerelease = $null }
             )
             $r = @(New-MMLookupRequest -ModuleInfo $modules)
-            @($r | ForEach-Object { "$($_.Name) $($_.Repository) $($_.Prerelease)" }) | Should -Be @('MMOne Internal False', 'MMTwo PSGallery True', 'MMThree PSGallery False')
+            @($r | ForEach-Object { "$($_.Name) $($_.Repository) $($_.Prerelease) $($_.InstalledVersion)" }) |
+                Should -Be @('MMOne Internal False 1.0.0', 'MMTwo PSGallery True 2.0.0-beta', 'MMThree PSGallery False ')
             (New-MMLookupRequest -ModuleInfo $modules[0] -Repository 'Other' -IncludePrerelease).Repository | Should -Be 'Other'
         }
     }

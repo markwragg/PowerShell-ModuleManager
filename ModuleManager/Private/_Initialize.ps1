@@ -50,7 +50,7 @@ $script:MMRepositories = $null
 
 # Runs inside a background runspace, so it must be fully self-contained.
 $script:MMLookupScript = {
-    param([string[]]$Names, [string]$Repository, [bool]$Prerelease, [string]$Backend)
+    param([string[]]$Names, [string]$Repository, [bool]$Prerelease, [string]$Backend, [hashtable]$Installed)
 
     foreach ($n in $Names) {
         $found = $null
@@ -137,6 +137,32 @@ $script:MMLookupScript = {
         else {
             $status = 'NotFound'
             if ($message -and $message -notmatch 'could not be found|not found|No match|Unable to find') { $status = 'Error' }
+
+            # Unlisted packages (withdrawn by their publisher) are hidden from searches by name, but
+            # can still be found by exact version. Look for the installed version to tell them apart.
+            $installedVersion = $null
+            if ($Installed) { $installedVersion = [string]$Installed[$n] }
+            if ($status -eq 'NotFound' -and $installedVersion) {
+                $exact = $null
+                try {
+                    if ($Backend -eq 'PSResourceGet') {
+                        $exact = Microsoft.PowerShell.PSResourceGet\Find-PSResource -Name $n -Version $installedVersion `
+                            -Repository $Repository -Prerelease:($installedVersion -match '-') -ErrorAction Stop |
+                            Select-Object -First 1
+                    }
+                    else {
+                        $find = @{ Name = $n; RequiredVersion = $installedVersion; Repository = $Repository; ErrorAction = 'Stop' }
+                        if ($installedVersion -match '-' -and
+                            (Get-Command -Name PowerShellGet\Find-Module).Parameters.ContainsKey('AllowPrerelease')) {
+                            $find.AllowPrerelease = $true
+                        }
+                        $exact = PowerShellGet\Find-Module @find | Select-Object -First 1
+                    }
+                }
+                catch { $exact = $null }
+                if ($exact) { $status = 'Unlisted'; $message = $null }
+            }
+
             [pscustomobject]@{
                 RequestedName   = $n
                 Name            = $n
@@ -187,11 +213,12 @@ $script:MMStatusDisplay = @{
     UpToDate        = @('Up to date', 'Green')
     LocalNewer      = @('Newer than repo', 'Cyan')
     NotInRepository = @('Not in repo', 'Dim')
-    Error           = @('Lookup failed', 'Red')
+    Unlisted        = @('Unlisted', 'Magenta')
+    Error          = @('Lookup failed', 'Red')
     Checking        = @('Checking...', 'Dim')
     Unknown         = @('-', 'Dim')
 }
 
 $script:MMStatusSortOrder = @{
-    UpdateAvailable = 0; Error = 1; LocalNewer = 2; UpToDate = 3; NotInRepository = 4; Checking = 5; Unknown = 6
+    UpdateAvailable = 0; Error = 1; Unlisted = 2; LocalNewer = 3; UpToDate = 4; NotInRepository = 5; Checking = 6; Unknown = 7
 }
