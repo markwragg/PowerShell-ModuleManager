@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.2.1] - 2026-11-19
 
 * [feature] Modules whose publisher has unlisted them from the repository (usually because they're deprecated, such as `Az.DeploymentManager`) are reported as `Unlisted` instead of `NotInRepository`, by `Get-ModuleUpdate` and in the terminal UI.
 
