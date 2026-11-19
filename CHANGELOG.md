@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.2.0
+## [0.2.0] - 2026-11-19
 
 * [feature] The terminal UI can manage the modules on another computer: `modman -ComputerName Server01` (with optional `-Credential` and `-ConfigurationName`) or `modman -Session $session` (any transport, such as SSH). The UI runs locally and everything else runs remotely; ModuleManager is sent for the session, so it doesn't need to be installed there.
 * [feature] On Windows, the terminal UI can manage the other PowerShell edition's modules: `modman -Edition Desktop` from PowerShell 7 manages Windows PowerShell 5.1's modules, and `modman -Edition Core` from Windows PowerShell manages PowerShell 7's. It uses that edition's module paths and package manager, in a hidden process of that edition, without needing remoting set up.

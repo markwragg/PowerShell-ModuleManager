@@ -331,6 +331,8 @@ editions install modules into different folders and use their own package manage
 so scanning, repository checks, updates and uninstalls run in a hidden process of that
 edition, which closes when you quit.
 Windows only.
+Naming the edition this is runs it here,
+as without -Edition.
 
 ```yaml
 Type: String
@@ -345,7 +347,7 @@ Accept wildcard characters: False
 ```
 
 ### -ProgressAction
-{{ Fill ProgressAction Description }}
+{{Fill ProgressAction Description}}
 
 ```yaml
 Type: ActionPreference
@@ -360,7 +362,8 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
+For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
