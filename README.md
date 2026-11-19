@@ -92,6 +92,8 @@ Uninstall-OldModuleVersion Az.* -WhatIf
 
 ## Terminal UI
 
+![Demo of the ModuleManager terminal UI](/Media/modman.webp)
+
 ```
  ModuleManager  222 modules  |  151 updates  |  view: All  |  sort: Status    | / Updating 76 module(s) 41%
     Name                          Installed       Latest           #  Scope        Status
