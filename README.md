@@ -96,21 +96,21 @@ Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -WhatIf
 Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
 ```
 ```powershell
-Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
-```
-
-> [!NOTE]
-> **Why use `Uninstall-ManagedModule`?** It works however the module got there. `Uninstall-Module` (PowerShellGet)
-> only removes modules that PowerShellGet installed, and `Uninstall-PSResource` only removes ones PSResourceGet
-> installed. Modules copied in by hand, or installed by the other tool, fail. `Uninstall-ManagedModule` removes a
-> version whether it came from PowerShellGet, PSResourceGet or a manual copy.
-
-```powershell
 Get-ModuleLocation -Summary -IncludeSize
 ```
 ```powershell
 Uninstall-OldModuleVersion Az.* -WhatIf
 ```
+```powershell
+Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
+```
+
+> [!NOTE]
+> **Why use `Uninstall-ManagedModule`?**
+>
+> It works however the module got there. `Uninstall-Module` (PowerShellGet) only removes modules that PowerShellGet installed,
+> and `Uninstall-PSResource` only removes ones PSResourceGet installed. Modules copied in by hand, or installed by the other tool,
+> fail. `Uninstall-ManagedModule` removes a version whether it came from PowerShellGet, PSResourceGet or a manual copy.
 
 ## Terminal UI
 
