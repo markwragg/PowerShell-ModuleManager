@@ -28,6 +28,7 @@ function Invoke-MMTuiDetailKey {
         'j' { $State.DCursor = [Math]::Min($count - 1, $State.DCursor + 1) }
         'q' { $State.Mode = 'list' }
         'x' { Request-MMTuiUninstallVersion $State }
+        'm' { Request-MMTuiMove $State -Detail }
         'o' { Request-MMTuiRemoveOld $State @($State.Detail) }
         'u' { Request-MMTuiUpdate $State @($State.Detail) }
     }

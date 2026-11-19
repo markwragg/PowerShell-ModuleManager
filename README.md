@@ -83,6 +83,7 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
 | `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). Supports `-WhatIf` and `-Confirm`. |
 | `Uninstall-OldModuleVersion` | Keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
+| `Move-ManagedModule` | Moves modules or specific versions between the `CurrentUser` and `AllUsers` scopes (`-Destination AllUsers`), updating their install record so PowerShellGet and PSResourceGet still recognise them. Needs an elevated session. Supports `-WhatIf` and `-Confirm`. |
 | `Show-ModuleManager` | The terminal UI. |
 
 See the [Documentation](/Documentation/) folder for full help on each cmdlet.
@@ -103,6 +104,9 @@ Uninstall-OldModuleVersion Az.* -WhatIf
 ```
 ```powershell
 Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
+```
+```powershell
+Get-ModuleLocation -Scope CurrentUser | Move-ManagedModule -Destination AllUsers -WhatIf
 ```
 
 > [!NOTE]
@@ -143,6 +147,7 @@ The update check runs in the background, so you can use the list while it fills 
 | Enter | Show versions and paths | |
 | U | Update the selected modules (or the current one) | Update this module |
 | X / Del | Uninstall everything selected: modules (all versions) and versions | Uninstall the selected versions, of every module |
+| M | Move everything selected (or the current module) to the other scope: CurrentUser to AllUsers or back. Needs an elevated session | Move the selected versions (or the current one) to the other scope |
 | O | Remove old versions, keeping the newest | Same, for this module |
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |

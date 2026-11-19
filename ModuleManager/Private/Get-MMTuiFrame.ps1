@@ -39,17 +39,29 @@ function Get-MMTuiFrame {
         if ($State.Progress) { $right += " $([int]$State.Progress.Percent)%" }
         $right += ' '
     }
+    # The share of modules on their latest version, of those the repository check found (newer
+    # than the repository counts as latest). Shown once the check is done, and only if it fits.
+    $latest = ''
+    $found = @($State.Rows | Where-Object { $_.Status -in 'UpToDate', 'LocalNewer', 'UpdateAvailable' }).Count
+    if ($found -and -not $State.Job) { $latest = "  |  $([Math]::Floor(100 * ($found - $updates) / $found))% latest" }
+
     $title = @(
         , @(' ModuleManager ', 'TitleBold')
-        , @(" $total modules  |  $updates updates  |  view: $($State.Views[$State.View])  |  sort: $($State.Sorts[$State.Sort])", $null)
+        , @(" $total modules  |  $updates updates", $null)
+        , @("  |  view: $($State.Views[$State.View])  |  sort: $($State.Sorts[$State.Sort])", $null)
     )
-    if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + @(, $title[1]) }
+    if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + $title[1..2] }
     $selected = @()
     if ($selCount) { $selected += "$selCount module(s)" }
     if ($State.DSelected.Count) { $selected += "$($State.DSelected.Count) version(s)" }
     if ($selected) { $title += , @("  |  $($selected -join ', ') selected", $null) }
     if ($State.Filter) { $title += , @("  |  filter: $($State.Filter)", $null) }
     $leftLen = 0; foreach ($t in $title) { $leftLen += ([string]$t[0]).Length }
+    if ($latest -and $leftLen + $latest.Length + $right.Length -le $w) {
+        $at = if ($State.Remote) { 3 } else { 2 }
+        $title = $title[0..($at - 1)] + @(, @($latest, $null)) + $title[$at..($title.Count - 1)]
+        $leftLen += $latest.Length
+    }
     $pad = $w - $leftLen - $right.Length
     if ($right -and $pad -gt 0) { $title += , @(((' ' * $pad) + $right), $null) }
     $lines.Add((Format-MMTuiLine $title $w 'Title'))
@@ -77,17 +89,17 @@ function Get-MMTuiFrame {
     # --- Help bar
     if ($State.Mode -eq 'details' -or ($State.Mode -eq 'confirm' -and $State.Confirm.ReturnMode -eq 'details')) {
         # X acts on the versions selected (of any module), if there are some.
-        $uninstall = 'uninstall'
-        if ($State.DSelected.Count) { $uninstall = 'uninstall selected' }
-        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', $uninstall, 'O', 'remove old', 'U', 'update', 'L', 'output', 'Esc', 'back')
+        $uninstall = 'uninstall'; $move = 'move scope'
+        if ($State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
+        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', $uninstall, 'M', $move, 'O', 'remove old', 'U', 'update', 'L', 'output', 'Esc', 'back')
     }
     else {
         # U and O act on the selected modules, and X on selected modules and versions, if there are some.
-        $update = 'update'; $removeOld = 'remove old'; $uninstall = 'uninstall'
+        $update = 'update'; $removeOld = 'remove old'; $uninstall = 'uninstall'; $move = 'move scope'
         if ($selCount) { $update = 'update selected'; $removeOld = 'remove old from selected' }
-        if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected' }
+        if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
         $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', 'select updates', 'Enter', 'details', 'U', $update, 'X', $uninstall,
-            'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
+            'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
     for ($i = 0; $i -lt $keys.Count; $i += 2) {

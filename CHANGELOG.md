@@ -1,5 +1,11 @@
 # Change Log
 
+## !Deploy 0.3.0
+
+* [feature] `Move-ManagedModule` moves modules, or specific versions, between the `CurrentUser` and `AllUsers` scopes, for example `Move-ManagedModule Pester -Destination AllUsers`. Each version is copied (so it takes the destination folder's permissions) and the original removed only once the copy is complete; the install record is updated so PowerShellGet and PSResourceGet still recognise it. It needs an elevated session, and warns when moving to `CurrentUser` a version that a module installed for all users depends on.
+* [feature] In the terminal UI, M moves the selected modules and versions (or the current one) to the other scope.
+* [feature] The terminal UI's title bar shows the share of modules on their latest version (for example `32% latest`) once the repository check is done, when the window is wide enough.
+
 ## [0.2.1] - 2026-11-19
 
 * [feature] Modules whose publisher has unlisted them from the repository (usually because they're deprecated, such as `Az.DeploymentManager`) are reported as `Unlisted` instead of `NotInRepository`, by `Get-ModuleUpdate` and in the terminal UI.

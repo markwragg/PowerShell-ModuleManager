@@ -36,7 +36,7 @@ function Invoke-MMTuiKey {
     # Output pane keys work in the list and the details view.
     switch ($c) {
         'l' {
-            if (-not $State.LogOpen -and -not $State.Log.Count) { Set-MMTuiMessage $State 'No output yet: it appears here when you update or uninstall.'; return }
+            if (-not $State.LogOpen -and -not $State.Log.Count) { Set-MMTuiMessage $State 'No output yet: it appears here when you update, move or uninstall.'; return }
             $State.LogOpen = -not $State.LogOpen
             $State.LogScroll = 0
             return
@@ -151,6 +151,7 @@ function Invoke-MMTuiKey {
         }
         'u' { Request-MMTuiUpdate $State (Get-MMTuiTarget $State) }
         'x' { Request-MMTuiUninstall $State }
+        'm' { Request-MMTuiMove $State }
         'o' { Request-MMTuiRemoveOld $State (Get-MMTuiTarget $State) }
     }
 }

@@ -372,6 +372,70 @@ Describe 'Terminal UI actions' {
         }
     }
 
+    It 'Moves the targeted modules to the other scope' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Test-MMIsAdmin { $true }
+            Mock Move-ManagedModule { }
+            foreach ($n in 'MMAlpha', 'MMGamma') { ($S.Rows | Where-Object Name -EQ $n).Selected = $true }
+            ($S.Rows | Where-Object Name -EQ 'MMGamma').Info.Installations[0].Scope = 'AllUsers'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('m', [ConsoleKey]::M, $false, $false, $false))
+            $S.Confirm.Prompt | Should -Be 'Move 2 modules (5 versions) to: a AllUsers, c CurrentUser ?'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('c', [ConsoleKey]::C, $false, $false, $false))
+            Should -Invoke Move-ManagedModule -Times 1 -ParameterFilter { $ModuleBase.Count -eq 5 -and $Destination -eq 'CurrentUser' }
+            @($S.Rows | Where-Object Selected).Count | Should -Be 0
+        }
+    }
+
+    It 'Moves the version under the cursor in the details view, offering the other scope' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Test-MMIsAdmin { $true }
+            Mock Move-ManagedModule { }
+            $S.Detail = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            $S.Mode = 'details'
+            $S.DCursor = 1
+            $target = @($S.Detail.Info.Installations)[1]
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('m', [ConsoleKey]::M, $false, $false, $false))
+            $S.Confirm.Prompt | Should -Be "Move MMAlpha $($target.Version) to AllUsers ?"
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Move-ManagedModule -Times 1 -ParameterFilter { "$ModuleBase" -eq $target.ModuleBase -and $Destination -eq 'AllUsers' }
+
+            # A version installed for all users is offered CurrentUser.
+            $S.Mode = 'details'
+            $target.Scope = 'AllUsers'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('m', [ConsoleKey]::M, $false, $false, $false))
+            $S.Confirm.Prompt | Should -Be "Move MMAlpha $($target.Version) to CurrentUser ?"
+        }
+    }
+
+    It 'Says moving needs elevation, and skips versions that cannot be moved' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Move-ManagedModule { }
+            $S.Cursor = [array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMGamma')
+
+            Mock Test-MMIsAdmin { $false }
+            Request-MMTuiMove $S
+            $S.Mode | Should -Not -Be 'confirm'
+            $S.Message | Should -Match 'needs an elevated session'
+
+            Mock Test-MMIsAdmin { $true }
+            $gamma = ($S.Rows | Where-Object Name -EQ 'MMGamma').Info.Installations[0]
+            $gamma.Scope = 'System'
+            Request-MMTuiMove $S
+            $S.Message | Should -Match "Can't move MMGamma .*ships with PowerShell"
+
+            $S.Cursor = [array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMAlpha')
+            @($S.Rows | Where-Object Name -EQ 'MMAlpha').Info.Installations[0].IsLoaded = $true
+            Request-MMTuiMove $S
+            $S.Confirm.Prompt | Should -Match "Skips 1 version\(s\) that can't be moved\.$"
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Move-ManagedModule -Times 1 -ParameterFilter { $ModuleBase.Count -eq 3 }
+            Should -Invoke Write-MMTuiOutput -ParameterFilter { $Text -match 'Skipped  MMAlpha .*loaded in this session' }
+        }
+    }
+
     It 'Removes old versions, or says there are none' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {

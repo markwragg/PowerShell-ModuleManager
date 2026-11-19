@@ -115,6 +115,34 @@ Describe 'Get-MMTuiFrame' {
         finally { Reset-FakeModules }
     }
 
+    It 'Shows the share of modules on their latest version once the check is done, if it fits' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s; Update-MMTuiVisible $s
+            function TitleBar([int]$Width) { (((Get-MMTuiFrame $s $Width 15) -split "`r`n")[0]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' }
+            $status = @{ MMAlpha = 'UpdateAvailable'; MMBeta = 'NotInRepository'; MMDependent = 'UpToDate'; MMGamma = 'LocalNewer' }
+            foreach ($r in $s.Rows) { $r.Status = $status[$r.Name] }
+
+            # 2 of the 3 found are latest (newer than the repository counts); MMBeta isn't counted.
+            TitleBar 120 | Should -Match ' 4 modules  \|  1 updates  \|  66% latest  \|  view: '
+
+            # Not while checking, nor when there isn't room.
+            $s.Job = [pscustomobject]@{ Done = 3; Total = 4 }
+            TitleBar 120 | Should -Not -Match 'latest'
+            $s.Job = $null
+            TitleBar 60 | Should -Not -Match 'latest'
+
+            # Nothing found, nothing to show.
+            foreach ($r in $s.Rows) { $r.Status = 'Checking' }
+            TitleBar 120 | Should -Not -Match 'latest'
+
+            # Remotely, it follows the computer name and counts.
+            foreach ($r in $s.Rows) { $r.Status = 'UpToDate' }
+            $s.Remote = @{ Name = 'Server01' }
+            TitleBar 120 | Should -Match 'ModuleManager on Server01  4 modules  \|  0 updates  \|  100% latest  \|  view: '
+        }
+    }
+
     It 'Says when nothing matches, and shows the confirmation prompt' {
         InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
             $s = New-MMTuiState -Options $Options
@@ -155,29 +183,29 @@ Describe 'Get-MMTuiFrame' {
         }
     }
 
-    It 'Says on the help bar when U, X and O will act on the selection' {
+    It 'Says on the help bar when U, X, M and O will act on the selection' {
         InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
             $s = New-MMTuiState -Options $Options
             Update-MMTuiRows $s; Update-MMTuiVisible $s
             function HelpBar { (((Get-MMTuiFrame $s 400 15) -split "`r`n")[-1]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' }
 
             $bar = HelpBar
-            $bar | Should -Match ' U update  X uninstall  O remove old  '
+            $bar | Should -Match ' U update  X uninstall  M move scope  O remove old  '
 
-            # A selected version: only X acts on it.
+            # A selected version: only X and M act on it.
             $alpha = $s.Rows | Where-Object Name -EQ 'MMAlpha'
             $s.DSelected[@($alpha.Info.Installations)[1].ModuleBase] = $true
-            HelpBar | Should -Match ' U update  X uninstall selected  O remove old  '
+            HelpBar | Should -Match ' U update  X uninstall selected  M move selected  O remove old  '
 
             # A selected module: all three do.
             $alpha.Selected = $true
-            HelpBar | Should -Match ' U update selected  X uninstall selected  O remove old from selected  '
+            HelpBar | Should -Match ' U update selected  X uninstall selected  M move selected  O remove old from selected  '
 
-            # The details view: X follows the version selection.
+            # The details view: X and M follow the version selection.
             $s.Mode = 'details'; $s.Detail = $alpha
-            HelpBar | Should -Match ' X uninstall selected '
+            HelpBar | Should -Match ' X uninstall selected  M move selected '
             $s.DSelected = @{}
-            HelpBar | Should -Match ' X uninstall  O remove old '
+            HelpBar | Should -Match ' X uninstall  M move scope  O remove old '
         }
     }
 }

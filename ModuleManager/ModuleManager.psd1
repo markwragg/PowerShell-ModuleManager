@@ -69,7 +69,7 @@ FormatsToProcess = @('ModuleManager.Format.ps1xml')
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','Show-ModuleManager','Uninstall-ManagedModule','Uninstall-OldModuleVersion','Update-ManagedModule')
+FunctionsToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','Move-ManagedModule','Show-ModuleManager','Uninstall-ManagedModule','Uninstall-OldModuleVersion','Update-ManagedModule')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
