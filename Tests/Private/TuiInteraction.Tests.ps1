@@ -392,6 +392,9 @@ Describe 'Terminal UI actions' {
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Test-MMIsAdmin { $true }
             Mock Move-ManagedModule { }
+            # The fake modules are in the temp folder, which is only under the user's profile on
+            # Windows, so say which scope they're in.
+            foreach ($r in $S.Rows) { foreach ($i in @($r.Info.Installations)) { $i.Scope = 'CurrentUser' } }
             $S.Detail = $S.Rows | Where-Object Name -EQ 'MMAlpha'
             $S.Mode = 'details'
             $S.DCursor = 1
@@ -413,6 +416,7 @@ Describe 'Terminal UI actions' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Move-ManagedModule { }
+            foreach ($r in $S.Rows) { foreach ($i in @($r.Info.Installations)) { $i.Scope = 'CurrentUser' } }   # as above
             $S.Cursor = [array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMGamma')
 
             Mock Test-MMIsAdmin { $false }
