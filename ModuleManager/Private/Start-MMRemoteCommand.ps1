@@ -8,6 +8,10 @@ function Start-MMRemoteCommand {
         PowerShell.Streams.Progress. With -Merge, every stream (errors, warnings, verbose,
         Write-Host) comes back in Output, in order. The remote runspace runs one command at a
         time, so callers wait for one to finish before starting another.
+
+        The command first writes an MMStarted record to the information stream (not to Output,
+        even with -Merge), to say it's running: use Stop-MMRemoteCommand to stop it, which waits
+        for that, as a stop sent before the command starts there is lost.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Starts a command the caller has already confirmed; changes no state itself.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '', Justification = 'Runs on the remote computer, where each command is a separate pipeline: the module loaded by Initialize-MMRemote is kept in a global variable for the commands that follow.')]
@@ -21,6 +25,7 @@ function Start-MMRemoteCommand {
     $ps.Runspace = $Remote.Runspace
     [void]$ps.AddScript({
             param($Text, $Arguments, $Merge)
+            Write-Information -MessageData 'MMStarted' -Tags 'MMStarted'
             if ($Merge) { & $global:MMRemoteModule ([scriptblock]::Create($Text)) @Arguments *>&1 }
             else { & $global:MMRemoteModule ([scriptblock]::Create($Text)) @Arguments }
         }.ToString()).AddArgument($ScriptBlock.ToString()).AddArgument($ArgumentList).AddArgument([bool]$Merge)

@@ -89,5 +89,6 @@ function Connect-MMEdition {
     try { $remote = Initialize-MMRemote -Runspace $runspace -Name $name }
     catch { Stop-MMEditionProcess $process; throw }
     $remote.Process = $process
+    $remote.Edition = $Edition   # to reconnect with (see Repair-MMRemote)
     $remote
 }

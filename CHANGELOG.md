@@ -3,6 +3,7 @@
 ## !Deploy
 
 * [fix] On Windows, `Move-ManagedModule` (and M in the terminal UI) keeps each module with its edition's modules. Before, a module in `Program Files\WindowsPowerShell\Modules`, which both Windows PowerShell and PowerShell 7 use, moved to `CurrentUser` from PowerShell 7 went to `Documents\PowerShell\Modules`, where Windows PowerShell doesn't look. It now goes to `Documents\WindowsPowerShell\Modules`, with a warning when the session doesn't look there (PowerShell 7 only does by default when it's started from Windows PowerShell).
+* [fix] In the terminal UI on another computer (`-ComputerName`, `-Session`) or the other edition (`-Edition`), stopping the repository check or an operation could leave the connection unable to run anything else, or freeze the UI. This happened when the stop came before the command had started on the other end (for example, pressing R straight after starting), as the stop was lost and the command carried on there. Stops now wait for the command to start, and give up after a time limit; if the connection is still busy afterwards, the terminal UI reconnects, and says so.
 
 ## [0.3.0] - 2026-11-19
 

@@ -37,5 +37,7 @@ function Connect-MMRemote {
     }
     catch { throw "Could not connect to $name`: $($_.Exception.Message)" }
     finally { if ($temporary) { Remove-PSSession -Session $temporary } }
-    Initialize-MMRemote -Runspace $runspace -Name $name
+    $remote = Initialize-MMRemote -Runspace $runspace -Name $name
+    $remote.ConnectionInfo = $info   # to reconnect with (see Repair-MMRemote)
+    $remote
 }

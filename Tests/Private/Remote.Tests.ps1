@@ -205,18 +205,46 @@ Describe 'Managing modules on a remote computer' {
         }
     }
 
-    It 'Stops a repository check that is still running' {
-        $s = New-RemoteState
-        InModuleScope ModuleManager -Parameters @{ S = $s } {
-            $command = Start-MMRemoteCommand -Remote $S.Remote -ScriptBlock { Start-Sleep -Seconds 60 }
-            $S.Job = [pscustomobject]@{ Remote = $true; Command = $command; Total = 4; Done = 0 }
-            $started = [datetime]::UtcNow
-            Stop-MMTuiLookup $S
-            $S.Job | Should -BeNullOrEmpty
-            ([datetime]::UtcNow - $started).TotalSeconds | Should -BeLessThan 30
-            # And the runspace is free again for the next command.
-            @(Invoke-MMRemote -Remote $S.Remote -ScriptBlock { 'free' }) | Should -Be @('free')
+    It 'Stops a repository check that is still running, even straight after it starts' {
+        # Its own connection, so the other tests can't be affected if this goes wrong.
+        $remote = New-TestRemote
+        try {
+            InModuleScope ModuleManager -Parameters @{ Remote = $remote } {
+                Mock Repair-MMRemote { throw 'should not need to reconnect' }
+                $S = @{ Remote = $Remote; Job = $null; Message = $null }
+                # A stop sent before the remote process starts the command used to be lost, leaving
+                # the command running there and the runspace busy, so try it several times.
+                foreach ($n in 1..5) {
+                    $command = Start-MMRemoteCommand -Remote $Remote -ScriptBlock { Start-Sleep -Seconds 60 }
+                    $S.Job = [pscustomobject]@{ Remote = $true; Command = $command; Total = 4; Done = 0 }
+                    $started = [datetime]::UtcNow
+                    Stop-MMTuiLookup $S
+                    $S.Job | Should -BeNullOrEmpty
+                    ([datetime]::UtcNow - $started).TotalSeconds | Should -BeLessThan 20
+                    # And the runspace is free again for the next command.
+                    @(Invoke-MMRemote -Remote $Remote -ScriptBlock { 'free' }) | Should -Be @('free')
+                }
+                $S.Message | Should -BeNullOrEmpty
+                Should -Invoke Repair-MMRemote -Times 0 -Exactly
+            }
         }
+        finally { InModuleScope ModuleManager -Parameters @{ Remote = $remote } { Disconnect-MMRemote $Remote } }
+    }
+
+    It 'Stops an operation that is still running, leaving the runspace free' {
+        $remote = New-TestRemote
+        try {
+            InModuleScope ModuleManager -Parameters @{ Remote = $remote; Options = $TuiOptions } {
+                $S = New-MMTuiState -Options $Options
+                $S.Remote = $Remote
+                Invoke-MMTuiAction $S 'Waiting' -Data @{} -Action { Start-Sleep -Seconds 60 }
+                $S.Task | Should -Not -BeNullOrEmpty
+                Stop-MMTuiTask $S
+                $S.Task | Should -BeNullOrEmpty
+                @(Invoke-MMRemote -Remote $Remote -ScriptBlock { 'free' }) | Should -Be @('free')
+            }
+        }
+        finally { InModuleScope ModuleManager -Parameters @{ Remote = $remote } { Disconnect-MMRemote $Remote } }
     }
 
     It 'Says when a rescan fails' {
@@ -230,6 +258,122 @@ Describe 'Managing modules on a remote computer' {
             $deadline = [datetime]::UtcNow.AddSeconds(60)
             while ($S.Task -and [datetime]::UtcNow -lt $deadline) { $null = Receive-MMTuiTask $S; Start-Sleep -Milliseconds 50 }
             $S.Message | Should -Be 'Quick - finished, but the rescan failed: connection lost'
+        }
+    }
+}
+
+Describe 'Recovering the remote connection' {
+
+    It 'Checks whether the runspace can run a command' {
+        $remote = New-TestRemote
+        try {
+            InModuleScope ModuleManager -Parameters @{ Remote = $remote } {
+                Test-MMRemote -Remote $Remote | Should -BeTrue
+
+                # Busy with a command that wasn't stopped (once it's running there).
+                $command = Start-MMRemoteCommand -Remote $Remote -ScriptBlock { Start-Sleep -Seconds 60 }
+                $deadline = [datetime]::UtcNow.AddSeconds(30)
+                while (-not $command.PowerShell.Streams.Information.Count -and [datetime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 10 }
+                $command.PowerShell.Streams.Information[0].MessageData | Should -Be 'MMStarted'
+                $command.Output.Count | Should -Be 0   # the start signal isn't output
+                $started = [datetime]::UtcNow
+                Test-MMRemote -Remote $Remote -TimeoutSeconds 1 | Should -BeFalse
+                ([datetime]::UtcNow - $started).TotalSeconds | Should -BeLessThan 10
+
+                $Remote.Runspace.Dispose()
+                Test-MMRemote -Remote $Remote | Should -BeFalse
+                Test-MMRemote -Remote @{ Runspace = $null } | Should -BeFalse
+            }
+        }
+        finally { InModuleScope ModuleManager -Parameters @{ Remote = $remote } { Disconnect-MMRemote $Remote } }
+    }
+
+    It 'Gives up waiting for a command to start, and still stops it' {
+        InModuleScope ModuleManager {
+            # A command that never says it has started (Start-MMRemoteCommand's do).
+            $ps = [powershell]::Create()
+            [void]$ps.AddScript('Start-Sleep -Seconds 60')
+            $handle = $ps.BeginInvoke()
+            $started = [datetime]::UtcNow
+            Stop-MMRemoteCommand -PowerShell $ps -Handle $handle -TimeoutSeconds 1 | Should -BeTrue
+            ([datetime]::UtcNow - $started).TotalSeconds | Should -BeLessThan 10
+        }
+    }
+
+    It 'Reconnects when the remote is still busy after a stop, or says it lost the connection' {
+        InModuleScope ModuleManager {
+            $S = @{ Remote = @{ Name = 'testhost'; Runspace = $null }; Job = $null; Message = $null; MessageStyle = $null }
+            Mock Stop-MMRemoteCommand { $false }
+            function Set-Job { $S.Job = [pscustomobject]@{ Remote = $true; Command = @{ PowerShell = [powershell]::Create(); Handle = $null }; Total = 1; Done = 0 } }
+
+            Mock Repair-MMRemote { }
+            Set-Job; Stop-MMTuiLookup $S
+            $S.Message | Should -Be 'Reconnected to testhost, as it was still busy with the stopped command.'
+            Should -Invoke Repair-MMRemote -Times 1 -Exactly
+
+            Mock Repair-MMRemote { throw 'Could not reconnect to testhost: access denied' }
+            Set-Job; Stop-MMTuiLookup $S
+            $S.Message | Should -BeLike 'Lost the connection to testhost, which is still busy with the stopped command: Could not reconnect to testhost: access denied Quit and start again.'
+
+            # Not when the terminal UI is closing, as it's about to disconnect anyway.
+            Set-Job; Stop-MMTuiLookup $S -Closing
+            Should -Invoke Repair-MMRemote -Times 2 -Exactly
+        }
+    }
+
+    It 'Reconnects when the stop worked but the runspace does not answer' {
+        InModuleScope ModuleManager {
+            $S = @{ Remote = @{ Name = 'testhost' }; Task = @{ PowerShell = [powershell]::Create(); Handle = $null; OwnsRunspace = $false }; Message = $null; MessageStyle = $null }
+            Mock Stop-MMRemoteCommand { $true }
+            Mock Test-MMRemote { $false }
+            Mock Repair-MMRemote { }
+            Stop-MMTuiTask $S
+            Should -Invoke Repair-MMRemote -Times 1 -Exactly
+            $S.Message | Should -BeLike 'Reconnected to testhost*'
+        }
+    }
+
+    It 'Cannot reconnect without connection details' {
+        InModuleScope ModuleManager {
+            { Repair-MMRemote -Remote @{ Name = 'testhost'; Runspace = $null } } | Should -Throw '*no connection details to reconnect to testhost*'
+        }
+    }
+
+    It 'Reconnects to the other edition with a new process, and by connection details' -Skip:(-not $canUseOtherEdition) -ForEach @(@{ OtherEdition = $otherEdition }) {
+        InModuleScope ModuleManager -Parameters @{ Edition = $OtherEdition } {
+            $remote = Connect-MMEdition -Edition $Edition
+            $byDetails = $null
+            try {
+                $remote.Edition | Should -Be $Edition
+                $oldId = $remote.Process.Id
+                $remote.Process.Kill()
+                $null = $remote.Process.WaitForExit(5000)
+                Test-MMRemote -Remote $remote -TimeoutSeconds 2 | Should -BeFalse
+
+                Repair-MMRemote -Remote $remote
+                $remote.Process.Id | Should -Not -Be $oldId
+                Invoke-MMRemote -Remote $remote -ScriptBlock { $PSVersionTable.PSEdition } | Should -Be $Edition
+
+                # Through the same process's named pipe, as a remote computer would through WinRM. The
+                # pipe takes one connection at a time, so close the first one.
+                $remote.Runspace.Dispose()
+                $info = [System.Management.Automation.Runspaces.NamedPipeConnectionInfo]::new($remote.Process.Id)
+                $runspace = [runspacefactory]::CreateRunspace($info)
+                $runspace.Open()
+                $byDetails = Initialize-MMRemote -Runspace $runspace -Name 'by details'
+                $byDetails.ConnectionInfo = $info
+                $byDetails.Runspace.Dispose()
+                Repair-MMRemote -Remote $byDetails
+                Invoke-MMRemote -Remote $byDetails -ScriptBlock { 'reconnected' } | Should -Be 'reconnected'
+
+                $info = [System.Management.Automation.Runspaces.NamedPipeConnectionInfo]::new(2147483647)
+                $info.OpenTimeout = 1000
+                { Repair-MMRemote -Remote @{ Name = 'nowhere'; Runspace = $null; ConnectionInfo = $info } } | Should -Throw 'Could not reconnect to nowhere*'
+            }
+            finally {
+                if ($byDetails) { try { $byDetails.Runspace.Dispose() } catch { $null = $_ } }
+                Disconnect-MMRemote $remote
+            }
         }
     }
 }

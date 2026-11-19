@@ -234,8 +234,8 @@ function Show-ModuleManager {
         }
     }
     finally {
-        Stop-MMTuiTask $state
-        Stop-MMTuiLookup $state
+        Stop-MMTuiTask $state -Closing
+        Stop-MMTuiLookup $state -Closing
         Exit-MMTuiScreen
         [Console]::OutputEncoding = $originalEncoding
         Disconnect-MMRemote $remote

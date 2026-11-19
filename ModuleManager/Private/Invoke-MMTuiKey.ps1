@@ -53,7 +53,7 @@ function Invoke-MMTuiKey {
         if (-not $ctrlC) { Set-MMTuiMessage $State "Wait for '$($State.Task.Title)' to finish before quitting (or Ctrl+C to stop it)." 'Yellow'; return }
         Request-MMTuiConfirm $State "Stop '$($State.Task.Title)' and quit? Stopping part-way can leave a module half installed or removed." -Action {
             param($State)
-            Stop-MMTuiTask $State
+            Stop-MMTuiTask $State -Closing
             $State.Quit = $true
         }
         return
