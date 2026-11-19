@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy
+
+* [fix] On Windows, `Move-ManagedModule` (and M in the terminal UI) keeps each module with its edition's modules. Before, a module in `Program Files\WindowsPowerShell\Modules`, which both Windows PowerShell and PowerShell 7 use, moved to `CurrentUser` from PowerShell 7 went to `Documents\PowerShell\Modules`, where Windows PowerShell doesn't look. It now goes to `Documents\WindowsPowerShell\Modules`, with a warning when the session doesn't look there (PowerShell 7 only does by default when it's started from Windows PowerShell).
+
 ## [0.3.0] - 2026-11-19
 
 * [feature] `Move-ManagedModule` moves modules, or specific versions, between the `CurrentUser` and `AllUsers` scopes, for example `Move-ManagedModule Pester -Destination AllUsers`. Each version is copied (so it takes the destination folder's permissions) and the original removed only once the copy is complete; the install record is updated so PowerShellGet and PSResourceGet still recognise it. It needs an elevated session, and warns when moving to `CurrentUser` a version that a module installed for all users depends on.

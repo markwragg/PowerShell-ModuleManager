@@ -4,11 +4,19 @@ function Move-ManagedModule {
         Moves modules, or specific versions of modules, between the CurrentUser and AllUsers scopes.
 
     .DESCRIPTION
-        Moves installed module versions to the module folder of another scope: the first
-        PSModulePath entry for that scope (for example Documents\PowerShell\Modules for
-        CurrentUser and Program Files\PowerShell\Modules for AllUsers in PowerShell 7 on
-        Windows). Each version keeps its folder layout, and the location in its install record
-        (PSGetModuleInfo.xml) is updated, so PowerShellGet and PSResourceGet still recognise it.
+        Moves installed module versions to the module folder of another scope. Each version
+        keeps its folder layout, and the location in its install record (PSGetModuleInfo.xml) is
+        updated, so PowerShellGet and PSResourceGet still recognise it.
+
+        On Windows, a version stays with its edition's modules: one in a WindowsPowerShell\Modules
+        folder moves to the other WindowsPowerShell\Modules folder (Documents or Program Files),
+        and one in a PowerShell\Modules folder to the other PowerShell\Modules folder. This keeps
+        it where the edition it was installed for looks. For example, from PowerShell 7, a module
+        in Program Files\WindowsPowerShell\Modules (which both editions use) moved to CurrentUser
+        goes to Documents\WindowsPowerShell\Modules. PowerShell 7 doesn't look there by default
+        (only when it's started from Windows PowerShell), so a warning says when the session
+        can't see where a version went. Other versions move to the first PSModulePath entry for
+        the scope.
 
         Each version is copied, so it takes the permissions of the destination folder, and the
         original is removed only once the copy is complete. If the copy fails, the original is
@@ -127,13 +135,6 @@ function Move-ManagedModule {
     end {
         if (-not $targets.Count) { return }
 
-        $root = Get-MMModuleRoot | Where-Object Scope -EQ $Destination | Select-Object -First 1
-        if (-not $root) {
-            Write-Error -Message "There is no $Destination module folder in PSModulePath to move modules to." `
-                -Category ObjectNotFound -TargetObject $Destination -ErrorId 'ModuleManager.NoDestination'
-            return
-        }
-
         # Other users can't see the current user's modules, so a version moved there is lost to any
         # module installed for all users that needs it.
         if ($Destination -eq 'CurrentUser') {
@@ -146,9 +147,27 @@ function Move-ManagedModule {
         }
 
         $moved = [System.Collections.Generic.List[string]]::new()
+        $offPath = [ordered]@{}
         foreach ($t in $targets) {
+            $root = Get-MMDestinationRoot -Installation $t -Scope $Destination
+            if (-not $root) {
+                Write-Error -Message "There is no $Destination module folder in PSModulePath to move $($t.Name) $($t.Version) to." `
+                    -Category ObjectNotFound -TargetObject $t -ErrorId 'ModuleManager.NoDestination'
+                continue
+            }
             $new = Move-MMInstallation -Installation $t -DestinationRoot $root -Cmdlet $PSCmdlet -Force:$Force
-            if ($new) { $moved.Add((Get-MMPathKey $new)) }
+            if (-not $new) { continue }
+            $moved.Add((Get-MMPathKey $new))
+            if (-not $root.OnPath) {
+                if (-not $offPath.Contains($root.Path)) { $offPath[$root.Path] = [System.Collections.Generic.List[string]]::new() }
+                $offPath[$root.Path].Add("$($t.Name) $($t.Version)")
+            }
+        }
+
+        # Kept with its edition's modules (see Get-MMDestinationRoot), in a folder this session doesn't look in.
+        foreach ($path in $offPath.Keys) {
+            $edition = if ($path -match '[\\/]WindowsPowerShell[\\/]Modules$') { 'Windows PowerShell' } else { 'PowerShell 7' }
+            Write-Warning "Moved $($offPath[$path] -join ', ') to $path, with the other $edition modules. $edition finds modules there, but this session doesn't: it isn't in PSModulePath."
         }
 
         if ($PassThru -and $moved.Count) {

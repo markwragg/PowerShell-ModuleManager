@@ -117,6 +117,67 @@ Describe 'Move-ManagedModule' {
         { Move-ManagedModule -ModuleBase $missing -Destination AllUsers -ErrorAction Stop } | Should -Throw "*No installed module version found at '$missing'*"
     }
 
+    Context "Each edition's module folders" {
+
+        BeforeEach {
+            # Laid out like PowerShell 7 on Windows: Documents and Program Files, each with a folder per edition,
+            # and PSModulePath in PowerShell 7's order (no Documents\WindowsPowerShell\Modules).
+            $docs = [IO.Path]::Combine($script:TestRoot, 'docs')
+            $pf = [IO.Path]::Combine($script:TestRoot, 'pf')
+            $script:Folder = @{
+                CoreUser    = [IO.Path]::Combine($docs, 'PowerShell', 'Modules')
+                DesktopUser = [IO.Path]::Combine($docs, 'WindowsPowerShell', 'Modules')
+                CoreAll     = [IO.Path]::Combine($pf, 'PowerShell', 'Modules')
+                DesktopAll  = [IO.Path]::Combine($pf, 'WindowsPowerShell', 'Modules')
+            }
+            foreach ($f in $script:Folder.Values) { $null = New-Item -ItemType Directory -Path $f -Force }
+            $env:PSModulePath = @($script:Folder.CoreUser, $script:Folder.CoreAll, $script:Folder.DesktopAll) -join [IO.Path]::PathSeparator
+
+            Mock -ModuleName ModuleManager Test-MMIsWindows { $true }
+            Mock -ModuleName ModuleManager Get-MMKnownFolder { [IO.Path]::Combine($script:TestRoot, $(if ($Name -eq 'Documents') { 'docs' } else { 'pf' })) }
+            Mock -ModuleName ModuleManager Get-MMScope { if ($Path -match 'MMTests_\w+[\\/]pf([\\/]|$)') { 'AllUsers' } else { 'CurrentUser' } }
+        }
+
+        It "Keeps a module shared by both editions with Windows PowerShell's modules, and says this session won't see it" {
+            New-FakeModule $script:Folder.DesktopAll 'MMShared' '1.0.0' -Repository PSGallery | Out-Null
+            Move-ManagedModule MMShared -Destination CurrentUser -WarningVariable warnings -WarningAction SilentlyContinue
+            Test-Path ([IO.Path]::Combine($script:Folder.DesktopUser, 'MMShared', '1.0.0', 'MMShared.psd1')) | Should -BeTrue
+            Test-Path ([IO.Path]::Combine($script:Folder.CoreUser, 'MMShared')) | Should -BeFalse
+            Test-Path ([IO.Path]::Combine($script:Folder.DesktopAll, 'MMShared')) | Should -BeFalse
+            $warnings | Should -BeLike "Moved MMShared 1.0.0 to $($script:Folder.DesktopUser), with the other Windows PowerShell modules. Windows PowerShell finds modules there, but this session doesn't*"
+        }
+
+        It "Moves a PowerShell 7 module to PowerShell 7's folder for the scope" {
+            New-FakeModule $script:Folder.CoreUser 'MMCore' '2.0.0' -Repository PSGallery | Out-Null
+            $r = Move-ManagedModule MMCore -Destination AllUsers -PassThru -WarningVariable warnings
+            $r.ModuleBase | Should -Be ([IO.Path]::Combine($script:Folder.CoreAll, 'MMCore', '2.0.0'))
+            $r.Scope | Should -Be 'AllUsers'
+            $warnings | Should -BeNullOrEmpty
+        }
+
+        It "Keeps a PowerShell 7 module with PowerShell 7's modules when this session doesn't look there" {
+            # As from Windows PowerShell, which doesn't look in Program Files\PowerShell\Modules.
+            $env:PSModulePath = @($script:Folder.CoreUser, $script:Folder.DesktopUser, $script:Folder.DesktopAll) -join [IO.Path]::PathSeparator
+            New-FakeModule $script:Folder.CoreUser 'MMCore' '2.0.0' | Out-Null
+            Move-ManagedModule MMCore -Destination AllUsers -WarningVariable warnings -WarningAction SilentlyContinue
+            Test-Path ([IO.Path]::Combine($script:Folder.CoreAll, 'MMCore', '2.0.0', 'MMCore.psd1')) | Should -BeTrue
+            $warnings | Should -BeLike "Moved MMCore 2.0.0 to $($script:Folder.CoreAll), with the other PowerShell 7 modules. PowerShell 7 finds modules there*"
+        }
+
+        It 'Uses the first folder for the scope for other module folders, and outside Windows' {
+            $custom = [IO.Path]::Combine($script:TestRoot, 'custom')
+            $env:PSModulePath = @($env:PSModulePath, $custom) -join [IO.Path]::PathSeparator
+            New-FakeModule $custom 'MMCustom' '1.0.0' | Out-Null
+            Move-ManagedModule MMCustom -Destination AllUsers
+            Test-Path ([IO.Path]::Combine($script:Folder.CoreAll, 'MMCustom', '1.0.0')) | Should -BeTrue
+
+            Mock -ModuleName ModuleManager Test-MMIsWindows { $false }
+            New-FakeModule $script:Folder.DesktopAll 'MMShared' '1.0.0' | Out-Null
+            Move-ManagedModule MMShared -Destination CurrentUser
+            Test-Path ([IO.Path]::Combine($script:Folder.CoreUser, 'MMShared', '1.0.0')) | Should -BeTrue
+        }
+    }
+
     Context 'Loaded modules' {
 
         BeforeEach {
@@ -179,6 +240,16 @@ Describe 'Move-ManagedModule' {
             Move-ManagedModule MMGamma -Destination AllUsers -WarningVariable warnings -WarningAction SilentlyContinue
             $warnings | Should -BeLike '*Moved MMGamma 3.0.0 to *, but could not remove the old copy at *.mmmove-*: The file is in use.*'
             Test-Path ([IO.Path]::Combine($script:OtherRoot, 'MMGamma', '3.0.0', 'MMGamma.psd1')) | Should -BeTrue
+        }
+    }
+}
+
+Describe 'Get-MMKnownFolder' {
+
+    It 'Returns the Documents and Program Files folders' {
+        InModuleScope ModuleManager {
+            Get-MMKnownFolder -Name Documents | Should -Be ([Environment]::GetFolderPath('MyDocuments'))
+            Get-MMKnownFolder -Name ProgramFiles | Should -Be $env:ProgramFiles
         }
     }
 }

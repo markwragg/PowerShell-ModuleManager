@@ -18,12 +18,24 @@ Move-ManagedModule [-Name] <String[]> [-Version <String[]>] [-Scope <String[]>] 
 ```
 
 ## DESCRIPTION
-Moves installed module versions to the module folder of another scope: the first
-PSModulePath entry for that scope (for example Documents\PowerShell\Modules for
-CurrentUser and Program Files\PowerShell\Modules for AllUsers in PowerShell 7 on
-Windows).
-Each version keeps its folder layout, and the location in its install record
-(PSGetModuleInfo.xml) is updated, so PowerShellGet and PSResourceGet still recognise it.
+Moves installed module versions to the module folder of another scope.
+Each version
+keeps its folder layout, and the location in its install record (PSGetModuleInfo.xml) is
+updated, so PowerShellGet and PSResourceGet still recognise it.
+
+On Windows, a version stays with its edition's modules: one in a WindowsPowerShell\Modules
+folder moves to the other WindowsPowerShell\Modules folder (Documents or Program Files),
+and one in a PowerShell\Modules folder to the other PowerShell\Modules folder.
+This keeps
+it where the edition it was installed for looks.
+For example, from PowerShell 7, a module
+in Program Files\WindowsPowerShell\Modules (which both editions use) moved to CurrentUser
+goes to Documents\WindowsPowerShell\Modules.
+PowerShell 7 doesn't look there by default
+(only when it's started from Windows PowerShell), so a warning says when the session
+can't see where a version went.
+Other versions move to the first PSModulePath entry for
+the scope.
 
 Each version is copied, so it takes the permissions of the destination folder, and the
 original is removed only once the copy is complete.
