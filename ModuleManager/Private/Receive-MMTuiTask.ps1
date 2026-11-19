@@ -47,7 +47,7 @@ function Receive-MMTuiTask {
     }
     $runspace = $task.PowerShell.Runspace
     $task.PowerShell.Dispose()
-    if ($runspace) { $runspace.Dispose() }
+    if ($runspace -and $task.OwnsRunspace) { $runspace.Dispose() }
 
     $State.Task = $null
     $State.Progress = $null
@@ -61,7 +61,8 @@ function Receive-MMTuiTask {
         Set-MMTuiMessage $State "$($task.Title) - done." 'Green'
     }
 
-    Update-MMTuiRows $State
+    try { Update-MMTuiRows $State }
+    catch { Set-MMTuiMessage $State "$($task.Title) - finished, but the rescan failed: $($_.Exception.Message)" 'Red' }
     if ($task.OnComplete) { & $task.OnComplete $State $task.Data }
     Sync-MMTuiDetail $State
     Update-MMTuiVisible $State

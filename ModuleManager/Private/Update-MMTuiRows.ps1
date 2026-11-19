@@ -10,7 +10,13 @@ function Update-MMTuiRows {
     $selected = @{}
     foreach ($r in $State.Rows) { if ($r.Selected) { $selected[$r.Name] = $true } }
 
-    $modules = @(Group-MMInstallation -Installation @(Get-MMInstalledVersion -Name $o.Name -Scope $o.Scope -IncludeSystem:$o.IncludeSystem))
+    if ($State.Remote) {
+        $modules = @(Invoke-MMRemote -Remote $State.Remote -ArgumentList $o.Name, $o.Scope, $o.IncludeSystem -ScriptBlock {
+                param($Name, $Scope, $IncludeSystem)
+                Group-MMInstallation -Installation @(Get-MMInstalledVersion -Name $Name -Scope $Scope -IncludeSystem:$IncludeSystem)
+            })
+    }
+    else { $modules = @(Group-MMInstallation -Installation @(Get-MMInstalledVersion -Name $o.Name -Scope $o.Scope -IncludeSystem:$o.IncludeSystem)) }
     $State.Rows = @(foreach ($m in $modules) {
             [pscustomobject]@{
                 Name     = $m.Name

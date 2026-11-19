@@ -35,11 +35,18 @@ function Invoke-MMInstall {
                 RequiredVersion = $Version
                 Repository      = $Repository
                 Scope           = $Scope
-                AllowClobber    = $true
                 ErrorAction     = 'Stop'
                 Confirm         = $false
             }
-            if ($Prerelease) { $params.AllowPrerelease = $true }
+            # PowerShellGet 1.x (as shipped with Windows PowerShell) has neither of these.
+            $available = (Get-Command -Name PowerShellGet\Install-Module).Parameters
+            if ($available.ContainsKey('AllowClobber')) { $params.AllowClobber = $true }
+            if ($Prerelease) {
+                if (-not $available.ContainsKey('AllowPrerelease')) {
+                    throw "This version of PowerShellGet can't install prerelease versions. Install PowerShellGet 2 or Microsoft.PowerShell.PSResourceGet."
+                }
+                $params.AllowPrerelease = $true
+            }
             if ($TrustRepository) { $params.Force = $true }
             PowerShellGet\Install-Module @params
         }

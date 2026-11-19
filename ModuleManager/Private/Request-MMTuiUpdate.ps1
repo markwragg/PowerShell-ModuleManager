@@ -3,7 +3,6 @@ function Request-MMTuiUpdate {
     .SYNOPSIS
         Asks to update the targeted modules that have updates, then updates them.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The update runs in a background runspace, where Write-Host output (with its colour) is collected for the output pane.')]
     param([hashtable]$State, [object[]]$Rows)
     if (Test-MMTuiBusy $State) { return }
     $rows = @($Rows | Where-Object Status -EQ 'UpdateAvailable')
@@ -18,7 +17,10 @@ function Request-MMTuiUpdate {
     # The update runs where nothing can answer the package manager's "untrusted repository"
     # prompt, so ask here: confirming the update also confirms installing from that repository.
     $repositories = @($rows | ForEach-Object { if ($_.Result -and $_.Result.PSObject.Properties['Repository']) { $_.Result.Repository } })
-    $untrusted = @(Get-MMUntrustedRepository -Name $repositories)
+    if ($State.Remote) {
+        $untrusted = @(Invoke-MMRemote -Remote $State.Remote -ArgumentList @(, $repositories) -ScriptBlock { param($Name) Get-MMUntrustedRepository -Name $Name })
+    }
+    else { $untrusted = @(Get-MMUntrustedRepository -Name $repositories) }
     $prompt = "Update $($rows.Count) module(s): $list"
     if ($untrusted) { $prompt += " - from untrusted repository $($untrusted -join ', ')" }
 
@@ -37,7 +39,7 @@ function Request-MMTuiUpdate {
             foreach ($m in $updated) {
                 $note = ''
                 if ($m.UpdatedAsDependencyOf) { $note = "  (dependency of $($m.UpdatedAsDependencyOf))"; $asDependency++ }
-                Write-Host "  Updated  $($m.Name) $($m.Version)$note" -ForegroundColor Green
+                Write-MMTuiOutput "  Updated  $($m.Name) $($m.Version)$note" 'Green'
             }
             # -ErrorVariable also collects errors that were caught along the way (such as the
             # package manager's own error behind each 'Failed to update' error), so report the
@@ -46,10 +48,10 @@ function Request-MMTuiUpdate {
             $own = @($failed | Where-Object { $_.FullyQualifiedErrorId -like 'ModuleManager.*' })
             if ($own) { $failed = $own }
             else { $failed = @($failed | Group-Object -Property { $_.Exception.Message } | ForEach-Object { $_.Group[0] }) }
-            foreach ($e in $failed) { Write-Host "  Failed   $($e.Exception.Message)" -ForegroundColor Red }
+            foreach ($e in $failed) { Write-MMTuiOutput "  Failed   $($e.Exception.Message)" 'Red' }
             $summary = "$($updated.Count) updated"
             if ($asDependency) { $summary += " ($asDependency as dependencies)" }
-            Write-Host "$summary, $($failed.Count) failed."
+            Write-MMTuiOutput "$summary, $($failed.Count) failed."
         } -OnComplete {
             param($State)
             foreach ($r in $State.Rows) { $r.Selected = $false }

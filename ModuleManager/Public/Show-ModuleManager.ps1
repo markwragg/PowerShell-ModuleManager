@@ -44,6 +44,10 @@ function Show-ModuleManager {
         use .NET assemblies, ModuleManager itself and the package manager can't be unloaded safely,
         so they're skipped with the reason; remove them from a new session.
 
+        If the update check fails because PowerShellGet needs the NuGet package provider (Windows
+        PowerShell's built-in PowerShellGet 1.0 does), you're offered to install it for the current
+        user, after which the check runs again.
+
         Updates, uninstalls and removing old versions run in the background, with their progress
         and output in a pane at the bottom of the screen, so the list stays on screen and you can
         keep browsing. Only one operation runs at a time. When it finishes the list is rescanned
@@ -78,6 +82,31 @@ function Show-ModuleManager {
     .PARAMETER ThrottleLimit
         The maximum number of concurrent repository queries.
 
+    .PARAMETER ComputerName
+        Manage the modules on this computer instead, over PowerShell remoting. The UI runs here;
+        scanning, repository checks, updates and uninstalls run on that computer, as the user you
+        connect as. ModuleManager doesn't need to be installed there: it's sent for the session.
+
+    .PARAMETER Credential
+        The credentials to connect to -ComputerName with.
+
+    .PARAMETER ConfigurationName
+        The session configuration (endpoint) to connect to on -ComputerName. By default that's
+        Microsoft.PowerShell, which is Windows PowerShell; use PowerShell.7 (registered by running
+        Enable-PSRemoting in PowerShell 7) to manage the PowerShell 7 modules there.
+
+    .PARAMETER Session
+        Manage the modules on the computer this PSSession is connected to (any transport, such as
+        WinRM or SSH). The session itself is left as it is: ModuleManager opens its own connection
+        using the same connection details, and closes it when you quit.
+
+    .PARAMETER Edition
+        Manage the modules of the other PowerShell edition on this computer: Desktop for Windows
+        PowerShell 5.1 (from PowerShell 7), or Core for PowerShell 7 (from Windows PowerShell). The
+        editions install modules into different folders and use their own package manager defaults,
+        so scanning, repository checks, updates and uninstalls run in a hidden process of that
+        edition, which closes when you quit. Windows only.
+
     .EXAMPLE
         Show-ModuleManager
 
@@ -87,8 +116,29 @@ function Show-ModuleManager {
         modman -Name Az.*
 
         Opens the terminal UI (via its alias) showing only the Az modules.
+
+    .EXAMPLE
+        modman -ComputerName Server01
+
+        Manages the modules installed on Server01, from this console.
+
+    .EXAMPLE
+        modman -ComputerName Server01 -ConfigurationName PowerShell.7 -Credential (Get-Credential)
+
+        Manages the PowerShell 7 modules on Server01, connecting as another user.
+
+    .EXAMPLE
+        $s = New-PSSession -HostName linux01 -UserName admin
+        Show-ModuleManager -Session $s
+
+        Manages the modules on linux01, connecting over SSH.
+
+    .EXAMPLE
+        modman -Edition Desktop
+
+        From PowerShell 7, manages the modules Windows PowerShell 5.1 uses on this computer.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Local')]
     [Alias('modman')]
     param(
         [Parameter(Position = 0)]
@@ -107,11 +157,38 @@ function Show-ModuleManager {
         [switch]$NoUpdateCheck,
 
         [ValidateRange(1, 64)]
-        [int]$ThrottleLimit = 16
+        [int]$ThrottleLimit = 16,
+
+        [Parameter(Mandatory, ParameterSetName = 'ComputerName')]
+        [string]$ComputerName,
+
+        [Parameter(ParameterSetName = 'ComputerName')]
+        [pscredential]$Credential,
+
+        [Parameter(ParameterSetName = 'ComputerName')]
+        [string]$ConfigurationName,
+
+        [Parameter(Mandatory, ParameterSetName = 'Session')]
+        [System.Management.Automation.Runspaces.PSSession]$Session,
+
+        [Parameter(Mandatory, ParameterSetName = 'Edition')]
+        [ValidateSet('Desktop', 'Core')]
+        [string]$Edition
     )
 
     if (-not (Test-MMInteractiveConsole)) {
-        throw 'Show-ModuleManager needs an interactive console. Use Get-ModuleInventory or Get-ModuleUpdate instead.'
+        throw ('Show-ModuleManager needs an interactive console, so it does not work inside Enter-PSSession or Invoke-Command. ' +
+            'To manage another computer, run it here with -ComputerName or -Session, or use Get-ModuleInventory and Get-ModuleUpdate.')
+    }
+
+    $remote = $null
+    if ($PSCmdlet.ParameterSetName -ne 'Local') {
+        Write-Progress -Activity 'Show-ModuleManager' -Status 'Connecting...'
+        try {
+            if ($Edition) { $remote = Connect-MMEdition -Edition $Edition }
+            else { $remote = Connect-MMRemote -ComputerName $ComputerName -Credential $Credential -ConfigurationName $ConfigurationName -Session $Session }
+        }
+        finally { Write-Progress -Activity 'Show-ModuleManager' -Completed }
     }
 
     $state = New-MMTuiState -Options @{
@@ -122,6 +199,7 @@ function Show-ModuleManager {
         Repository        = $Repository
         ThrottleLimit     = $ThrottleLimit
     }
+    $state.Remote = $remote
 
     $originalEncoding = [Console]::OutputEncoding
     try {
@@ -155,8 +233,9 @@ function Show-ModuleManager {
     }
     finally {
         Stop-MMTuiTask $state
-        Stop-MMGalleryLookup $state.Job
+        Stop-MMTuiLookup $state
         Exit-MMTuiScreen
         [Console]::OutputEncoding = $originalEncoding
+        Disconnect-MMRemote $remote
     }
 }

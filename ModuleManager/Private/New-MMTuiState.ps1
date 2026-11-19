@@ -7,6 +7,8 @@ function New-MMTuiState {
     param([hashtable]$Options)
     @{
         Options      = $Options
+        Remote       = $null
+        NuGetOffered = $false
         Rows         = @()
         Visible      = @()
         Gallery      = @{}

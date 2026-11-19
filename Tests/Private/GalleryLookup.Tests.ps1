@@ -52,6 +52,31 @@ Describe 'The repository lookup script' {
             }
         }
 
+        It 'Works with PowerShellGet 1.x, which has no -AllowPrerelease' {
+            InModuleScope ModuleManager {
+                # How Windows PowerShell's built-in PowerShellGet 1.0.0.1 looks: no -AllowPrerelease.
+                Mock Get-Command { [pscustomobject]@{ Parameters = @{ Name = $null; Repository = $null } } } -ParameterFilter { $Name -eq 'PowerShellGet\Find-Module' }
+                Mock Find-Module { [pscustomobject]@{ Name = 'MMThing'; Version = '1.5'; PublishedDate = $null; Dependencies = @() } }
+
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet'
+                $r.Status | Should -Be 'Found'
+                Should -Invoke Find-Module -Times 1 -Exactly -ParameterFilter { -not $PSBoundParameters.ContainsKey('AllowPrerelease') }
+
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $true -Backend 'PowerShellGet'
+                $r.Status | Should -Be 'Error'
+                $r.Error | Should -Match "can't find prerelease versions"
+            }
+        }
+
+        It 'Explains what to do when PowerShellGet wants to install the NuGet provider' {
+            InModuleScope ModuleManager {
+                Mock Find-Module { throw 'Exception calling "ShouldContinue" with "2" argument(s): "... This version of PowerShellGet requires minimum version ''2.8.5.201'' of NuGet provider ..."' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet'
+                $r.Status | Should -Be 'Error'
+                $r.Error | Should -BeLike 'PowerShellGet needs the NuGet package provider. Install it with ''Install-PackageProvider -Name NuGet*'
+            }
+        }
+
         It 'Reports NotFound when the search returns nothing' {
             InModuleScope ModuleManager {
                 Mock Find-PSResource { }
@@ -276,6 +301,20 @@ Describe 'Invoke-MMInstall' {
             Should -Invoke Install-Module -Times 1 -ParameterFilter {
                 $Name -eq 'MMOne' -and $RequiredVersion -eq '2.0.0' -and $AllowPrerelease -and $Force -and $Scope -eq 'AllUsers'
             }
+        }
+    }
+
+    It 'Installs with PowerShellGet 1.x, which has no -AllowClobber or -AllowPrerelease' {
+        InModuleScope ModuleManager {
+            Mock Get-MMBackend { 'PowerShellGet' }
+            Mock Get-Command { [pscustomobject]@{ Parameters = @{ Name = $null; RequiredVersion = $null } } } -ParameterFilter { $Name -eq 'PowerShellGet\Install-Module' }
+            Mock Install-Module { }
+            Invoke-MMInstall -Name 'MMOne' -Version '2.0.0' -Repository 'PSGallery' -Scope CurrentUser
+            Should -Invoke Install-Module -Times 1 -Exactly -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('AllowClobber') -and -not $PSBoundParameters.ContainsKey('AllowPrerelease')
+            }
+            { Invoke-MMInstall -Name 'MMOne' -Version '2.0.0-beta1' -Prerelease $true -Repository 'PSGallery' -Scope CurrentUser } |
+                Should -Throw "*can't install prerelease versions*"
         }
     }
 

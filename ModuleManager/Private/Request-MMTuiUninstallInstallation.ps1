@@ -9,16 +9,18 @@ function Request-MMTuiUninstallInstallation {
         them, f unloads them from this session first and uninstalls them too. Those that can't be
         unloaded are skipped, and the output says why.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The uninstall runs in a background runspace, where Write-Host output (with its colour) is collected for the output pane.')]
     param([hashtable]$State, [object[]]$Installation, [string]$What, [switch]$ClearSelection)
 
-    $assemblies = @(Get-MMLoadedAssemblyPath)
+    # Remotely, "loaded" means loaded in ModuleManager's own session there, which this UI can't unload.
+    $assemblies = @()
+    if (-not $State.Remote) { $assemblies = @(Get-MMLoadedAssemblyPath) }
     $free = [System.Collections.Generic.List[string]]::new()
     $unloadable = [System.Collections.Generic.List[object]]::new()
     $blocked = [System.Collections.Generic.List[string]]::new()
     foreach ($i in $Installation) {
         if (-not $i.IsLoaded) { $free.Add($i.ModuleBase); continue }
         $reason = Get-MMUnloadBlocker -Installation $i -AssemblyPath $assemblies
+        if (-not $reason -and $State.Remote) { $reason = "ModuleManager's session on $($State.Remote.Name) is using it" }
         if ($reason) { $blocked.Add("$($i.Name) $($i.Version): it is loaded in this session and $reason. Uninstall it from a new session.") }
         else { $unloadable.Add($i) }
     }
@@ -63,9 +65,9 @@ function Request-MMTuiUninstallInstallation {
 
         Invoke-MMTuiAction $State "Uninstalling $($Data.What)" -Data $run -Action {
             param($Data)
-            foreach ($n in $Data.Notes) { Write-Host "  $n" -ForegroundColor Yellow }
+            foreach ($n in $Data.Notes) { Write-MMTuiOutput "  $n" 'Yellow' }
             if ($Data.Bases) { Uninstall-ManagedModule -ModuleBase $Data.Bases -Confirm:$false -Verbose }
-            foreach ($s in $Data.Skipped) { Write-Host "  Skipped  $s" -ForegroundColor Yellow }
+            foreach ($s in $Data.Skipped) { Write-MMTuiOutput "  Skipped  $s" 'Yellow' }
         } -OnComplete {
             param($State, $Data)
             $State.DSelected = @{}

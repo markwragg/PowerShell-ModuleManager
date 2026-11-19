@@ -7,17 +7,19 @@ function Request-MMTuiRemoveOld {
         Loaded old versions that can be unloaded safely (see Get-MMUnloadBlocker) are offered as a
         choice: y skips them, f unloads them from this session first so they're removed too.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The removal runs in a background runspace, where Write-Host output (with its colour) is collected for the output pane.')]
     param([hashtable]$State, [object[]]$Rows)
     if (Test-MMTuiBusy $State) { return }
     $rows = @($Rows | Where-Object { $_.Info.VersionCount -gt 1 })
     if (-not $rows) { Set-MMTuiMessage $State 'Nothing to remove: only one version installed.' 'Yellow'; return }
     # The newest version of each is kept, so only older versions that are loaded matter.
     $old = @(foreach ($r in $rows) { @($r.Info.Installations) | Select-Object -Skip 1 })
-    $assemblies = @(Get-MMLoadedAssemblyPath)
+    # Remotely, "loaded" means loaded in ModuleManager's own session there, which this UI can't unload.
+    $assemblies = @()
+    if (-not $State.Remote) { $assemblies = @(Get-MMLoadedAssemblyPath) }
     $unloadable = @(); $blocked = @()
     foreach ($i in @($old | Where-Object IsLoaded)) {
         $reason = Get-MMUnloadBlocker -Installation $i -AssemblyPath $assemblies
+        if (-not $reason -and $State.Remote) { $reason = "ModuleManager's session on $($State.Remote.Name) is using it" }
         if ($reason) { $blocked += "$($i.Name) $($i.Version): it is loaded in this session and $reason. Remove it from a new session." }
         else { $unloadable += $i }
     }
@@ -39,9 +41,9 @@ function Request-MMTuiRemoveOld {
         if ($Choice -eq 'f') { $run.Notes = @(Remove-MMSessionModule -ModuleBase $Data.UnloadBases -Confirm:$false) }
         Invoke-MMTuiAction $State "Removing old versions of $($Data.Names.Count) module(s)" -Data $run -Action {
             param($Data)
-            foreach ($n in $Data.Notes) { Write-Host "  $n" -ForegroundColor Yellow }
+            foreach ($n in $Data.Notes) { Write-MMTuiOutput "  $n" 'Yellow' }
             Uninstall-OldModuleVersion -Name $Data.Names -Keep 1 -Confirm:$false -Verbose
-            foreach ($b in $Data.Blocked) { Write-Host "  Skipped  $b" -ForegroundColor Yellow }
+            foreach ($b in $Data.Blocked) { Write-MMTuiOutput "  Skipped  $b" 'Yellow' }
         } -OnComplete {
             param($State)
             foreach ($r in $State.Rows) { $r.Selected = $false }

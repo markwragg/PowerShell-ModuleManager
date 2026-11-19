@@ -1,5 +1,13 @@
 # Change Log
 
+## !Deploy 0.2.0
+
+* [feature] The terminal UI can manage the modules on another computer: `modman -ComputerName Server01` (with optional `-Credential` and `-ConfigurationName`) or `modman -Session $session` (any transport, such as SSH). The UI runs locally and everything else runs remotely; ModuleManager is sent for the session, so it doesn't need to be installed there.
+* [feature] On Windows, the terminal UI can manage the other PowerShell edition's modules: `modman -Edition Desktop` from PowerShell 7 manages Windows PowerShell 5.1's modules, and `modman -Edition Core` from Windows PowerShell manages PowerShell 7's. It uses that edition's module paths and package manager, in a hidden process of that edition, without needing remoting set up.
+* [feature] When the update check fails because PowerShellGet needs the NuGet package provider, the terminal UI offers to install it for the current user (no administrator rights needed) and checks again.
+* [fix] Update checks and updates failed with Windows PowerShell's built-in PowerShellGet 1.0 ("A parameter cannot be found that matches parameter name 'AllowPrerelease'"), as it doesn't have the -AllowPrerelease and -AllowClobber parameters ModuleManager passed.
+* [fix] Every update check failed, with no reason given, where only Windows PowerShell's built-in PowerShellGet 1.0 is available and the NuGet provider isn't installed (it asks to install the provider, which nothing can answer). The check now says how to fix it, and the terminal UI shows why lookups failed when the check finishes.
+
 ## [0.1.2] - 2026-11-19
 
 * [feature] The terminal UI can uninstall loaded modules: when some of the versions being uninstalled or removed are loaded, the confirmation offers f to unload them from the session first. Modules that use .NET assemblies, ModuleManager itself and the package manager are skipped with the reason, as they can't be unloaded safely.

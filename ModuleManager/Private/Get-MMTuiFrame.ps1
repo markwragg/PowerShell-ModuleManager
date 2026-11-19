@@ -43,6 +43,7 @@ function Get-MMTuiFrame {
         , @(' ModuleManager ', 'TitleBold')
         , @(" $total modules  |  $updates updates  |  view: $($State.Views[$State.View])  |  sort: $($State.Sorts[$State.Sort])", $null)
     )
+    if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + @(, $title[1]) }
     $selected = @()
     if ($selCount) { $selected += "$selCount module(s)" }
     if ($State.DSelected.Count) { $selected += "$($State.DSelected.Count) version(s)" }

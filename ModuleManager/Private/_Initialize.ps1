@@ -62,11 +62,24 @@ $script:MMLookupScript = {
                     Sort-Object -Property Version -Descending | Select-Object -First 1
             }
             else {
-                $found = PowerShellGet\Find-Module -Name $n -Repository $Repository `
-                    -AllowPrerelease:$Prerelease -ErrorAction Stop | Select-Object -First 1
+                # PowerShellGet 1.x (as shipped with Windows PowerShell) has no -AllowPrerelease, so
+                # only pass it when it's wanted, and say so when it can't be.
+                $find = @{ Name = $n; Repository = $Repository; ErrorAction = 'Stop' }
+                if ($Prerelease) {
+                    if (-not (Get-Command -Name PowerShellGet\Find-Module).Parameters.ContainsKey('AllowPrerelease')) {
+                        throw "This version of PowerShellGet can't find prerelease versions. Install PowerShellGet 2 or Microsoft.PowerShell.PSResourceGet."
+                    }
+                    $find.AllowPrerelease = $true
+                }
+                $found = PowerShellGet\Find-Module @find | Select-Object -First 1
             }
         }
         catch { $message = $_.Exception.Message }
+        # PowerShellGet 1.x (as shipped with Windows PowerShell) asks to install the NuGet provider
+        # if it's missing, which fails where nothing can answer. Say what to do instead.
+        if ($message -match 'NuGet provider') {
+            $message = 'PowerShellGet needs the NuGet package provider. Install it with ''Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force'', or install Microsoft.PowerShell.PSResourceGet.'
+        }
 
         if ($found) {
             $version = $null

@@ -1,5 +1,7 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '..\TestHelpers.ps1')
+    # Load it while PSModulePath is still the real one, so Install-PackageProvider can be mocked.
+    Import-Module PackageManagement -Global -ErrorAction SilentlyContinue
     Initialize-MMTestEnvironment
     Reset-FakeModules
     Set-FakeGalleryCache
@@ -110,6 +112,80 @@ Describe 'Terminal UI keys' {
         }
     }
 
+    It 'Says why lookups failed when the update check finishes' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            function New-Result($Name, $Status, $Message) {
+                [pscustomobject]@{ RequestedName = $Name; Name = $Name; Repository = 'PSGallery'; Prerelease = $false; Status = $Status
+                    Version = $null; ModuleVersion = $null; PrereleaseLabel = $null; PublishedDate = $null; Dependencies = @(); Error = $Message; CachedAt = [datetime]::UtcNow }
+            }
+            foreach ($case in @(
+                    @{ Errors = @('no provider', 'no provider'); Expected = '2 lookup\(s\) failed: no provider$' }
+                    @{ Errors = @('timed out', 'no provider'); Expected = '2 lookup\(s\) failed, for example: no provider$' }
+                )) {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                $job = [pscustomobject]@{ Tasks = @(); Results = [System.Collections.Generic.List[object]]::new(); Pool = $null; Total = 2; Done = 0 }
+                $job.Results.Add((New-Result 'MMAlpha' 'Error' $case.Errors[0]))
+                $job.Results.Add((New-Result 'MMGamma' 'Error' $case.Errors[1]))
+                foreach ($r in $job.Results) { $s.Gallery[$r.RequestedName.ToLowerInvariant()] = $r }
+                $s.Job = $job
+                $null = Receive-MMTuiLookup $s
+                $s.Message | Should -Match $case.Expected
+                $s.MessageStyle | Should -Be 'Yellow'
+            }
+        }
+    }
+
+    It 'Offers to install the NuGet provider when lookups failed for want of it, once' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $script:message = "PowerShellGet needs the NuGet package provider. Install it with 'Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force', or install Microsoft.PowerShell.PSResourceGet."
+            function Start-FailedCheck($S, [string]$Message = $script:message) {
+                $job = [pscustomobject]@{ Tasks = @(); Results = [System.Collections.Generic.List[object]]::new(); Pool = $null; Total = 2; Done = 0 }
+                foreach ($n in 'MMAlpha', 'MMGamma') {
+                    $r = [pscustomobject]@{ RequestedName = $n; Name = $n; Repository = 'PSGallery'; Prerelease = $false; Status = 'Error'
+                        Version = $null; ModuleVersion = $null; PrereleaseLabel = $null; PublishedDate = $null; Dependencies = @(); Error = $Message; CachedAt = [datetime]::UtcNow }
+                    $job.Results.Add($r)
+                    $S.Gallery[$n.ToLowerInvariant()] = $r
+                }
+                $S.Job = $job
+                $null = Receive-MMTuiLookup $S
+            }
+            Mock Invoke-MMTuiAction {
+                $State.Log.Clear()
+                & $Action $Data $State.Options
+                if ($OnComplete) { & $OnComplete $State $Data }
+            }
+            Mock Install-PackageProvider { [pscustomobject]@{ Name = 'NuGet'; Version = [version]'2.8.5.208' } }
+            Mock Write-MMTuiOutput { }
+            Mock Start-MMTuiLookup { }
+
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s
+            Start-FailedCheck $s
+            $s.Mode | Should -Be 'confirm'
+            $s.Confirm.Prompt | Should -Be 'PowerShellGet needs the NuGet provider to check 2 module(s) for updates. Install it for the current user now?'
+            Invoke-MMTuiKey $s ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Install-PackageProvider -Times 1 -Exactly -ParameterFilter { $Name -eq 'NuGet' -and $Scope -eq 'CurrentUser' -and $Force -and $MinimumVersion -eq '2.8.5.201' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -eq '  Installed  NuGet provider 2.8.5.208' }
+            Should -Invoke Start-MMTuiLookup -Times 1 -Exactly -ParameterFilter { $Refresh }
+
+            # Not again in the same session, even if the check fails the same way.
+            Start-FailedCheck $s
+            $s.Mode | Should -Be 'list'
+            $s.Message | Should -Match 'needs the NuGet package provider'
+
+            # Not for other failures, nor while typing a filter or while an action runs.
+            foreach ($case in @(@{ Message = 'timed out' }, @{ Mode = 'filter' }, @{ Task = @{ Title = 'Busy' } })) {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                if ($case.ContainsKey('Mode')) { $s.Mode = $case.Mode }
+                if ($case.ContainsKey('Task')) { $s.Task = $case.Task }
+                if ($case.ContainsKey('Message')) { Start-FailedCheck $s $case.Message } else { Start-FailedCheck $s }
+                $s.Mode | Should -Not -Be 'confirm'
+            }
+        }
+    }
+
     It 'Selects every module with an update, then clears the selection' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s; Key = ${function:Key} } {
@@ -204,7 +280,7 @@ Describe 'Terminal UI actions' {
             & $Action $Data $State.Options
             if ($OnComplete) { & $OnComplete $State $Data }
         }
-        Mock -ModuleName ModuleManager Write-Host { }
+        Mock -ModuleName ModuleManager Write-MMTuiOutput { }
     }
 
     It 'Updates the selected modules and reports each result' {
@@ -225,9 +301,9 @@ Describe 'Terminal UI actions' {
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
 
             Should -Invoke Update-ManagedModule -Times 1 -ParameterFilter { $Name -eq 'MMAlpha' -and $TrustRepository -and $PassThru }
-            Should -Invoke Write-Host -ParameterFilter { $Object -match 'Updated  MMGamma 3\.0\.0  \(dependency of MMAlpha\)' }
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -match 'Failed   MMOther failed' }
-            Should -Invoke Write-Host -ParameterFilter { $Object -eq '2 updated (1 as dependencies), 1 failed.' }
+            Should -Invoke Write-MMTuiOutput -ParameterFilter { $Text -match 'Updated  MMGamma 3\.0\.0  \(dependency of MMAlpha\)' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -match 'Failed   MMOther failed' }
+            Should -Invoke Write-MMTuiOutput -ParameterFilter { $Text -eq '2 updated (1 as dependencies), 1 failed.' }
             @($S.Rows | Where-Object Selected).Count | Should -Be 0
         }
     }
@@ -242,9 +318,9 @@ Describe 'Terminal UI actions' {
             }
             Request-MMTuiUpdate $S @($S.Rows | Where-Object Name -EQ 'MMAlpha')
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Failed *' }
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -eq '  Failed   Failed to update MMAlpha: Unable to connect to the remote server' }
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -eq '0 updated, 1 failed.' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -like '  Failed *' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -eq '  Failed   Failed to update MMAlpha: Unable to connect to the remote server' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -eq '0 updated, 1 failed.' }
         }
     }
 
@@ -414,7 +490,7 @@ Describe 'Uninstalling loaded modules' {
             & $Action $Data $State.Options
             if ($OnComplete) { & $OnComplete $State $Data }
         }
-        Mock -ModuleName ModuleManager Write-Host { }
+        Mock -ModuleName ModuleManager Write-MMTuiOutput { }
         Mock -ModuleName ModuleManager Uninstall-ManagedModule { }
         Mock -ModuleName ModuleManager Uninstall-OldModuleVersion { }
         Mock -ModuleName ModuleManager Remove-MMSessionModule { }
@@ -436,7 +512,7 @@ Describe 'Uninstalling loaded modules' {
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
             Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 -and $ModuleBase -notcontains $loaded.ModuleBase }
             Should -Invoke Remove-MMSessionModule -Times 0 -Exactly
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: it is loaded*press f*' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -like '  Skipped  MMAlpha 1.0.0: it is loaded*press f*' }
 
             Request-MMTuiUninstall $S
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('f', [ConsoleKey]::F, $false, $false, $false))
@@ -463,7 +539,7 @@ Describe 'Uninstalling loaded modules' {
             Request-MMTuiUninstall $S
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
             Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 }
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: it is loaded in this session and it has .NET assemblies loaded*new session.' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -like '  Skipped  MMAlpha 1.0.0: it is loaded in this session and it has .NET assemblies loaded*new session.' }
 
             # Only that version, from the details view: there's nothing it can do.
             $S.Mode = 'details'; $S.Detail = $alpha; $S.DSelected = @{ $loaded.ModuleBase = $true }
@@ -507,7 +583,7 @@ Describe 'Uninstalling loaded modules' {
             $S.Confirm.Prompt | Should -Match "Skips 1 loaded version\(s\) that can't be unloaded\.$"
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
             Should -Invoke Remove-MMSessionModule -Times 1 -Exactly    # not again
-            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: *Remove it from a new session.' }
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -like '  Skipped  MMAlpha 1.0.0: *Remove it from a new session.' }
         }
     }
 }

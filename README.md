@@ -143,6 +143,57 @@ first so they're removed too. modman won't unload a module that uses .NET assemb
 PowerShell exits, so its folder couldn't be fully deleted), ModuleManager itself, or the package manager it uses.
 Those are skipped with the reason, and you can remove them from a new session.
 
+If the update check fails because PowerShellGet needs the NuGet package provider (as Windows PowerShell's built-in
+PowerShellGet 1.0 does until it's installed), modman offers to install it for the current user, which doesn't need
+administrator rights, and then checks again. It asks once per session. Installing
+`Microsoft.PowerShell.PSResourceGet` avoids the need for it altogether.
+
+### Managing another computer
+
+```powershell
+modman -ComputerName Server01                      # over WinRM, as you
+modman -ComputerName Server01 -Credential $cred
+modman -ComputerName Server01 -ConfigurationName PowerShell.7   # PowerShell 7 rather than Windows PowerShell
+$s = New-PSSession -HostName linux01 -UserName admin; modman -Session $s   # any transport, such as SSH
+```
+
+The UI runs in your console, and scanning, repository checks, updates and uninstalls run on the remote computer,
+as the user you connect as and against the repositories registered there. By default `-ComputerName` connects to
+Windows PowerShell (the `Microsoft.PowerShell` endpoint), so you see its modules; to manage PowerShell 7's, use
+`-ConfigurationName PowerShell.7` (the endpoint `Enable-PSRemoting` registers when run in PowerShell 7). ModuleManager doesn't need to be
+installed remotely: it's sent for the session. With `-Session`, your session is left as it is; modman opens its
+own connection with the same details and closes it when you quit.
+
+Some differences from managing this computer:
+
+- The repository check and actions share one remote connection, so an action waits for the check to finish
+  (R restarts the check at any time).
+- "Loaded" means loaded in modman's own session on that computer, which it can't unload, so the **f** choice
+  isn't offered. Modules loaded by other sessions there (a service, or another user) can't be seen; removing a
+  binary module one of them has loaded fails with an error.
+- Against Windows PowerShell 5.1, remote output can arrive all at once when an action finishes rather than as it
+  happens.
+
+`modman` itself doesn't work inside `Enter-PSSession` or `Invoke-Command`, which have no console. Use
+`-ComputerName` or `-Session` from your own console instead, or the cmdlets through `Invoke-Command`.
+
+### Managing the other PowerShell edition
+
+```powershell
+modman -Edition Desktop    # from PowerShell 7: Windows PowerShell 5.1's modules
+```
+```powershell
+modman -Edition Core       # from Windows PowerShell: PowerShell 7's modules
+```
+
+On Windows, Windows PowerShell 5.1 and PowerShell 7 install modules into different folders
+(`Documents\WindowsPowerShell\Modules` and `Program Files\WindowsPowerShell\Modules`, or `Documents\PowerShell\Modules`
+and `Program Files\PowerShell\Modules`), so modman normally shows only some of the other edition's modules: PowerShell 7
+sees Windows PowerShell's AllUsers modules but not its CurrentUser ones. `-Edition` manages the other edition's
+modules with that edition's own module paths and package manager, through a hidden process of it that closes when
+you quit. It works like managing another computer (see above), without needing remoting set up. Every PowerShell 7
+version on a computer shares the same module folders, so there's one set to manage for PowerShell 7.
+
 ## How it works and safety
 
 - **Fast scan.** ModuleManager reads `$env:PSModulePath` folders and manifests directly instead of calling

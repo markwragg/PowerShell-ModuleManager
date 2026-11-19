@@ -14,5 +14,6 @@ function Stop-MMTuiTask {
     $State.Progress = $null
     $runspace = $task.PowerShell.Runspace
     try { $task.PowerShell.Stop(); $task.PowerShell.Dispose() } catch { Write-Debug $_ }
+    if ($task.ContainsKey('OwnsRunspace') -and -not $task.OwnsRunspace) { return }   # the remote runspace stays open
     try { if ($runspace) { $runspace.Dispose() } } catch { Write-Debug $_ }
 }

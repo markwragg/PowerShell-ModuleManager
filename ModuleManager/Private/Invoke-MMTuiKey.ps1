@@ -141,8 +141,11 @@ function Invoke-MMTuiKey {
             else { foreach ($r in $State.Rows) { $r.Selected = $false } }
         }
         'r' {
-            if (Test-MMTuiBusy $State) { return }
-            Update-MMTuiRows $State
+            # A repository check still running is replaced, but an action has to finish first.
+            if (Test-MMTuiBusy $State -AllowLookup) { return }
+            Stop-MMTuiLookup $State
+            try { Update-MMTuiRows $State }
+            catch { Set-MMTuiMessage $State "Could not rescan: $($_.Exception.Message)" 'Red'; return }
             Start-MMTuiLookup $State -Refresh
             Set-MMTuiMessage $State 'Rescanned modules; checking repositories...'
         }

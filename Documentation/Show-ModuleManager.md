@@ -5,10 +5,33 @@ Opens an interactive terminal UI for browsing, updating and uninstalling modules
 
 ## SYNTAX
 
+### Local (Default)
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
  [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
+```
+
+### ComputerName
+```
+Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
+ [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -ComputerName <String>
+ [-Credential <PSCredential>] [-ConfigurationName <String>] [-ProgressAction <ActionPreference>]
+ [<CommonParameters>]
+```
+
+### Session
+```
+Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
+ [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -Session <PSSession>
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
+```
+
+### Edition
+```
+Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
+ [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -Edition <String>
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -55,6 +78,10 @@ Modules that
 use .NET assemblies, ModuleManager itself and the package manager can't be unloaded safely,
 so they're skipped with the reason; remove them from a new session.
 
+If the update check fails because PowerShellGet needs the NuGet package provider (Windows
+PowerShell's built-in PowerShellGet 1.0 does), you're offered to install it for the current
+user, after which the check runs again.
+
 Updates, uninstalls and removing old versions run in the background, with their progress
 and output in a pane at the bottom of the screen, so the list stays on screen and you can
 keep browsing.
@@ -87,6 +114,35 @@ modman -Name Az.*
 ```
 
 Opens the terminal UI (via its alias) showing only the Az modules.
+
+### EXAMPLE 3
+```
+modman -ComputerName Server01
+```
+
+Manages the modules installed on Server01, from this console.
+
+### EXAMPLE 4
+```
+modman -ComputerName Server01 -ConfigurationName PowerShell.7 -Credential (Get-Credential)
+```
+
+Manages the PowerShell 7 modules on Server01, connecting as another user.
+
+### EXAMPLE 5
+```
+$s = New-PSSession -HostName linux01 -UserName admin
+Show-ModuleManager -Session $s
+```
+
+Manages the modules on linux01, connecting over SSH.
+
+### EXAMPLE 6
+```
+modman -Edition Desktop
+```
+
+From PowerShell 7, manages the modules Windows PowerShell 5.1 uses on this computer.
 
 ## PARAMETERS
 
@@ -197,8 +253,99 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -ComputerName
+Manage the modules on this computer instead, over PowerShell remoting.
+The UI runs here;
+scanning, repository checks, updates and uninstalls run on that computer, as the user you
+connect as.
+ModuleManager doesn't need to be installed there: it's sent for the session.
+
+```yaml
+Type: String
+Parameter Sets: ComputerName
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Credential
+The credentials to connect to -ComputerName with.
+
+```yaml
+Type: PSCredential
+Parameter Sets: ComputerName
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ConfigurationName
+The session configuration (endpoint) to connect to on -ComputerName.
+By default that's
+Microsoft.PowerShell, which is Windows PowerShell; use PowerShell.7 (registered by running
+Enable-PSRemoting in PowerShell 7) to manage the PowerShell 7 modules there.
+
+```yaml
+Type: String
+Parameter Sets: ComputerName
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Session
+Manage the modules on the computer this PSSession is connected to (any transport, such as
+WinRM or SSH).
+The session itself is left as it is: ModuleManager opens its own connection
+using the same connection details, and closes it when you quit.
+
+```yaml
+Type: PSSession
+Parameter Sets: Session
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Edition
+Manage the modules of the other PowerShell edition on this computer: Desktop for Windows
+PowerShell 5.1 (from PowerShell 7), or Core for PowerShell 7 (from Windows PowerShell).
+The
+editions install modules into different folders and use their own package manager defaults,
+so scanning, repository checks, updates and uninstalls run in a hidden process of that
+edition, which closes when you quit.
+Windows only.
+
+```yaml
+Type: String
+Parameter Sets: Edition
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -ProgressAction
-{{Fill ProgressAction Description}}
+{{ Fill ProgressAction Description }}
 
 ```yaml
 Type: ActionPreference
@@ -213,8 +360,7 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
-For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
