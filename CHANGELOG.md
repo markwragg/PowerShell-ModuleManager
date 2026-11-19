@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.3.0
+## [0.3.0] - 2026-11-19
 
 * [feature] `Move-ManagedModule` moves modules, or specific versions, between the `CurrentUser` and `AllUsers` scopes, for example `Move-ManagedModule Pester -Destination AllUsers`. Each version is copied (so it takes the destination folder's permissions) and the original removed only once the copy is complete; the install record is updated so PowerShellGet and PSResourceGet still recognise it. It needs an elevated session, and warns when moving to `CurrentUser` a version that a module installed for all users depends on.
 * [feature] In the terminal UI, M moves the selected modules and versions (or the current one) to the other scope.

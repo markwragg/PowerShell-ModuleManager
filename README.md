@@ -3,7 +3,7 @@
 [<img src="modulemanager-logo.png" align="right" width="100">](https://www.powershellgallery.com/packages/modulemanager)
 
 [![Build Status](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml/badge.svg)](https://github.com/markwragg/PowerShell-ModuleManager/actions/workflows/build.yml)
-![coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)
+![coverage](https://img.shields.io/badge/coverage-93%25-brightgreen.svg)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/ModuleManager?label=PS%20Gallery)](https://www.powershellgallery.com/packages/ModuleManager)
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/ModuleManager?color=D3D3D3)](https://www.powershellgallery.com/packages/ModuleManager)
 
