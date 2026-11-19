@@ -27,5 +27,12 @@ function Update-MMTuiRows {
             }
         })
     Set-MMTuiFamily -Rows $State.Rows
+
+    # Forget selected versions that are no longer installed.
+    if ($State.DSelected.Count) {
+        $installed = @{}
+        foreach ($m in $modules) { foreach ($i in @($m.Installations)) { $installed[$i.ModuleBase] = $true } }
+        foreach ($base in @($State.DSelected.Keys)) { if (-not $installed.ContainsKey($base)) { $State.DSelected.Remove($base) } }
+    }
     Update-MMTuiStatus $State
 }

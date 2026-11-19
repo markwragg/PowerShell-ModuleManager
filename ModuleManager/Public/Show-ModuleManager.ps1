@@ -16,7 +16,8 @@ function Show-ModuleManager {
           Left                           Collapse the module family
           Enter                          Show installed versions and paths
           U                              Update selected modules (or the current one)
-          X or Delete                    Uninstall selected modules (all versions)
+          X or Delete                    Uninstall everything selected: modules (all versions) and
+                                         versions selected in the details view
           O                              Remove old versions, keeping the newest
           L                              Show or hide the output pane
           [ and ]                        Scroll the output pane back and forward
@@ -29,13 +30,19 @@ function Show-ModuleManager {
           Q                              Quit (Ctrl+C while an operation is running stops it)
 
         Keys (details view):
-          Space                          Select / deselect a version
-          X or Delete                    Uninstall selected versions (or the current one)
+          Space                          Select / deselect a version (selections are kept when you
+                                         go back, so you can pick versions of several modules)
+          X or Delete                    Uninstall the selected versions, of every module (or the
+                                         current one)
           O                              Remove all but the newest version
           U                              Update this module
           Esc, Left or Backspace         Back to the list
 
-        Modules marked with * are loaded in the current session.
+        Modules marked with * are loaded in the current session. When you uninstall or remove old
+        versions and some of them are loaded, the confirmation offers y (leave the loaded versions
+        installed) or f (unload them from the session first, so they're removed too). Modules that
+        use .NET assemblies, ModuleManager itself and the package manager can't be unloaded safely,
+        so they're skipped with the reason; remove them from a new session.
 
         Updates, uninstalls and removing old versions run in the background, with their progress
         and output in a pane at the bottom of the screen, so the list stays on screen and you can

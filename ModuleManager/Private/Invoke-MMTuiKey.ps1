@@ -25,7 +25,9 @@ function Invoke-MMTuiKey {
             $confirm = $State.Confirm
             $State.Mode = $confirm.ReturnMode
             $State.Confirm = $null
-            if ($c -eq 'y') { & $confirm.Action $State $confirm.Data }
+            $choices = 'y'
+            if ($confirm.ContainsKey('Choices') -and $confirm.Choices) { $choices = $confirm.Choices }
+            if ($c -ne 'n' -and $choices.Contains([string]$c)) { & $confirm.Action $State $confirm.Data ([string]$c) }
             else { Set-MMTuiMessage $State 'Cancelled.' }
             return
         }
@@ -87,7 +89,10 @@ function Invoke-MMTuiKey {
         }
         ([ConsoleKey]::Escape) {
             if ($State.LogOpen -and -not $State.Task) { $State.LogOpen = $false }
-            elseif (@($State.Rows | Where-Object Selected).Count) { foreach ($r in $State.Rows) { $r.Selected = $false } }
+            elseif (@($State.Rows | Where-Object Selected).Count -or $State.DSelected.Count) {
+                foreach ($r in $State.Rows) { $r.Selected = $false }
+                $State.DSelected = @{}
+            }
             elseif ($State.Filter) { $State.Filter = '' }
             return
         }
@@ -100,7 +105,7 @@ function Invoke-MMTuiKey {
                     return
                 }
                 $State.Detail = $State.Visible[$State.Cursor]
-                $State.DCursor = 0; $State.DTop = 0; $State.DSelected = @{}
+                $State.DCursor = 0; $State.DTop = 0
                 $State.Mode = 'details'
             }
             return

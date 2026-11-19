@@ -54,4 +54,58 @@ Describe 'Read-MMXmlDependency' {
             $result.Count | Should -Be 0
         }
     }
+
+    It 'Resolves version ranges written once and referred back to (as when Az pins the same version of many modules)' {
+        # The shape PSResourceGet writes: the first use of a range is written out, later uses refer to it by RefId.
+        $text = @'
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">
+  <Obj RefId="0">
+    <MS>
+      <Obj N="Dependencies" RefId="1">
+        <TN RefId="1"><T>Microsoft.PowerShell.PSResourceGet.UtilClasses.Dependency[]</T></TN>
+        <LST>
+          <Obj RefId="2">
+            <Props>
+              <S N="Name">MMRoll.Core</S>
+              <Obj N="VersionRange" RefId="3">
+                <TN RefId="2"><T>NuGet.Versioning.VersionRange</T></TN>
+                <ToString>[2.0.0, 2.0.0]</ToString>
+                <Props><Obj N="MinVersion" RefId="4"><ToString>2.0.0</ToString></Obj></Props>
+              </Obj>
+            </Props>
+          </Obj>
+          <Obj RefId="5">
+            <Props>
+              <S N="Name">MMRoll.Extra</S>
+              <Ref N="VersionRange" RefId="3" />
+            </Props>
+          </Obj>
+          <Obj RefId="6">
+            <Props>
+              <S N="Name">MMRoll.Other</S>
+              <Obj N="VersionRange" RefId="7">
+                <TNRef RefId="2" />
+                <ToString>[1.0.0, )</ToString>
+              </Obj>
+            </Props>
+          </Obj>
+          <Obj RefId="8">
+            <Props>
+              <S N="Name">MMRoll.Last</S>
+              <Ref N="VersionRange" RefId="7" />
+            </Props>
+          </Obj>
+        </LST>
+      </Obj>
+    </MS>
+  </Obj>
+</Objs>
+'@
+        InModuleScope ModuleManager -Parameters @{ Text = $text } {
+            $result = Read-MMXmlDependency -Text $Text
+            @($result | ForEach-Object { "$($_.Name) $($_.VersionRange)" }) | Should -Be @(
+                'MMRoll.Core [2.0.0, 2.0.0]', 'MMRoll.Extra [2.0.0, 2.0.0]', 'MMRoll.Other [1.0.0, )', 'MMRoll.Last [1.0.0, )'
+            )
+        }
+    }
 }

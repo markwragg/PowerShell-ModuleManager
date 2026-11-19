@@ -1,20 +1,13 @@
 function Request-MMTuiUninstallVersion {
     <#
     .SYNOPSIS
-        Asks to uninstall the selected versions in the details view, then uninstalls them.
+        Asks to uninstall the versions selected in the details view (of any module), or the one under the cursor, then uninstalls them.
     #>
     param([hashtable]$State)
     if (Test-MMTuiBusy $State) { return }
-    $installs = @($State.Detail.Info.Installations)
-    $bases = @($State.DSelected.Keys)
-    if (-not $bases) { $bases = @($installs[$State.DCursor].ModuleBase) }
-    $versions = @($installs | Where-Object { $bases -contains $_.ModuleBase } | ForEach-Object { $_.Version })
-    $data = @{ Bases = $bases; What = "$($State.Detail.Name) $($versions -join ', ')" }
-    Request-MMTuiConfirm $State "Uninstall $($data.What) ?" -Data $data -Action {
-        param($State, $Data)
-        Invoke-MMTuiAction $State "Uninstalling $($Data.What)" -Data $Data -Action {
-            param($Data)
-            Uninstall-ManagedModule -ModuleBase $Data.Bases -Confirm:$false -Verbose
-        }
-    }
+    # The versions selected in the details view, of this and any other module; with none, the
+    # version under the cursor.
+    $targets = @(Get-MMTuiSelectedVersion $State)
+    if (-not $targets) { $targets = @(@($State.Detail.Info.Installations)[$State.DCursor]) }
+    Request-MMTuiUninstallInstallation $State -Installation $targets -What (Format-MMTuiTarget $State $targets)
 }

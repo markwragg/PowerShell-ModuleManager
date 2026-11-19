@@ -21,7 +21,9 @@ $script:MMRegex = @{
     HashEntry     = [regex]::new('(?i)\b(ModuleName|ModuleVersion|RequiredVersion|MaximumVersion)\s*=\s*[''"]([^''"]+)[''"]')
     # PSGetModuleInfo.xml dependencies: PSResourceGet (Name + NuGet VersionRange) and PowerShellGet (dictionaries).
     XmlObjTag     = [regex]::new('<Obj\b[^>]*?(/?)>|</Obj>')
-    XmlRangeDep   = [regex]::new('(?s)<S N="Name">([^<]+)</S>\s*(?:<Nil N="VersionRange"\s*/>|<Obj N="VersionRange"[^>]*>.*?<ToString>([^<]*)</ToString>)')
+    # A range already written elsewhere in the file is a reference to it: <Ref N="VersionRange" RefId="13" />.
+    XmlRangeDep   = [regex]::new('(?s)<S N="Name">([^<]+)</S>\s*(?:<Nil N="VersionRange"\s*/>|<Ref N="VersionRange" RefId="(\d+)"\s*/>|<Obj N="VersionRange"[^>]*>.*?<ToString>([^<]*)</ToString>)')
+    XmlRangeObj   = [regex]::new('(?s)<Obj N="VersionRange" RefId="(\d+)"[^>]*>.*?<ToString>([^<]*)</ToString>')
     XmlDictionary = [regex]::new('(?s)<DCT>(.*?)</DCT>')
     XmlDictEntry  = [regex]::new('<S N="Key">([^<]+)</S>\s*<S N="Value">([^<]*)</S>')
 }

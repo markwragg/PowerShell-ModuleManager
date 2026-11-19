@@ -104,7 +104,7 @@ Uninstall-OldModuleVersion Az.* -WhatIf
  [################------------------------]  41%  32 of 76: Az.KeyVault 6.3.1 -> 6.4.0
  WARNING: Az.Accounts 5.4.0 is loaded in this session, but Az.Aks 7.1.0 needs [5.5.0, ); ...
  Updating 76 module(s)...
- Up/Dn move  Space select  A select updates  Enter details  U update  X uninstall  O remove old ...
+ Up/Dn move  Space select  A select updates  Enter details  U update selected  X uninstall selected ...
 ```
 
 The update check runs in the background, so you can use the list while it fills in.
@@ -112,13 +112,13 @@ The update check runs in the background, so you can use the list while it fills 
 | Key | Module list | Details view (Enter) |
 | --- | --- | --- |
 | ↑ ↓ / PgUp PgDn / Home End (or j k) | Move | Move |
-| Space | Select a module (a collapsed family: all of it) | Select a version |
+| Space | Select a module (a collapsed family: all of it) | Select a version (kept when you go back, so you can pick versions of several modules) |
 | A | Select every module with an update (press again to clear) | |
 | → | Expand a module family, or show versions and paths | |
 | ← | Collapse the module family | Back to the list |
 | Enter | Show versions and paths | |
 | U | Update the selected modules (or the current one) | Update this module |
-| X / Del | Uninstall the selected modules (all versions) | Uninstall the selected versions |
+| X / Del | Uninstall everything selected: modules (all versions) and versions | Uninstall the selected versions, of every module |
 | O | Remove old versions, keeping the newest | Same, for this module |
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |
@@ -136,6 +136,12 @@ runs. Updates end with one result line per module. When the action finishes, the
 output stays in the pane until you close it (Esc or L). Only one action runs at a time. Nothing can answer a
 prompt while an action runs, so anything that would prompt is asked up front: updating from an untrusted
 repository says so in the confirmation. Modules marked `*` are loaded in the current session.
+
+When you uninstall (X) or remove old versions (O) and some of those versions are loaded in the session, the
+confirmation offers a choice: **y** leaves the loaded versions installed, and **f** unloads them from the session
+first so they're removed too. modman won't unload a module that uses .NET assemblies (they stay locked until
+PowerShell exits, so its folder couldn't be fully deleted), ModuleManager itself, or the package manager it uses.
+Those are skipped with the reason, and you can remove them from a new session.
 
 ## How it works and safety
 

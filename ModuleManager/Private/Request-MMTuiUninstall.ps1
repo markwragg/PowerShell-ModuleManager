@@ -1,24 +1,19 @@
 function Request-MMTuiUninstall {
     <#
     .SYNOPSIS
-        Asks to uninstall the targeted modules (every version), then uninstalls them.
+        Asks to uninstall everything selected (modules and versions), or the module under the cursor, then uninstalls it.
     #>
     param([hashtable]$State)
     if (Test-MMTuiBusy $State) { return }
-    $rows = @(Get-MMTuiTarget $State)
-    if (-not $rows) { return }
-    $installs = @($rows | ForEach-Object { $_.Info.Installations })
-    if ($rows.Count -eq 1) { $what = "$($rows[0].Name) ($($installs.Count) version(s))" }
-    else { $what = "$($rows.Count) modules ($($installs.Count) versions)" }
-    $data = @{ Bases = @($installs | ForEach-Object { $_.ModuleBase }); What = $what }
-    Request-MMTuiConfirm $State "Uninstall $what ?" -Data $data -Action {
-        param($State, $Data)
-        Invoke-MMTuiAction $State "Uninstalling $($Data.What)" -Data $Data -Action {
-            param($Data)
-            Uninstall-ManagedModule -ModuleBase $Data.Bases -Confirm:$false -Verbose
-        } -OnComplete {
-            param($State)
-            foreach ($r in $State.Rows) { $r.Selected = $false }
-        }
-    }
+    # Everything selected: whole modules, and versions selected in the details view (of any
+    # module). With nothing selected, the module (or collapsed family) under the cursor.
+    $rows = @($State.Rows | Where-Object Selected)
+    $versions = @(Get-MMTuiSelectedVersion $State)
+    if (-not $rows -and -not $versions) { $rows = @(Get-MMTuiTarget $State) }
+    $seen = @{}
+    $installs = @(foreach ($i in @(@($rows | ForEach-Object { $_.Info.Installations }) + $versions)) {
+            if ($i -and -not $seen.ContainsKey($i.ModuleBase)) { $seen[$i.ModuleBase] = $true; $i }
+        })
+    if (-not $installs) { return }
+    Request-MMTuiUninstallInstallation $State -Installation $installs -What (Format-MMTuiTarget $State $installs) -ClearSelection
 }

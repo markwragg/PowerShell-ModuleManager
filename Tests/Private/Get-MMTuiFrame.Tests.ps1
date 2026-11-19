@@ -154,4 +154,30 @@ Describe 'Get-MMTuiFrame' {
             $s.DTop | Should -Be 0
         }
     }
+
+    It 'Says on the help bar when U, X and O will act on the selection' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s; Update-MMTuiVisible $s
+            function HelpBar { (((Get-MMTuiFrame $s 400 15) -split "`r`n")[-1]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' }
+
+            $bar = HelpBar
+            $bar | Should -Match ' U update  X uninstall  O remove old  '
+
+            # A selected version: only X acts on it.
+            $alpha = $s.Rows | Where-Object Name -EQ 'MMAlpha'
+            $s.DSelected[@($alpha.Info.Installations)[1].ModuleBase] = $true
+            HelpBar | Should -Match ' U update  X uninstall selected  O remove old  '
+
+            # A selected module: all three do.
+            $alpha.Selected = $true
+            HelpBar | Should -Match ' U update selected  X uninstall selected  O remove old from selected  '
+
+            # The details view: X follows the version selection.
+            $s.Mode = 'details'; $s.Detail = $alpha
+            HelpBar | Should -Match ' X uninstall selected '
+            $s.DSelected = @{}
+            HelpBar | Should -Match ' X uninstall  O remove old '
+        }
+    }
 }

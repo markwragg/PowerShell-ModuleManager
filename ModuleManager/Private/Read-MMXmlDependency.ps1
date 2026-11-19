@@ -35,9 +35,20 @@ function Read-MMXmlDependency {
     $section = $Text.Substring($open, $end - $open)
 
     $deps = [System.Collections.Generic.List[object]]::new()
+    $ranges = $null
     foreach ($d in $script:MMRegex.XmlRangeDep.Matches($section)) {
+        $range = $d.Groups[3].Value
+        if ($d.Groups[2].Success) {
+            # Serialization writes each distinct range once and refers back to it after that (Az
+            # pins the same version of many modules). RefIds are unique across the whole file.
+            if ($null -eq $ranges) {
+                $ranges = @{}
+                foreach ($r in $script:MMRegex.XmlRangeObj.Matches($Text)) { $ranges[$r.Groups[1].Value] = $r.Groups[2].Value }
+            }
+            $range = [string]$ranges[$d.Groups[2].Value]
+        }
         $deps.Add((New-MMDependency -Name ([Net.WebUtility]::HtmlDecode($d.Groups[1].Value)) `
-                    -VersionRange ([Net.WebUtility]::HtmlDecode($d.Groups[2].Value))))
+                    -VersionRange ([Net.WebUtility]::HtmlDecode($range))))
     }
     if ($deps.Count -eq 0) {
         foreach ($dict in $script:MMRegex.XmlDictionary.Matches($section)) {

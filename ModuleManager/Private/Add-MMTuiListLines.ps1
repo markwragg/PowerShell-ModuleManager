@@ -44,6 +44,14 @@ function Add-MMTuiListLines {
         $isCursor = ($index -eq $State.Cursor) -and $State.Mode -ne 'filter'
         $mark = '[ ]'; $markStyle = 'Dim'
         if ($row.Selected) { $mark = '[x]'; $markStyle = 'Selected' }
+        elseif ($State.DSelected.Count) {
+            # Some versions of this module (or, for a collapsed family, of its members) are selected.
+            foreach ($member in (Get-MMTuiFamily $State $row)) {
+                if (@($member.Info.Installations | Where-Object { $State.DSelected.ContainsKey($_.ModuleBase) }).Count) {
+                    $mark = '[-]'; $markStyle = 'Selected'; break
+                }
+            }
+        }
         $nameText = $row.Name
         if ($info.IsLoaded) { $nameText = "$nameText *" }
         $statusInfo = $script:MMStatusDisplay[$row.Status]

@@ -307,6 +307,89 @@ Describe 'Terminal UI actions' {
         }
     }
 
+    It 'Keeps versions selected across modules, and uninstalls them together' {
+        Add-FakeFamily
+        try {
+            $s = New-TestState -NoLookup
+            InModuleScope ModuleManager -Parameters @{ S = $s } {
+                Mock Uninstall-ManagedModule { }
+                function Press([char]$Char, [ConsoleKey]$Key) { Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new($Char, $Key, $false, $false, $false)); Update-MMTuiVisible $S }
+                function Open([string]$Name) {
+                    Set-MMTuiCursor $S ([array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), $Name))
+                    Press ([char]13) Enter
+                }
+                $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+                $core = $S.Rows | Where-Object Name -EQ 'MMRoll.Core'
+
+                # Two old versions of MMAlpha, then back to the list and one of MMRoll.Core (a family member).
+                Open 'MMAlpha'
+                Press ([char]0) DownArrow; Press ' ' Spacebar; Press ' ' Spacebar
+                Press ([char]27) Escape
+                $S.Mode | Should -Be 'list'
+                $S.DSelected.Count | Should -Be 2
+                $S.Expanded['mmroll'] = $true; Update-MMTuiVisible $S
+                Open 'MMRoll.Core'
+                Press ' ' Spacebar
+                $S.DSelected.Count | Should -Be 3
+                Press ([char]27) Escape
+
+                $plain = (Get-MMTuiFrame $S 140 30) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+                $plain | Should -Match '\|  3 version\(s\) selected'
+                $plain | Should -Match '\[-\]\s+MMAlpha'
+                $S.Expanded.Remove('mmroll'); Update-MMTuiVisible $S
+                $plain = (Get-MMTuiFrame $S 140 30) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+                $plain | Should -Match '\[-\]\s*\S+ MMRoll \(\+2\)'    # a collapsed family with a member's version selected
+
+                # X in the details view of a third module removes all three.
+                Open 'MMGamma'
+                Press 'x' X
+                $S.Confirm.Prompt | Should -Be 'Uninstall 3 versions of 2 modules ?'
+                $expected = @(@($alpha.Info.Installations)[1, 2] + @($core.Info.Installations)[0] | ForEach-Object { $_.ModuleBase })
+                Press 'y' Y
+                Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter {
+                    @(Compare-Object $ModuleBase $expected).Count -eq 0
+                }
+                $S.DSelected.Count | Should -Be 0
+            }
+        }
+        finally { Reset-FakeModules; Set-FakeGalleryCache }
+    }
+
+    It 'Uninstalls selected modules and selected versions together from the list, and Esc clears both' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Uninstall-ManagedModule { }
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            ($S.Rows | Where-Object Name -EQ 'MMGamma').Selected = $true
+            $S.DSelected[@($alpha.Info.Installations)[3].ModuleBase] = $true
+
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -Be 'Uninstall 2 versions of 2 modules ?'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('n', [ConsoleKey]::N, $false, $false, $false))
+
+            # The version and the whole module are both selected: it's only removed once.
+            $alpha.Selected = $true
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -Be 'Uninstall 2 modules (5 versions) ?'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('n', [ConsoleKey]::N, $false, $false, $false))
+
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new([char]27, [ConsoleKey]::Escape, $false, $false, $false))
+            @($S.Rows | Where-Object Selected).Count | Should -Be 0
+            $S.DSelected.Count | Should -Be 0
+        }
+    }
+
+    It 'Forgets selected versions that are no longer installed after a rescan' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            $S.DSelected[@($alpha.Info.Installations)[1].ModuleBase] = $true
+            $S.DSelected['C:\gone\MMOld\1.0'] = $true
+            Update-MMTuiRows $S
+            @($S.DSelected.Keys) | Should -Be @(@($alpha.Info.Installations)[1].ModuleBase)
+        }
+    }
+
     It 'Returns to the list when the module in the details view is gone' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
@@ -320,6 +403,161 @@ Describe 'Terminal UI actions' {
             Sync-MMTuiDetail $S
             $S.DCursor | Should -Be ($S.Detail.Info.VersionCount - 1)
         }
+    }
+}
+
+Describe 'Uninstalling loaded modules' {
+
+    BeforeEach {
+        Mock -ModuleName ModuleManager Invoke-MMTuiAction {
+            $State.Log.Clear()
+            & $Action $Data $State.Options
+            if ($OnComplete) { & $OnComplete $State $Data }
+        }
+        Mock -ModuleName ModuleManager Write-Host { }
+        Mock -ModuleName ModuleManager Uninstall-ManagedModule { }
+        Mock -ModuleName ModuleManager Uninstall-OldModuleVersion { }
+        Mock -ModuleName ModuleManager Remove-MMSessionModule { }
+        Mock -ModuleName ModuleManager Get-MMLoadedAssemblyPath { }
+    }
+
+    It 'Offers to unload a loaded version: y skips it, f unloads and uninstalls it' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            $loaded = @($alpha.Info.Installations) | Where-Object Version -EQ '1.0.0'
+            $loaded.IsLoaded = $true
+            Set-MMTuiCursor $S ([array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMAlpha'))
+
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -Be 'Uninstall MMAlpha (4 version(s)) ? MMAlpha 1.0.0 is loaded: y skips it, f unloads it first.'
+            $plain = (Get-MMTuiFrame $S 160 20) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match '\[y/f/N\]'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 -and $ModuleBase -notcontains $loaded.ModuleBase }
+            Should -Invoke Remove-MMSessionModule -Times 0 -Exactly
+            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: it is loaded*press f*' }
+
+            Request-MMTuiUninstall $S
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('f', [ConsoleKey]::F, $false, $false, $false))
+            Should -Invoke Remove-MMSessionModule -Times 1 -Exactly -ParameterFilter { $ModuleBase -eq $loaded.ModuleBase }
+            Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 4 }
+        }
+    }
+
+    It "Skips a loaded version that can't be unloaded, and says why" {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            $loaded = @($alpha.Info.Installations) | Where-Object Version -EQ '1.0.0'
+            $loaded.IsLoaded = $true
+            $script:dll = Join-Path $loaded.ModuleBase 'MMAlpha.dll'
+            Mock Get-MMLoadedAssemblyPath { $script:dll }
+            Set-MMTuiCursor $S ([array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMAlpha'))
+
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -Be "Uninstall MMAlpha (4 version(s)) ? Skips 1 loaded version(s) that can't be unloaded."
+            $S.Confirm.Choices | Should -Be 'y'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('f', [ConsoleKey]::F, $false, $false, $false))
+            $S.Message | Should -Be 'Cancelled.'
+            Request-MMTuiUninstall $S
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 }
+            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: it is loaded in this session and it has .NET assemblies loaded*new session.' }
+
+            # Only that version, from the details view: there's nothing it can do.
+            $S.Mode = 'details'; $S.Detail = $alpha; $S.DSelected = @{ $loaded.ModuleBase = $true }
+            Request-MMTuiUninstallVersion $S
+            $S.Mode | Should -Be 'details'
+            $S.Message | Should -Match "^Can't uninstall MMAlpha 1\.0\.0: .*\.NET assemblies"
+        }
+    }
+
+    It 'Only offers f when every version is loaded' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            $gamma = $S.Rows | Where-Object Name -EQ 'MMGamma'
+            @($gamma.Info.Installations)[0].IsLoaded = $true
+            $S.Mode = 'details'; $S.Detail = $gamma; $S.DCursor = 0
+            Request-MMTuiUninstallVersion $S
+            $S.Confirm.Prompt | Should -Be 'Uninstall MMGamma (1 version(s)) ? MMGamma 3.0.0 is loaded: f unloads it first.'
+            $S.Confirm.Choices | Should -Be 'f'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            $S.Message | Should -Be 'Cancelled.'
+            Should -Invoke Uninstall-ManagedModule -Times 0 -Exactly
+        }
+    }
+
+    It 'Offers to unload loaded old versions when removing old versions' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            foreach ($v in '1.0.0', '1.1.0', '0.9') { (@($alpha.Info.Installations) | Where-Object Version -EQ $v).IsLoaded = $true }
+            $newest = @($alpha.Info.Installations)[0]
+            $newest.IsLoaded = $true    # the newest is kept, so it doesn't matter that it's loaded
+            Request-MMTuiRemoveOld $S @($alpha)
+            $S.Confirm.Prompt | Should -Be 'Remove 3 old version(s) of 1 module(s), keeping the newest? MMAlpha 1.1.0, MMAlpha 1.0.0 and 1 more is loaded: y skips it, f unloads it first.'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('f', [ConsoleKey]::F, $false, $false, $false))
+            Should -Invoke Remove-MMSessionModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 -and $ModuleBase -notcontains $newest.ModuleBase }
+            Should -Invoke Uninstall-OldModuleVersion -Times 1 -Exactly
+
+            $script:dll = Join-Path (@($alpha.Info.Installations) | Where-Object Version -EQ '1.0.0').ModuleBase 'x.dll'
+            Mock Get-MMLoadedAssemblyPath { $script:dll }
+            Request-MMTuiRemoveOld $S @($alpha)
+            $S.Confirm.Prompt | Should -Match "Skips 1 loaded version\(s\) that can't be unloaded\.$"
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Remove-MMSessionModule -Times 1 -Exactly    # not again
+            Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $Object -like '  Skipped  MMAlpha 1.0.0: *Remove it from a new session.' }
+        }
+    }
+}
+
+Describe 'Unloading modules' {
+
+    It 'Says why <Name> cannot be unloaded' -ForEach @(
+        @{ Name = 'ModuleManager'; Expected = 'running this UI' }
+        @{ Name = 'Microsoft.PowerShell.PSResourceGet'; Expected = 'install and remove modules' }
+        @{ Name = 'PowerShellGet'; Expected = 'install and remove modules' }
+        @{ Name = 'MMBinary'; Expected = '.NET assemblies' }
+    ) {
+        InModuleScope ModuleManager -Parameters $_ {
+            $base = Join-Path ([IO.Path]::GetTempPath()) "$Name/1.0.0"
+            $i = [pscustomobject]@{ Name = $Name; ModuleBase = $base }
+            Get-MMUnloadBlocker -Installation $i -AssemblyPath @('C:\elsewhere\x.dll', (Join-Path $base 'lib/MMBinary.dll')) | Should -Match ([regex]::Escape($Expected))
+        }
+    }
+
+    It 'Allows a script module to be unloaded' {
+        InModuleScope ModuleManager {
+            Get-MMUnloadBlocker -Installation ([pscustomobject]@{ Name = 'MMScript'; ModuleBase = 'C:\nowhere\MMScript\1.0' }) | Should -BeNullOrEmpty
+            @(Get-MMLoadedAssemblyPath).Count | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'Unloads the modules loaded from the given folders' {
+        $base = Join-Path (Join-Path $UserRoot 'MMGamma') '3.0.0'
+        Import-Module (Join-Path $base 'MMGamma.psd1') -Global
+        try {
+            InModuleScope ModuleManager -Parameters @{ Base = $base } {
+                @(Remove-MMSessionModule -ModuleBase $Base -Confirm:$false).Count | Should -Be 0
+            }
+            Get-Module MMGamma | Should -BeNullOrEmpty
+        }
+        finally { Remove-Module MMGamma -ErrorAction SilentlyContinue }
+    }
+
+    It "Reports a module it couldn't unload" {
+        $base = Join-Path (Join-Path $UserRoot 'MMGamma') '3.0.0'
+        Import-Module (Join-Path $base 'MMGamma.psd1') -Global
+        try {
+            InModuleScope ModuleManager -Parameters @{ Base = $base } {
+                Mock Remove-Module { throw 'in use' }
+                $notes = @(Remove-MMSessionModule -ModuleBase $Base -Confirm:$false)
+                $notes | Should -HaveCount 1
+                $notes[0] | Should -Match '^Could not unload MMGamma 3\.0\.0: in use$'
+            }
+        }
+        finally { Remove-Module MMGamma -ErrorAction SilentlyContinue }
     }
 }
 

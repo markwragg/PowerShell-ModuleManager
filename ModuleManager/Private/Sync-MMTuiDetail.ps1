@@ -6,7 +6,6 @@ function Sync-MMTuiDetail {
     param([hashtable]$State)
     if (-not $State.Detail) { return }
     $fresh = $State.Rows | Where-Object Name -EQ $State.Detail.Name | Select-Object -First 1
-    $State.DSelected = @{}
     if ($fresh) {
         $State.Detail = $fresh
         $State.DCursor = [Math]::Min($State.DCursor, [Math]::Max(0, $fresh.Info.VersionCount - 1))

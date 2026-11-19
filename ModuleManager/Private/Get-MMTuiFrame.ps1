@@ -43,7 +43,10 @@ function Get-MMTuiFrame {
         , @(' ModuleManager ', 'TitleBold')
         , @(" $total modules  |  $updates updates  |  view: $($State.Views[$State.View])  |  sort: $($State.Sorts[$State.Sort])", $null)
     )
-    if ($selCount) { $title += , @("  |  $selCount selected", $null) }
+    $selected = @()
+    if ($selCount) { $selected += "$selCount module(s)" }
+    if ($State.DSelected.Count) { $selected += "$($State.DSelected.Count) version(s)" }
+    if ($selected) { $title += , @("  |  $($selected -join ', ') selected", $null) }
     if ($State.Filter) { $title += , @("  |  filter: $($State.Filter)", $null) }
     $leftLen = 0; foreach ($t in $title) { $leftLen += ([string]$t[0]).Length }
     $pad = $w - $leftLen - $right.Length
@@ -61,17 +64,29 @@ function Get-MMTuiFrame {
     # --- Status / prompt line
     switch ($State.Mode) {
         'filter' { $lines.Add((Format-MMTuiLine @(@(' Filter: ', 'Key'), @("$($State.Filter)_", 'Bold'), @('   Enter to apply, Esc to clear', 'Dim')) $w)) }
-        'confirm' { $lines.Add((Format-MMTuiLine @(@(" $($State.Confirm.Prompt) ", 'Yellow'), @('[y/N]', 'Key')) $w)) }
+        'confirm' {
+            $choices = 'y'
+            if ($State.Confirm.ContainsKey('Choices') -and $State.Confirm.Choices) { $choices = $State.Confirm.Choices }
+            $hint = "[$(($choices.ToCharArray() | ForEach-Object { [string]$_ }) -join '/')/N]"
+            $lines.Add((Format-MMTuiLine @(@(" $($State.Confirm.Prompt) ", 'Yellow'), @($hint, 'Key')) $w))
+        }
         default { $lines.Add((Format-MMTuiLine @(, @(" $($State.Message)", $State.MessageStyle)) $w)) }
     }
 
     # --- Help bar
     if ($State.Mode -eq 'details' -or ($State.Mode -eq 'confirm' -and $State.Confirm.ReturnMode -eq 'details')) {
-        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', 'uninstall', 'O', 'remove old', 'U', 'update', 'L', 'output', 'Esc', 'back')
+        # X acts on the versions selected (of any module), if there are some.
+        $uninstall = 'uninstall'
+        if ($State.DSelected.Count) { $uninstall = 'uninstall selected' }
+        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', $uninstall, 'O', 'remove old', 'U', 'update', 'L', 'output', 'Esc', 'back')
     }
     else {
-        $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', 'select updates', 'Enter', 'details', 'U', 'update', 'X', 'uninstall',
-            'O', 'remove old', 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
+        # U and O act on the selected modules, and X on selected modules and versions, if there are some.
+        $update = 'update'; $removeOld = 'remove old'; $uninstall = 'uninstall'
+        if ($selCount) { $update = 'update selected'; $removeOld = 'remove old from selected' }
+        if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected' }
+        $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', 'select updates', 'Enter', 'details', 'U', $update, 'X', $uninstall,
+            'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
     for ($i = 0; $i -lt $keys.Count; $i += 2) {
