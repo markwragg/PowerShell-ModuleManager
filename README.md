@@ -42,6 +42,21 @@ Show-ModuleManager
 
 ![alt text](/Media/Show-ModuleManager.png)
 
+See where modules are installed:
+
+```powershell
+Get-ModuleLocation -Summary
+```
+```plaintext
+Order Scope        Modules Versions   SizeMB Path
+----- -----        ------- --------   ------ ----
+    0 CurrentUser      234      857          C:\Users\someuser\OneDrive\Documents\Pow…
+    1 AllUsers           0        0          C:\Program Files\PowerShell\Modules (…
+    2 System            14       14          c:\program files\windowsapps\microsof…
+    3 AllUsers           5        5          C:\Program Files\WindowsPowerShell\Mo…
+    4 System            79       79          C:\Windows\system32\WindowsPowerShell…
+```
+
 See what can be updated:
 
 ```powershell
@@ -83,6 +98,13 @@ Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
 ```powershell
 Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
 ```
+
+> [!NOTE]
+> **Why use `Uninstall-ManagedModule`?** It works however the module got there. `Uninstall-Module` (PowerShellGet)
+> only removes modules that PowerShellGet installed, and `Uninstall-PSResource` only removes ones PSResourceGet
+> installed. Modules copied in by hand, or installed by the other tool, fail. `Uninstall-ManagedModule` removes a
+> version whether it came from PowerShellGet, PSResourceGet or a manual copy.
+
 ```powershell
 Get-ModuleLocation -Summary -IncludeSize
 ```
