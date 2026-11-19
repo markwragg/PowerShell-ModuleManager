@@ -112,7 +112,23 @@ function Reset-FakeModules {
     # Stray non-version content should be ignored
     Set-Content -LiteralPath (Join-Path (Join-Path $script:UserRoot 'MMAlpha') 'notes.zip') -Value 'x'
     New-Item -ItemType Directory -Path (Join-Path (Join-Path $script:UserRoot 'MMAlpha') 'not-a-version') -Force | Out-Null
-    $env:PSModulePath = @($script:UserRoot, $script:OtherRoot) -join [IO.Path]::PathSeparator
+    Set-FakeModulePath
+}
+
+function Set-FakeModulePath {
+    <#
+        Points PSModulePath at the fake module tree again. PSModulePath is shared by the whole process,
+        and something in CI (PowerShell 7.6, not 7.7) adds the real module folders to it between
+        tests, so the tests then see CI's build modules. Says what was added, so it can be tracked down.
+    #>
+    $fake = @($script:UserRoot, $script:OtherRoot) -join [IO.Path]::PathSeparator
+    if ($env:PSModulePath -and $env:PSModulePath -ne $fake -and $env:PSModulePath -like "*$($script:UserRoot)*") {
+        $added = @($env:PSModulePath -split [IO.Path]::PathSeparator | Where-Object { $_ -and $_ -notin $script:UserRoot, $script:OtherRoot })
+        $test = $null
+        try { $test = (Get-Variable -Name ____Pester -ValueOnly -ErrorAction Stop).CurrentTest.ExpandedPath } catch { $null = $_ }
+        Write-Warning "PSModulePath was changed before '$test'; removed: $($added -join ', ')"
+    }
+    $env:PSModulePath = $fake
 }
 
 function Add-FakeFamily {

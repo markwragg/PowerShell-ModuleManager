@@ -25,7 +25,7 @@ function Connect-MMEdition {
     )
     if (-not $script:MMIsWindows) { throw 'Windows PowerShell is only available on Windows, so there is no other edition to manage here.' }
     if ($Edition -eq $PSVersionTable.PSEdition) {
-        throw "This is already $(if ($Edition -eq 'Desktop') { 'Windows PowerShell' } else { 'PowerShell 7' }): run modman without -Edition to manage its modules."
+        throw "This is already $(if ($Edition -eq 'Desktop') { 'Windows PowerShell' } else { 'PowerShell 7' }): manage its modules here instead."
     }
 
     if ($Edition -eq 'Desktop') {

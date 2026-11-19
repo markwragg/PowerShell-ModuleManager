@@ -28,6 +28,8 @@ AfterAll {
 }
 
 Describe 'Show-ModuleManager' {
+    BeforeEach { Set-FakeModulePath }
+
 
     It 'Refuses to run without an interactive console' {
         Mock -ModuleName ModuleManager Test-MMInteractiveConsole { $false }
@@ -69,6 +71,8 @@ Describe 'Show-ModuleManager' {
 }
 
 Describe 'Terminal UI keys' {
+    BeforeEach { Set-FakeModulePath }
+
 
     BeforeAll {
         function Key([char]$Char, [ConsoleKey]$ConsoleKey, [switch]$Ctrl) { [ConsoleKeyInfo]::new($Char, $ConsoleKey, $false, $false, [bool]$Ctrl) }
@@ -272,6 +276,8 @@ Describe 'Terminal UI keys' {
 }
 
 Describe 'Terminal UI actions' {
+    BeforeEach { Set-FakeModulePath }
+
 
     BeforeEach {
         # Run each action here rather than in a background runspace, so its code is covered.
@@ -483,6 +489,8 @@ Describe 'Terminal UI actions' {
 }
 
 Describe 'Uninstalling loaded modules' {
+    BeforeEach { Set-FakeModulePath }
+
 
     BeforeEach {
         Mock -ModuleName ModuleManager Invoke-MMTuiAction {
@@ -589,6 +597,8 @@ Describe 'Uninstalling loaded modules' {
 }
 
 Describe 'Unloading modules' {
+    BeforeEach { Set-FakeModulePath }
+
 
     It 'Says why <Name> cannot be unloaded' -ForEach @(
         @{ Name = 'ModuleManager'; Expected = 'running this UI' }
@@ -638,6 +648,8 @@ Describe 'Unloading modules' {
 }
 
 Describe 'Background operations' {
+    BeforeEach { Set-FakeModulePath }
+
 
     It 'Shows progress, notices when it completes, and reports a failure inside the runspace' {
         $s = New-TestState
@@ -677,6 +689,8 @@ Describe 'Background operations' {
 }
 
 Describe 'Terminal UI helpers' {
+    BeforeEach { Set-FakeModulePath }
+
 
     It 'Maps colour names and ANSI codes to styles' {
         InModuleScope ModuleManager {

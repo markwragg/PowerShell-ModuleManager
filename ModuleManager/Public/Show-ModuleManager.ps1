@@ -105,7 +105,8 @@ function Show-ModuleManager {
         PowerShell 5.1 (from PowerShell 7), or Core for PowerShell 7 (from Windows PowerShell). The
         editions install modules into different folders and use their own package manager defaults,
         so scanning, repository checks, updates and uninstalls run in a hidden process of that
-        edition, which closes when you quit. Windows only.
+        edition, which closes when you quit. Windows only. Naming the edition this is runs it here,
+        as without -Edition.
 
     .EXAMPLE
         Show-ModuleManager
@@ -182,7 +183,8 @@ function Show-ModuleManager {
     }
 
     $remote = $null
-    if ($PSCmdlet.ParameterSetName -ne 'Local') {
+    # The edition this is runs here, as without -Edition.
+    if ($PSCmdlet.ParameterSetName -ne 'Local' -and $Edition -ne $PSVersionTable.PSEdition) {
         Write-Progress -Activity 'Show-ModuleManager' -Status 'Connecting...'
         try {
             if ($Edition) { $remote = Connect-MMEdition -Edition $Edition }

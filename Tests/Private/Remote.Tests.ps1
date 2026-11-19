@@ -28,6 +28,13 @@ BeforeAll {
             $null = Invoke-MMRemote -Remote $Remote -ArgumentList $ModulePath -ScriptBlock {
                 param($ModulePath)
                 $env:PSModulePath = $ModulePath
+                # Repository trust comes from this list, not from how the computer's repositories
+                # are set up (PSGallery is trusted on some computers, and not on CI's).
+                $script:MMTestUntrusted = @()
+                function script:Get-MMUntrustedRepository {
+                    param([string[]]$Name)
+                    @($Name | Where-Object { $_ -in $script:MMTestUntrusted } | Sort-Object -Unique)
+                }
                 $script:MMRepositories = @('PSGallery')
                 $script:MMGalleryCache = @{}
                 $now = [datetime]::UtcNow
@@ -150,8 +157,18 @@ Describe 'Managing modules on a remote computer' {
             ($S.Rows | Where-Object Name -EQ 'MMAlpha').Status = 'UpdateAvailable'
             ($S.Rows | Where-Object Name -EQ 'MMAlpha').Latest = '2.0.0'
             ($S.Rows | Where-Object Name -EQ 'MMAlpha').Result = [pscustomobject]@{ Repository = 'PSGallery' }
-            Request-MMTuiUpdate $S @($S.Rows | Where-Object Name -EQ 'MMAlpha')
+            $alpha = @($S.Rows | Where-Object Name -EQ 'MMAlpha')
+
+            Request-MMTuiUpdate $S $alpha
             $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 ?'
+
+            $S.Mode = 'list'; $S.Confirm = $null
+            $null = Invoke-MMRemote -Remote $S.Remote -ScriptBlock { $script:MMTestUntrusted = @('PSGallery') }
+            try {
+                Request-MMTuiUpdate $S $alpha
+                $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 - from untrusted repository PSGallery ?'
+            }
+            finally { $null = Invoke-MMRemote -Remote $S.Remote -ScriptBlock { $script:MMTestUntrusted = @() } }
             Should -Invoke Get-MMUntrustedRepository -Times 0 -Exactly
         }
     }
@@ -321,8 +338,11 @@ Describe 'Managing the other PowerShell edition' {
                 Invoke-MMRemote -Remote $remote -ScriptBlock { $PSVersionTable.PSEdition } | Should -Be $Edition
                 # It has the module paths a new process of that edition gets, not this session's:
                 # Windows PowerShell mustn't see PowerShell 7's folders as its own.
-                $paths = @(Invoke-MMRemote -Remote $remote -ScriptBlock { $env:PSModulePath -split [IO.Path]::PathSeparator })
-                if ($Edition -eq 'Desktop') { @($paths -match '\\PowerShell\\|\\microsoft\.powershell_') | Should -BeNullOrEmpty }
+                $paths = @(Invoke-MMRemote -Remote $remote -ScriptBlock { $env:PSModulePath -split [IO.Path]::PathSeparator } | ForEach-Object { $_.TrimEnd('\') })
+                if ($Edition -eq 'Desktop') {
+                    $paths | Should -Not -Contain (Join-Path $PSHOME 'Modules')
+                    @($paths -match '\\(Documents|Program Files)\\PowerShell\\Modules$') | Should -BeNullOrEmpty
+                }
             }
             finally { Disconnect-MMRemote $remote }
             $deadline = [datetime]::UtcNow.AddSeconds(5)
@@ -334,7 +354,7 @@ Describe 'Managing the other PowerShell edition' {
     It 'Says when this is already that edition' {
         InModuleScope ModuleManager {
             if ($script:MMIsWindows) {
-                { Connect-MMEdition -Edition $PSVersionTable.PSEdition } | Should -Throw '*run modman without -Edition*'
+                { Connect-MMEdition -Edition $PSVersionTable.PSEdition } | Should -Throw '*manage its modules here instead*'
             }
             else {
                 { Connect-MMEdition -Edition 'Desktop' } | Should -Throw '*only available on Windows*'
@@ -358,12 +378,35 @@ Describe 'Managing the other PowerShell edition' {
             Mock Connect-MMRemote { }
             Mock Disconnect-MMRemote { }
 
-            Show-ModuleManager -Edition Desktop -NoUpdateCheck
+            $other = if ($PSVersionTable.PSEdition -eq 'Core') { 'Desktop' } else { 'Core' }
+            Show-ModuleManager -Edition $other -NoUpdateCheck
 
-            Should -Invoke Connect-MMEdition -Times 1 -Exactly -ParameterFilter { $Edition -eq 'Desktop' }
+            Should -Invoke Connect-MMEdition -Times 1 -Exactly -ParameterFilter { $Edition -eq $other }
             Should -Invoke Connect-MMRemote -Times 0 -Exactly
             Should -Invoke Disconnect-MMRemote -Times 1 -Exactly
             $plain = ($script:written -join '') -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match 'ModuleManager on '
+            $plain | Should -Match 'MMAlpha'
+        }
+    }
+
+    It 'Runs here when -Edition names the edition this is' {
+        InModuleScope ModuleManager {
+            $script:written = [System.Collections.Generic.List[string]]::new()
+            $script:keys = [System.Collections.Generic.Queue[object]]::new()
+            $script:keys.Enqueue([ConsoleKeyInfo]::new('q', [ConsoleKey]::Q, $false, $false, $false))
+            Mock Test-MMInteractiveConsole { $true }
+            Mock Write-MMConsole { $script:written.Add($Text) }
+            Mock Get-MMConsoleSize { @{ Width = 120; Height = 20 } }
+            Mock Read-MMTuiKey { $script:keys.Dequeue() }
+            Mock Start-Sleep { }
+            Mock Connect-MMEdition { }
+
+            Show-ModuleManager -Edition $PSVersionTable.PSEdition -NoUpdateCheck
+
+            Should -Invoke Connect-MMEdition -Times 0 -Exactly
+            $plain = ($script:written -join '') -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Not -Match 'ModuleManager on '
             $plain | Should -Match 'MMAlpha'
         }
     }
