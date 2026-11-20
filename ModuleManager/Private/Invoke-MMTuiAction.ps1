@@ -13,9 +13,12 @@ function Invoke-MMTuiAction {
         module's private functions. It's passed as text, so it must not rely on variables from
         where it was written. Nothing can answer a prompt there (a prompt fails with an error), so
         actions pass -Confirm:$false, and updates ask about untrusted repositories beforehand.
+
+        With -Elevated (on this computer), the action runs as administrator, in an elevated
+        PowerShell process that Windows asks permission for (see Start-MMTuiElevatedAction).
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Changes only the in-memory state of the terminal UI; the action itself was confirmed by the user.')]
-    param([hashtable]$State, [string]$Title, [scriptblock]$Action, [object]$Data, [scriptblock]$OnComplete)
+    param([hashtable]$State, [string]$Title, [scriptblock]$Action, [object]$Data, [scriptblock]$OnComplete, [switch]$Elevated)
 
     if (Test-MMTuiBusy $State) { return }
 
@@ -39,6 +42,7 @@ function Invoke-MMTuiAction {
         $task.Handle = $command.Handle
         $task.OwnsRunspace = $false
     }
+    elseif ($Elevated) { Start-MMTuiElevatedAction -Task $task -Action $Action -Data $Data -Options $State.Options }
     else { Start-MMTuiLocalAction -Task $task -Action $Action -Data $Data -Options $State.Options }
 
     $State.Task = $task

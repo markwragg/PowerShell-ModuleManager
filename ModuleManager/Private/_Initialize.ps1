@@ -34,6 +34,9 @@ $script:MMScanCache = @{}
 # background runspace and passes the UI session's loaded modules here (see Get-MMLoadedModule).
 $script:MMLoadedModule = $null
 
+# Added to a terminal UI confirmation when the operation will run as administrator (see Start-MMTuiElevatedAction).
+$script:MMElevationNote = 'Runs as administrator: Windows asks first.'
+
 # Terminal UI operation output: ANSI colour codes (from Write-Host in PowerShell 7) and the colour
 # each maps to.
 $script:MMAnsiSequence = [regex]::new('\x1b\[[0-9;?]*[A-Za-z]')

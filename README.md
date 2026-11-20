@@ -147,7 +147,7 @@ The update check runs in the background, so you can use the list while it fills 
 | Enter | Show versions and paths | |
 | U | Update the selected modules (or the current one) | Update this module |
 | X / Del | Uninstall everything selected: modules (all versions) and versions | Uninstall the selected versions, of every module |
-| M | Move everything selected (or the current module) to the other scope: CurrentUser to AllUsers or back. Needs an elevated session | Move the selected versions (or the current one) to the other scope |
+| M | Move everything selected (or the current module) to the other scope: CurrentUser to AllUsers or back. Needs administrator rights (see below) | Move the selected versions (or the current one) to the other scope |
 | O | Remove old versions, keeping the newest | Same, for this module |
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |
@@ -171,6 +171,14 @@ confirmation offers a choice: **y** leaves the loaded versions installed, and **
 first so they're removed too. modman won't unload a module that uses .NET assemblies (they stay locked until
 PowerShell exits, so its folder couldn't be fully deleted), ModuleManager itself, or the package manager it uses.
 Those are skipped with the reason, and you can remove them from a new session.
+
+On Windows, you don't need to start modman as administrator to change modules installed for all users. When an
+action needs administrator rights (moving modules, or updating, uninstalling or removing old versions of
+modules in the `AllUsers` scope) and the session doesn't have them, the confirmation says it runs as
+administrator. Windows then asks for permission, and the action runs in a hidden PowerShell process with
+administrator rights while modman itself stays as it is. The output pane shows the action's output and progress
+as usual, a few lines at a time. If you choose No at the Windows prompt, nothing is changed. Elsewhere, start
+PowerShell with `sudo` to change modules installed for all users.
 
 If the update check fails because PowerShellGet needs the NuGet package provider (as Windows PowerShell's built-in
 PowerShellGet 1.0 does until it's installed), modman offers to install it for the current user, which doesn't need

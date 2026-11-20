@@ -41,6 +41,7 @@ function New-MMTuiState {
         Height       = 0
         ListHeight   = 0
         Spinner      = 0
+        Scanning     = $false
         Quit         = $false
     }
 }

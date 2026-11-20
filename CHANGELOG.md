@@ -1,5 +1,11 @@
 # Change Log
 
+## !Deploy 0.4.0
+
+* [feature] On Windows, the terminal UI no longer needs to be started as administrator to change modules installed for all users. Moving modules (M), and updating, uninstalling or removing old versions of `AllUsers` modules, run as administrator when the session isn't: the confirmation says so, Windows asks for permission, and the action runs in a hidden elevated PowerShell process, with its output and progress in the output pane as usual. Choosing No at the Windows prompt changes nothing.
+* [feature] The terminal UI says it's scanning installed modules while it starts, instead of showing a blank screen, which could take a few seconds with many modules.
+* [fix] Moving a module installed by PowerShellGet left its install record pointing at the old folder, with the warning "Access to the path ... PSGetModuleInfo.xml is denied", as PowerShellGet makes that file hidden and Windows won't overwrite hidden files. Its location is now updated, and the file stays hidden.
+
 ## [0.3.1] - 2026-11-19
 
 * [fix] On Windows, `Move-ManagedModule` (and M in the terminal UI) keeps each module with its edition's modules. Before, a module in `Program Files\WindowsPowerShell\Modules`, which both Windows PowerShell and PowerShell 7 use, moved to `CurrentUser` from PowerShell 7 went to `Documents\PowerShell\Modules`, where Windows PowerShell doesn't look. It now goes to `Documents\WindowsPowerShell\Modules`, with a warning when the session doesn't look there (PowerShell 7 only does by default when it's started from Windows PowerShell).

@@ -42,7 +42,15 @@ function Update-MMInstallLocation {
                 $state.Changed = $true
                 $m.Groups[1].Value + [Net.WebUtility]::HtmlEncode($new) + $m.Groups[3].Value
             })
-        if ($state.Changed) { [IO.File]::WriteAllText($xmlPath, $updated, $encoding) }
+        if ($state.Changed) {
+            # PowerShellGet makes the file hidden, and Windows refuses to overwrite a hidden (or
+            # read-only) file, even as administrator, so clear those while writing and put them back.
+            $attributes = [IO.File]::GetAttributes($xmlPath)
+            $blocking = [IO.FileAttributes]::Hidden -bor [IO.FileAttributes]::ReadOnly
+            if ($attributes -band $blocking) { [IO.File]::SetAttributes($xmlPath, $attributes -band -bnot $blocking) }
+            try { [IO.File]::WriteAllText($xmlPath, $updated, $encoding) }
+            finally { if ($attributes -band $blocking) { [IO.File]::SetAttributes($xmlPath, $attributes) } }
+        }
     }
     catch { Write-Warning "Could not update the install location in $xmlPath`: $($_.Exception.Message)" }
 }

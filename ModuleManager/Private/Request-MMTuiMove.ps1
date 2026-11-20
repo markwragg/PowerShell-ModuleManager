@@ -10,7 +10,8 @@ function Request-MMTuiMove {
         and c to CurrentUser.
 
         Versions that ship with PowerShell or Windows, and loaded versions, are skipped and the
-        output says why.
+        output says why. On Windows, if this session isn't elevated, the move runs as
+        administrator (Windows asks first; see Start-MMTuiElevatedAction).
     #>
     param([hashtable]$State, [switch]$Detail)
     if (Test-MMTuiBusy $State) { return }
@@ -31,9 +32,11 @@ function Request-MMTuiMove {
     if (-not $installs) { return }
     $What = Format-MMTuiTarget $State $installs
 
-    # Remotely, the remote session's own rights apply, and the move reports it if they're not enough.
-    if (-not $State.Remote -and -not (Test-MMIsAdmin)) {
-        Set-MMTuiMessage $State "Moving modules to or from AllUsers needs an elevated session: run PowerShell as administrator." 'Yellow'
+    # On Windows the move runs as administrator if this session isn't. Remotely, the remote
+    # session's own rights apply, and the move reports it if they're not enough.
+    $elevate = Test-MMTuiNeedsElevation $State -Always
+    if (-not $State.Remote -and -not $elevate -and -not (Test-MMIsAdmin)) {
+        Set-MMTuiMessage $State "Moving modules to or from AllUsers needs root: start PowerShell with sudo." 'Yellow'
         return
     }
 
@@ -62,17 +65,19 @@ function Request-MMTuiMove {
         $destination = @{ a = 'AllUsers'; c = 'CurrentUser' }
     }
     if ($skipped.Count) { $prompt += " Skips $($skipped.Count) version(s) that can't be moved." }
+    if ($elevate) { $prompt += " $script:MMElevationNote" }
 
     $data = @{
         What        = $What
         Bases       = @($movable | ForEach-Object { $_.ModuleBase })
         Skipped     = $skipped.ToArray()
         Destination = $destination
+        Elevate     = $elevate
     }
     Request-MMTuiConfirm $State $prompt -Data $data -Choices $choices -Action {
         param($State, $Data, $Choice)
         $run = @{ Bases = $Data.Bases; Skipped = $Data.Skipped; Destination = $Data.Destination[$Choice] }
-        Invoke-MMTuiAction $State "Moving $($Data.What) to $($run.Destination)" -Data $run -Action {
+        Invoke-MMTuiAction $State "Moving $($Data.What) to $($run.Destination)" -Data $run -Elevated:$Data.Elevate -Action {
             param($Data)
             Move-ManagedModule -ModuleBase $Data.Bases -Destination $Data.Destination -Confirm:$false -Verbose
             foreach ($s in $Data.Skipped) { Write-MMTuiOutput "  Skipped  $s" 'Yellow' }

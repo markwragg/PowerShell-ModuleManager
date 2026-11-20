@@ -143,6 +143,19 @@ Describe 'Get-MMTuiFrame' {
         }
     }
 
+    It 'Says it is scanning before the first scan has finished' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            $s.Scanning = $true
+            $plain = (Get-MMTuiFrame $s 100 15) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match 'Scanning installed modules\.\.\.'
+            $plain | Should -Not -Match 'No modules match'
+            $s.Remote = @{ Name = 'Server01' }
+            $plain = (Get-MMTuiFrame $s 100 15) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match 'Scanning installed modules on Server01\.\.\.'
+        }
+    }
+
     It 'Says when nothing matches, and shows the confirmation prompt' {
         InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
             $s = New-MMTuiState -Options $Options

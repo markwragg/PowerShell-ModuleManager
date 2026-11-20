@@ -33,13 +33,17 @@ function Request-MMTuiRemoveOld {
         $choices = 'yf'
     }
     if ($blocked) { $prompt += " Skips $($blocked.Count) loaded version(s) that can't be unloaded." }
+    # Old versions installed for all users need administrator rights, which on Windows the
+    # removal gets if this session hasn't.
+    $elevate = Test-MMTuiNeedsElevation $State -Installation $old
+    if ($elevate) { $prompt += " $script:MMElevationNote" }
 
-    $data = @{ Names = @($rows | ForEach-Object { $_.Name }); UnloadBases = @($unloadable | ForEach-Object { $_.ModuleBase }); Blocked = $blocked }
+    $data = @{ Elevate = $elevate; Names = @($rows | ForEach-Object { $_.Name }); UnloadBases = @($unloadable | ForEach-Object { $_.ModuleBase }); Blocked = $blocked }
     Request-MMTuiConfirm $State $prompt -Data $data -Choices $choices -Action {
         param($State, $Data, $Choice)
         $run = @{ Names = $Data.Names; Blocked = $Data.Blocked; Notes = @() }
         if ($Choice -eq 'f') { $run.Notes = @(Remove-MMSessionModule -ModuleBase $Data.UnloadBases -Confirm:$false) }
-        Invoke-MMTuiAction $State "Removing old versions of $($Data.Names.Count) module(s)" -Data $run -Action {
+        Invoke-MMTuiAction $State "Removing old versions of $($Data.Names.Count) module(s)" -Data $run -Elevated:$Data.Elevate -Action {
             param($Data)
             foreach ($n in $Data.Notes) { Write-MMTuiOutput "  $n" 'Yellow' }
             Uninstall-OldModuleVersion -Name $Data.Names -Keep 1 -Confirm:$false -Verbose

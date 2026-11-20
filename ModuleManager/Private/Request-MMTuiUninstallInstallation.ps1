@@ -46,7 +46,16 @@ function Request-MMTuiUninstallInstallation {
     }
     if ($blocked.Count) { $prompt += " Skips $($blocked.Count) loaded version(s) that can't be unloaded." }
 
+    # Versions installed for all users need administrator rights, which on Windows the uninstall
+    # gets if this session hasn't (y leaves the loaded ones, so they don't count then).
+    $freeInstalls = @($Installation | Where-Object { $_.ModuleBase -in $free })
+    $elevateFree = Test-MMTuiNeedsElevation $State -Installation $freeInstalls
+    $elevateAll = Test-MMTuiNeedsElevation $State -Installation (@($freeInstalls) + @($unloadable))
+    if ($elevateAll) { $prompt += " $script:MMElevationNote" }
+
     $data = @{
+        ElevateFree    = $elevateFree
+        ElevateAll     = $elevateAll
         What           = $What
         Bases          = $free.ToArray()
         UnloadBases    = @($unloadable | ForEach-Object { $_.ModuleBase })
@@ -63,7 +72,8 @@ function Request-MMTuiUninstallInstallation {
         }
         else { $run.Skipped = @($Data.UnloadSkipped) + $run.Skipped }
 
-        Invoke-MMTuiAction $State "Uninstalling $($Data.What)" -Data $run -Action {
+        $elevate = if ($Choice -eq 'f') { $Data.ElevateAll } else { $Data.ElevateFree }
+        Invoke-MMTuiAction $State "Uninstalling $($Data.What)" -Data $run -Elevated:$elevate -Action {
             param($Data)
             foreach ($n in $Data.Notes) { Write-MMTuiOutput "  $n" 'Yellow' }
             if ($Data.Bases) { Uninstall-ManagedModule -ModuleBase $Data.Bases -Confirm:$false -Verbose }

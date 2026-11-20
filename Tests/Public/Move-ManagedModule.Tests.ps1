@@ -297,6 +297,24 @@ Describe 'Update-MMInstallLocation' {
         }
     }
 
+    It 'Rewrites a hidden, read-only record (as PowerShellGet leaves it), keeping its attributes' -Skip:([Environment]::OSVersion.Platform -ne 'Win32NT') {
+        InModuleScope ModuleManager -Parameters @{ UserRoot = $script:UserRoot; OtherRoot = $script:OtherRoot } {
+            $base = [IO.Path]::Combine($OtherRoot, 'MMHidden', '1.0.0')
+            $null = New-Item -ItemType Directory -Path $base -Force
+            $xml = [IO.Path]::Combine($base, 'PSGetModuleInfo.xml')
+            [IO.File]::WriteAllText($xml, "<S N=`"InstalledLocation`">$([IO.Path]::Combine($UserRoot, 'MMHidden', '1.0.0'))</S>")
+            $attributes = [IO.FileAttributes]::Hidden -bor [IO.FileAttributes]::ReadOnly -bor [IO.FileAttributes]::Archive
+            [IO.File]::SetAttributes($xml, $attributes)
+            try {
+                Update-MMInstallLocation -ModuleBase $base -OldModuleBase ([IO.Path]::Combine($UserRoot, 'MMHidden', '1.0.0')) -OldRoot $UserRoot -NewRoot $OtherRoot -WarningVariable warnings
+                $warnings | Should -BeNullOrEmpty
+                [IO.File]::ReadAllText($xml) | Should -Be "<S N=`"InstalledLocation`">$base</S>"
+                [IO.File]::GetAttributes($xml) | Should -Be $attributes
+            }
+            finally { [IO.File]::SetAttributes($xml, [IO.FileAttributes]::Normal) }
+        }
+    }
+
     It 'Leaves the file alone when no location changes, and warns when it cannot be read' {
         InModuleScope ModuleManager -Parameters @{ UserRoot = $script:UserRoot; OtherRoot = $script:OtherRoot } {
             $base = [IO.Path]::Combine($OtherRoot, 'MMNoChange')

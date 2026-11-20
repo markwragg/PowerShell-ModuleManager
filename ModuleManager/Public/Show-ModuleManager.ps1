@@ -19,7 +19,9 @@ function Show-ModuleManager {
           X or Delete                    Uninstall everything selected: modules (all versions) and
                                          versions selected in the details view
           O                              Remove old versions, keeping the newest
-          L                              Show or hide the output pane
+          M                              Move selected modules (or the current one) to the other
+                                         scope: CurrentUser or AllUsers
+          L                            Show or hide the output pane
           [ and ]                        Scroll the output pane back and forward
           /                              Filter by name or description
           V                              Cycle view: All, Updates, Multiple versions, Loaded
@@ -43,6 +45,12 @@ function Show-ModuleManager {
         installed) or f (unload them from the session first, so they're removed too). Modules that
         use .NET assemblies, ModuleManager itself and the package manager can't be unloaded safely,
         so they're skipped with the reason; remove them from a new session.
+
+        On Windows, actions that need administrator rights (moving modules, and updating,
+        uninstalling or removing old versions of modules installed for all users) run as
+        administrator when this session isn't: the confirmation says so, Windows asks for
+        permission, and the action runs in a hidden elevated PowerShell process while the UI stays
+        as it is. Choosing No at the Windows prompt changes nothing.
 
         If the update check fails because PowerShellGet needs the NuGet package provider (Windows
         PowerShell's built-in PowerShellGet 1.0 does), you're offered to install it for the current
@@ -207,7 +215,12 @@ function Show-ModuleManager {
     try {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         Enter-MMTuiScreen
-        Update-MMTuiRows $state
+        # The first scan can take a few seconds (many modules, or a slow disk or connection), so
+        # say what's happening rather than leaving the screen blank.
+        $state.Scanning = $true
+        Write-MMTuiFrame $state
+        try { Update-MMTuiRows $state }
+        finally { $state.Scanning = $false }
         if ($NoUpdateCheck) { Set-MMTuiMessage $state 'Update check skipped. Press R to check repositories.' }
         else { Start-MMTuiLookup $state }
         Update-MMTuiVisible $state

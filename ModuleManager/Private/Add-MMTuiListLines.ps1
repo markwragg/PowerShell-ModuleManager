@@ -34,7 +34,14 @@ function Add-MMTuiListLines {
         $index = $State.Top + $i
         if ($index -ge $State.Visible.Count) {
             if ($i -eq 0 -and $State.Visible.Count -eq 0) {
-                $Lines.Add((Format-MMTuiLine @(, @('  No modules match the current view/filter.', 'Dim')) $Width))
+                # The first scan, before there's anything to list (see Show-ModuleManager).
+                $empty = '  No modules match the current view/filter.'
+                if ($State.Scanning) {
+                    $empty = '  Scanning installed modules'
+                    if ($State.Remote) { $empty += " on $($State.Remote.Name)" }
+                    $empty += '... (this can take a few seconds when there are many)'
+                }
+                $Lines.Add((Format-MMTuiLine @(, @($empty, 'Dim')) $Width))
             }
             else { $Lines.Add((' ' * $Width)) }
             continue

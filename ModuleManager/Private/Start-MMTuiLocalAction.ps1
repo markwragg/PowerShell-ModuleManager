@@ -7,6 +7,9 @@ function Start-MMTuiLocalAction {
         The runspace imports a fresh copy of this module and runs the action there, with no host:
         Write-Host goes to the information stream, and progress to Streams.Progress, instead of
         drawing over the UI. Sets PowerShell, Output and Handle on $Task.
+
+        Also used by Invoke-MMElevatedAction, in the elevated process that runs an action as
+        administrator (see Start-MMTuiElevatedAction).
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Starts an action the user already confirmed.')]
     param([hashtable]$Task, [scriptblock]$Action, [object]$Data, [hashtable]$Options)
@@ -15,8 +18,9 @@ function Start-MMTuiLocalAction {
     $modulePath = Join-Path $module.ModuleBase "$($module.Name).psd1"
     if (-not (Test-Path -LiteralPath $modulePath)) { $modulePath = $module.Path }
 
-    # The background runspace can't see this session's modules, so pass what's loaded here.
-    $loaded = @(foreach ($m in (Get-Module -All)) {
+    # The background runspace can't see this session's modules, so pass what's loaded here (or,
+    # in an elevated process started for the UI, what's loaded in the UI's session).
+    $loaded = @(foreach ($m in (Get-MMLoadedModule)) {
             [pscustomobject]@{ Name = $m.Name; Version = $m.Version; ModuleBase = $m.ModuleBase; PrivateData = $m.PrivateData }
         })
 

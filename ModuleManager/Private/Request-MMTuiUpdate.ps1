@@ -24,10 +24,16 @@ function Request-MMTuiUpdate {
     $prompt = "Update $($rows.Count) module(s): $list"
     if ($untrusted) { $prompt += " - from untrusted repository $($untrusted -join ', ')" }
 
-    $data = @{ Names = @($rows | ForEach-Object { $_.Name }); Trust = [bool]$untrusted }
-    Request-MMTuiConfirm $State "$prompt ?" -Data $data -Action {
+    $prompt += ' ?'
+    # Updates install into the newest version's scope, so updating modules installed for all users
+    # needs administrator rights, which on Windows the update gets if this session hasn't.
+    $elevate = Test-MMTuiNeedsElevation $State -Installation @($rows | ForEach-Object { @($_.Info.Installations)[0] })
+    if ($elevate) { $prompt += " $script:MMElevationNote" }
+
+    $data = @{ Names = @($rows | ForEach-Object { $_.Name }); Trust = [bool]$untrusted; Elevate = $elevate }
+    Request-MMTuiConfirm $State $prompt -Data $data -Action {
         param($State, $Data)
-        Invoke-MMTuiAction $State "Updating $($Data.Names.Count) module(s)" -Data $Data -Action {
+        Invoke-MMTuiAction $State "Updating $($Data.Names.Count) module(s)" -Data $Data -Elevated:$Data.Elevate -Action {
             param($Data, $Options)
             # Update-ManagedModule reports progress (shown above the output), and we print one
             # line per module afterwards. Warnings (e.g. module is loaded) still show.

@@ -332,7 +332,7 @@ Describe 'Terminal UI actions' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Get-MMUntrustedRepository { }
-            $rows = foreach ($i in 1..6) { [pscustomobject]@{ Name = "MM$i"; Status = 'UpdateAvailable'; Latest = '2.0'; Info = @{ Version = '1.0' }; Result = $null } }
+            $rows = foreach ($i in 1..6) { [pscustomobject]@{ Name = "MM$i"; Status = 'UpdateAvailable'; Latest = '2.0'; Info = @{ Version = '1.0'; Installations = @() }; Result = $null } }
             Request-MMTuiUpdate $S $rows
             $S.Confirm.Prompt | Should -Match 'MM4 1\.0 -> 2\.0 and 2 more \?$'
             $S.Confirm.Data.Trust | Should -BeFalse
@@ -412,17 +412,19 @@ Describe 'Terminal UI actions' {
         }
     }
 
-    It 'Says moving needs elevation, and skips versions that cannot be moved' {
+    It 'Says moving needs root, and skips versions that cannot be moved' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Move-ManagedModule { }
             foreach ($r in $S.Rows) { foreach ($i in @($r.Info.Installations)) { $i.Scope = 'CurrentUser' } }   # as above
             $S.Cursor = [array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMGamma')
 
+            # Outside Windows there's no administrator prompt to ask with.
             Mock Test-MMIsAdmin { $false }
+            Mock Test-MMIsWindows { $false }
             Request-MMTuiMove $S
             $S.Mode | Should -Not -Be 'confirm'
-            $S.Message | Should -Match 'needs an elevated session'
+            $S.Message | Should -Match 'needs root'
 
             Mock Test-MMIsAdmin { $true }
             $gamma = ($S.Rows | Where-Object Name -EQ 'MMGamma').Info.Installations[0]
@@ -437,6 +439,64 @@ Describe 'Terminal UI actions' {
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
             Should -Invoke Move-ManagedModule -Times 1 -ParameterFilter { $ModuleBase.Count -eq 3 }
             Should -Invoke Write-MMTuiOutput -ParameterFilter { $Text -match 'Skipped  MMAlpha .*loaded in this session' }
+        }
+    }
+
+    It 'Runs operations on modules installed for all users as administrator, on Windows without elevation' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Move-ManagedModule { }
+            Mock Uninstall-ManagedModule { }
+            Mock Uninstall-OldModuleVersion { }
+            Mock Update-ManagedModule { }
+            Mock Get-MMUntrustedRepository { }
+            Mock Test-MMIsAdmin { $false }
+            Mock Test-MMIsWindows { $true }
+            foreach ($r in $S.Rows) { foreach ($i in @($r.Info.Installations)) { $i.Scope = 'CurrentUser' } }
+            $alpha = $S.Rows | Where-Object Name -EQ 'MMAlpha'
+            $y = [ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false)
+            $S.Cursor = [array]::IndexOf(@($S.Visible | ForEach-Object { $_.Name }), 'MMAlpha')
+
+            # Moves are always to or from AllUsers.
+            Request-MMTuiMove $S
+            $S.Confirm.Prompt | Should -BeLike '* Runs as administrator: Windows asks first.'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Elevated }
+
+            # Others only when they change modules installed for all users.
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -Not -Match 'administrator'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Title -like 'Uninstalling*' -and -not $Elevated }
+
+            @($alpha.Info.Installations)[1].Scope = 'AllUsers'
+            Request-MMTuiUninstall $S
+            $S.Confirm.Prompt | Should -BeLike '* Runs as administrator: Windows asks first.'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Title -like 'Uninstalling*' -and $Elevated }
+
+            Request-MMTuiRemoveOld $S @($alpha)
+            $S.Confirm.Prompt | Should -BeLike '* Runs as administrator: Windows asks first.'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Title -like 'Removing old*' -and $Elevated }
+
+            # Updates install into the newest version's scope.
+            $alpha.Status = 'UpdateAvailable'
+            $alpha.Latest = '9.0.0'
+            Request-MMTuiUpdate $S @($alpha)
+            $S.Confirm.Prompt | Should -Not -Match 'administrator'
+            @($alpha.Info.Installations)[0].Scope = 'AllUsers'
+            Request-MMTuiUpdate $S @($alpha)
+            $S.Confirm.Prompt | Should -BeLike '* ? Runs as administrator: Windows asks first.'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Title -like 'Updating*' -and $Elevated }
+
+            # Already elevated, or remotely, nothing more is needed.
+            Mock Test-MMIsAdmin { $true }
+            Request-MMTuiRemoveOld $S @($alpha)
+            $S.Confirm.Prompt | Should -Not -Match 'administrator'
+            Mock Test-MMIsAdmin { $false }
+            Test-MMTuiNeedsElevation @{ Remote = @{} } -Always | Should -BeFalse
         }
     }
 
