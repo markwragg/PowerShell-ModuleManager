@@ -44,9 +44,9 @@ function Show-ModuleManager {
         its versions and paths; right-click goes back. Click the [ ] box to select it, a family's arrow
         to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
         or view: or sort: in the title bar to cycle them. Click a key in the help bar to press it, and
-        y or N to answer a confirmation. The wheel scrolls the list, the details and the output pane.
-        While modman has the mouse, select text in the terminal with Shift held down. -NoMouse leaves
-        the mouse to the terminal.
+        y or N to answer a confirmation. The wheel scrolls the list, the details and the output pane;
+        right-click, or L hide in its header, hides the pane. While modman has the mouse, select text
+        in the terminal with Shift held down. -NoMouse leaves the mouse to the terminal.
 
         Modules marked with * are loaded in the current session. When you uninstall or remove old
         versions and some of them are loaded, the confirmation offers y (leave the loaded versions

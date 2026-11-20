@@ -26,6 +26,13 @@ function Add-MMTuiLogLines {
     if (-not $task) { $keys = ' [ ] scroll  L/Esc hide ' }
     $left = " Output: $title  ($status)"
     $pad = [Math]::Max(1, $Width - $left.Length - $keys.Length)
+    # For the mouse (see Invoke-MMTuiMouse): [ and ] scroll, and L hide (or L/Esc hide) hides the pane.
+    $at = $left.Length + $pad
+    $State.Layout.LogKeys = @(
+        @{ Start = $at + 1; End = $at + 2; Key = (ConvertTo-MMTuiKeyInfo '[') }
+        @{ Start = $at + 3; End = $at + 4; Key = (ConvertTo-MMTuiKeyInfo ']') }
+        @{ Start = $at + $keys.IndexOf('L'); End = $at + $keys.TrimEnd().Length; Key = (ConvertTo-MMTuiKeyInfo 'L') }
+    )
     $Lines.Add((Format-MMTuiLine @(@($left, 'Bold'), @(((' ' * $pad) + $keys), $null)) $Width 'HelpBar'))
     $body = $PaneHeight - 1
 

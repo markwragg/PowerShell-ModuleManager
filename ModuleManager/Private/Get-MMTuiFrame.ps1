@@ -26,7 +26,7 @@ function Get-MMTuiFrame {
     # Start to before End) counted from 0. The list and details views fill in theirs; -1 is nowhere.
     $layout = @{
         HeaderY = -1; ListTop = -1; ListRows = 0; SortColumns = @(); DetailTop = -1; DetailRows = 0; CheckWidth = 0
-        LogTop = -1; LogRows = 0; StatusY = -1; HelpY = -1; TitleY = -1
+        LogTop = -1; LogRows = 0; LogKeys = @(); StatusY = -1; HelpY = -1; TitleY = -1
         Title = [System.Collections.Generic.List[object]]::new()
         Help = [System.Collections.Generic.List[object]]::new(); Choices = [System.Collections.Generic.List[object]]::new()
     }

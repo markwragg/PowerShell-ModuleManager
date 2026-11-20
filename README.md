@@ -175,8 +175,9 @@ You can also use the mouse. Click a module to move to it, and double-click it fo
 a column header (Name, #, Scope, Status) to sort by that column, or `view:` or `sort:` in the title bar to cycle
 them. Clicking a key in the help bar presses it, and a confirmation is answered by clicking **y** or **N** (other
 clicks are ignored while it's shown). The wheel scrolls the list, the details view, and the output pane when the
-pointer is over it. While modman has the mouse, hold Shift to select text in the terminal, or start it with
-`-NoMouse` to leave the mouse to the terminal.
+pointer is over it. Right-click hides the output pane (or click `L hide` in its header, and `[` or `]` to scroll
+it). While modman has the mouse, hold Shift to select text in the terminal, or start it with `-NoMouse` to leave
+the mouse to the terminal.
 
 Every action asks for confirmation first, then runs in the background with its progress bar, output, warnings
 and errors in a pane at the bottom of the screen. The list stays on screen and you can keep browsing while it

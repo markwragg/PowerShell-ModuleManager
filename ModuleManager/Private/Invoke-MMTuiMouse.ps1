@@ -8,8 +8,9 @@ function Invoke-MMTuiMouse {
         Get-MMTuiFrame and the functions it calls):
 
           A row                      Moves the cursor to it. Double-click a module for its details.
-          Right-click                Goes back from the details to the list, as Esc does.
-                                     Elsewhere it does nothing.
+          Right-click                Hides the output pane, when it's over the pane or in the list.
+                                     Otherwise goes back from the details to the list, as Esc does.
+          [, ] or L hide (output)    Scrolls or hides the output pane, as those keys do.
           The [ ] box of a row       Selects or deselects it, as Space does (without moving down).
           A family's expand glyph    Expands or collapses the family.
           A column header            Sorts the list by that column.
@@ -42,14 +43,25 @@ function Invoke-MMTuiMouse {
         }
         return
     }
-    # Only in the details view: in the list, Esc closes the output pane, clears the selection or
-    # clears the filter, which a stray right-click shouldn't do.
+    $overPane = $layout.LogRows -and $y -ge $layout.LogTop -and $y -lt $layout.LogTop + $layout.LogRows
+    # Right-click hides the output pane: when it's over the pane, or in the list (where it does nothing
+    # else). Otherwise, in the details view, it goes back to the list. It isn't Esc in the list, as Esc
+    # can also clear the selection or the filter, which a stray right-click shouldn't do.
     if ($rightClick) {
-        if ($State.Mode -eq 'details') { Invoke-MMTuiKey -State $State -Key (ConvertTo-MMTuiKeyInfo 'Esc') }
+        if ($State.LogOpen -and ($overPane -or $State.Mode -ne 'details')) { $State.LogOpen = $false; $State.LogScroll = 0 }
+        elseif ($State.Mode -eq 'details') { Invoke-MMTuiKey -State $State -Key (ConvertTo-MMTuiKeyInfo 'Esc') }
         return
     }
     if ($State.Mode -eq 'filter') { Invoke-MMTuiKey -State $State -Key (ConvertTo-MMTuiKeyInfo 'Enter') }
 
+    if ($click -and $overPane) {
+        # Only the keys in its header line do anything.
+        if ($y -eq $layout.LogTop) {
+            $hit = @($layout.LogKeys | Where-Object { $x -ge $_.Start -and $x -lt $_.End }) | Select-Object -First 1
+            if ($hit) { Invoke-MMTuiKey -State $State -Key $hit.Key }
+        }
+        return
+    }
     if ($click -and $y -eq $layout.TitleY) {
         $hit = @($layout.Title | Where-Object { $x -ge $_.Start -and $x -lt $_.End }) | Select-Object -First 1
         if ($hit -and $State.Mode -eq 'list') { Invoke-MMTuiKey -State $State -Key $hit.Key }

@@ -293,6 +293,48 @@ Describe 'Invoke-MMTuiMouse' {
         }
     }
 
+    It 'Scrolls and hides the output pane from the keys in its header, and hides it with a right-click' {
+        $s = New-TestState -Height 30
+        InModuleScope ModuleManager -Parameters @{ s = $s } {
+            $s.Log.Add(@{ Text = 'Title'; Style = $null })
+            for ($i = 0; $i -lt 40; $i++) { $s.Log.Add(@{ Text = "line $i"; Style = $null }) }
+            function Open { $s.LogOpen = $true; $null = Get-MMTuiFrame $s 120 30 }
+            function Mouse($button, $x, $y) { Invoke-MMTuiMouse $s ([pscustomobject]@{ Button = $button; X = $x; Y = $y }) }
+            Open
+            $header = (((Get-MMTuiFrame $s 120 30) -split "`r`n")[$s.Layout.LogTop]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $header | Should -Match '\[ \] scroll  L/Esc hide $'
+
+            Mouse Left $header.IndexOf('[ ]') $s.Layout.LogTop
+            $s.LogScroll | Should -BeGreaterThan 0
+            Mouse Left ($header.IndexOf('[ ]') + 2) $s.Layout.LogTop
+            $s.LogScroll | Should -Be 0
+            # 'scroll', the title and the output itself don't do anything.
+            Mouse Left ($header.IndexOf('scroll') + 1) $s.Layout.LogTop
+            Mouse Left 3 $s.Layout.LogTop
+            Mouse Left 3 ($s.Layout.LogTop + 3)
+            $s.LogOpen | Should -BeTrue
+            $s.Cursor | Should -Be 0
+            Mouse Left ($header.IndexOf('Esc')) $s.Layout.LogTop
+            $s.LogOpen | Should -BeFalse
+
+            # Right-click over the pane, or anywhere in the list
+            Open; Mouse Right 20 ($s.Layout.LogTop + 2)
+            $s.LogOpen | Should -BeFalse
+            Open; Mouse Right 20 3
+            $s.LogOpen | Should -BeFalse
+            $s.Mode | Should -Be 'list'
+
+            # In the details view, over the pane it hides the pane; elsewhere it goes back.
+            $s.Detail = $s.Visible[0]; $s.Mode = 'details'
+            Open; Mouse Right 20 ($s.Layout.LogTop + 2)
+            $s.LogOpen | Should -BeFalse
+            $s.Mode | Should -Be 'details'
+            Open; Mouse Right 20 3
+            $s.LogOpen | Should -BeTrue
+            $s.Mode | Should -Be 'list'
+        }
+    }
+
     It 'Moves to, selects and scrolls through versions in the details view' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ s = $s } {
