@@ -8,9 +8,10 @@ AfterAll {
     Clear-MMTestEnvironment
 }
 
-Describe 'Running terminal UI actions as administrator' -Skip:([Environment]::OSVersion.Platform -ne 'Win32NT') {
+Describe 'Running terminal UI actions as administrator' {
     # The elevated process is started without -Verb RunAs here, so nothing asks for administrator
-    # rights, but everything else is as it would be.
+    # rights, but everything else is as it would be. Elevation is only offered on Windows, but the
+    # mechanism isn't Windows-specific, so this runs everywhere.
     BeforeAll {
         # Starts the process as Start-Process would, but not elevated (Start-Process itself is mocked).
         InModuleScope ModuleManager {
@@ -114,7 +115,7 @@ Describe 'Running terminal UI actions as administrator' -Skip:([Environment]::OS
             $dir = Join-Path ([IO.Path]::GetTempPath()) "MMElevated_$([guid]::NewGuid().ToString('N'))"
             $null = New-Item -ItemType Directory -Path $dir
             Export-Clixml -LiteralPath (Join-Path $dir 'request.xml') -Depth 6 -InputObject @{
-                UserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; UserName = 'me'
+                UserSid = (Get-MMUserIdentity).Sid; UserName = 'me'
                 Action = { Start-Sleep -Seconds 60 }.ToString(); Data = @{}; Options = $Options
                 Loaded = @(); Gallery = @{}; PSModulePath = $env:PSModulePath
             }

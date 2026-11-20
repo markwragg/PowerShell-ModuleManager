@@ -33,8 +33,8 @@ function Invoke-MMElevatedAction {
     $task = $null
     try {
         $request = Import-Clixml -LiteralPath (Join-Path $Directory 'request.xml')
-        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-        if ($identity.User.Value -ne $request.UserSid) {
+        $identity = Get-MMUserIdentity
+        if ($identity.Sid -ne $request.UserSid) {
             & $line ("ERROR: Administrator rights were given as $($identity.Name), not $($request.UserName), so nothing was changed: " +
                 "CurrentUser would mean that user's modules. Run PowerShell as administrator as $($request.UserName) instead.") 'Red'
             return

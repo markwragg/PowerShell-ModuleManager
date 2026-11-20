@@ -29,7 +29,7 @@ function Start-MMTuiElevatedAction {
     $directory = Join-Path ([IO.Path]::GetTempPath()) "ModuleManager-$([guid]::NewGuid().ToString('N'))"
     $null = New-Item -ItemType Directory -Path $directory -Force
 
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity = Get-MMUserIdentity
     $request = @{
         ModulePath   = $modulePath
         Action       = $Action.ToString()
@@ -40,12 +40,14 @@ function Start-MMTuiElevatedAction {
             })
         Gallery      = $script:MMGalleryCache.Clone()
         PSModulePath = $env:PSModulePath
-        UserSid      = $identity.User.Value
+        UserSid      = $identity.Sid
         UserName     = $identity.Name
     }
     Export-Clixml -InputObject $request -LiteralPath (Join-Path $directory 'request.xml') -Depth 6
 
-    $exe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
+    # Elevation is only offered on Windows (see Test-MMTuiNeedsElevation), but this works anywhere.
+    $exe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
+    if (Test-MMIsWindows) { $exe += '.exe' }
     $command = (
         "`$ProgressPreference = 'SilentlyContinue'",
         "`$d ='$($directory -replace "'", "''")'",
