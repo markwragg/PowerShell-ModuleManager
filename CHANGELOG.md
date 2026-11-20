@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.4.0
+## [0.4.0] - 2026-11-20
 
 * [feature] On Windows, the terminal UI no longer needs to be started as administrator to change modules installed for all users. Moving modules (M), and updating, uninstalling or removing old versions of `AllUsers` modules, run as administrator when the session isn't: the confirmation says so, Windows asks for permission, and the action runs in a hidden elevated PowerShell process, with its output and progress in the output pane as usual. Choosing No at the Windows prompt changes nothing.
 * [feature] The terminal UI says it's scanning installed modules while it starts, instead of showing a blank screen, which could take a few seconds with many modules.
