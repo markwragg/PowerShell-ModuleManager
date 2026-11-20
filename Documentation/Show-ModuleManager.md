@@ -8,14 +8,14 @@ Opens an interactive terminal UI for browsing, updating and uninstalling modules
 ### Local (Default)
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] [-ProgressAction <ActionPreference>]
- [<CommonParameters>]
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>]
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ### ComputerName
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -ComputerName <String>
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -ComputerName <String>
  [-Credential <PSCredential>] [-ConfigurationName <String>] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
@@ -23,14 +23,14 @@ Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-I
 ### Session
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -Session <PSSession>
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Session <PSSession>
  [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ### Edition
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-ThrottleLimit <Int32>] -Edition <String>
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Edition <String>
  [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
@@ -71,6 +71,18 @@ Keys (details view):
   O                              Remove all but the newest version
   U                              Update this module
   Esc, Left or Backspace         Back to the list
+
+Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
+its versions and paths; right-click goes back.
+Click the \[ \] box to select it, a family's arrow
+to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
+or view: or sort: in the title bar to cycle them.
+Click a key in the help bar to press it, and
+y or N to answer a confirmation.
+The wheel scrolls the list, the details and the output pane.
+While modman has the mouse, select text in the terminal with Shift held down.
+-NoMouse leaves
+the mouse to the terminal.
 
 Modules marked with * are loaded in the current session.
 When you uninstall or remove old
@@ -247,8 +259,24 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -NoMouse
+Don't use the mouse: leave it to the terminal, for selecting and copying text as usual.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -ThrottleLimit
-The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
+The maximum number of concurrent repository queries.
+Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
 
 ```yaml
 Type: Int32
