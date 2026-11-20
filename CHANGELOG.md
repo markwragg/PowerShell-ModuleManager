@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.4.1] - 2026-11-20
 
 * [fix] With PowerShellGet (such as Windows PowerShell's built-in PowerShellGet 1.0), most update checks failed at random with "A parameter cannot be found that matches parameter name 'Provider'" (or 'MessageResolver'), as the PackageManagement module it uses breaks when used by several lookups at once. PowerShellGet lookups now run one at a time; installing Microsoft.PowerShell.PSResourceGet keeps them parallel and faster.
 
