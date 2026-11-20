@@ -79,10 +79,11 @@ to expand or collapse the family, and a column header (Name, #, Scope, Status) t
 or view: or sort: in the title bar to cycle them.
 Click a key in the help bar to press it, and
 y or N to answer a confirmation.
-The wheel scrolls the list, the details and the output pane.
-While modman has the mouse, select text in the terminal with Shift held down.
--NoMouse leaves
-the mouse to the terminal.
+The wheel scrolls the list, the details and the output pane;
+right-click, or L hide in its header, hides the pane.
+While modman has the mouse, select text
+in the terminal with Shift held down.
+-NoMouse leaves the mouse to the terminal.
 
 Modules marked with * are loaded in the current session.
 When you uninstall or remove old
