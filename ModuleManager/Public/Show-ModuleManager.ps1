@@ -40,6 +40,14 @@ function Show-ModuleManager {
           U                              Update this module
           Esc, Left or Backspace         Back to the list
 
+        Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
+        its versions and paths; right-click goes back. Click the [ ] box to select it, a family's arrow
+        to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
+        or view: or sort: in the title bar to cycle them. Click a key in the help bar to press it, and
+        y or N to answer a confirmation. The wheel scrolls the list, the details and the output pane.
+        While modman has the mouse, select text in the terminal with Shift held down. -NoMouse leaves
+        the mouse to the terminal.
+
         Modules marked with * are loaded in the current session. When you uninstall or remove old
         versions and some of them are loaded, the confirmation offers y (leave the loaded versions
         installed) or f (unload them from the session first, so they're removed too). Modules that
@@ -87,8 +95,11 @@ function Show-ModuleManager {
     .PARAMETER NoUpdateCheck
         Don't check repositories when the UI opens. Press R to check later.
 
+    .PARAMETER NoMouse
+        Don't use the mouse: leave it to the terminal, for selecting and copying text as usual.
+
     .PARAMETER ThrottleLimit
-        The maximum number of concurrent repository queries. With PowerShellGet (rather than PSResourceGet), queries always run one at a time.
+        The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
 
     .PARAMETER ComputerName
         Manage the modules on this computer instead, over PowerShell remoting. The UI runs here;
@@ -165,6 +176,8 @@ function Show-ModuleManager {
 
         [switch]$NoUpdateCheck,
 
+        [switch]$NoMouse,
+
         [ValidateRange(1, 64)]
         [int]$ThrottleLimit = 16,
 
@@ -219,6 +232,8 @@ function Show-ModuleManager {
         # say what's happening rather than leaving the screen blank.
         $state.Scanning = $true
         Write-MMTuiFrame $state
+        # After the first frame, as on Windows this compiles a helper the first time (under a second).
+        if (-not $NoMouse) { $state.Mouse = Enable-MMTuiMouse }
         try { Update-MMTuiRows $state }
         finally { $state.Scanning = $false }
         if ($NoUpdateCheck) { Set-MMTuiMessage $state 'Update check skipped. Press R to check repositories.' }
@@ -239,9 +254,10 @@ function Show-ModuleManager {
             if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) { $dirty = $true }
             if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
 
-            $key = Read-MMTuiKey
-            if ($null -eq $key) { Start-Sleep -Milliseconds 30; continue }
-            Invoke-MMTuiKey -State $state -Key $key
+            $received = Read-MMTuiInput -State $state
+            if ($null -eq $received) { Start-Sleep -Milliseconds 30; continue }
+            if ($received -is [ConsoleKeyInfo]) { Invoke-MMTuiKey -State $state -Key $received }
+            else { Invoke-MMTuiMouse -State $state -Mouse $received }
             Update-MMTuiVisible $state
             $dirty = $true
         }
@@ -249,6 +265,7 @@ function Show-ModuleManager {
     finally {
         Stop-MMTuiTask $state -Closing
         Stop-MMTuiLookup $state -Closing
+        Disable-MMTuiMouse $state.Mouse
         Exit-MMTuiScreen
         [Console]::OutputEncoding = $originalEncoding
         Disconnect-MMRemote $remote

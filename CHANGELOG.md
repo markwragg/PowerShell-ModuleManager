@@ -1,8 +1,10 @@
 # Change Log
 
-## !Deploy
+## !Deploy 0.5.0
 
-* [fix] With PowerShellGet (such as Windows PowerShell's built-in PowerShellGet 1.0), most update checks failed at random with "A parameter cannot be found that matches parameter name 'Provider'" (or 'MessageResolver'), as the PackageManagement module it uses breaks when used by several lookups at once. PowerShellGet lookups now run one at a time; installing Microsoft.PowerShell.PSResourceGet keeps them parallel and faster.
+* [feature] The terminal UI can be used with the mouse. Click a module to move to it, and double-click it for its details (right-click to go back). Click its `[ ]` box to select it, a family's arrow to expand or collapse it, a column header to sort by that column, and `view:` or `sort:` in the title bar to cycle them. Click a key in the help bar to press it, and y or N to answer a confirmation. The wheel scrolls the list, the details view and the output pane. On Windows it uses the console's own mouse input; elsewhere it needs a terminal that reports the mouse in xterm's SGR format, as most do. Hold Shift to select text in the terminal while modman has the mouse, or use `Show-ModuleManager -NoMouse` to leave it to the terminal.
+* [feature] Update checks are several times faster. The PowerShell Gallery, and other NuGet v2 feeds, are now queried directly over their API, 30 modules per request, instead of with `Find-PSResource` or `Find-Module` for each module: about 230 modules take about 2 s, against about 9 s with PSResourceGet and minutes with PowerShellGet. Other repositories, and feeds that can't be reached or that need credentials, are still queried with the package manager.
+* [fix] With PowerShellGet (such as Windows PowerShell's built-in PowerShellGet 1.0), most update checks failed at random with "A parameter cannot be found that matches parameter name 'Provider'" (or 'MessageResolver'), as the PackageManagement module it uses breaks when used by several lookups at once. Lookups that use PowerShellGet's commands now take turns.
 
 ## [0.4.0] - 2026-11-20
 

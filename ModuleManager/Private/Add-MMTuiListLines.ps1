@@ -23,6 +23,23 @@ function Add-MMTuiListLines {
         $header += , @((Format-MMCell 'Scope' $cols.Scope), 'Header')
     }
     $header += , @((Format-MMCell 'Status' $cols.Status), 'Header')
+
+    # For the mouse (see Invoke-MMTuiMouse): the headers of the columns the list can be sorted by,
+    # the rows, and the [ ] box.
+    $layout = $State.Layout
+    $sortBy = @{ Name = 'Name'; Count = 'Versions'; Scope = 'Scope'; Status = 'Status' }
+    $layout.SortColumns = [System.Collections.Generic.List[object]]::new()
+    $x = 0
+    foreach ($col in $cols.Keys) {
+        $colWidth = $cols[$col]
+        if ($col -eq 'Name') { $colWidth++ }
+        if ($colWidth -and $sortBy.ContainsKey($col)) { $layout.SortColumns.Add(@{ Start = $x; End = $x + $colWidth; Sort = $sortBy[$col] }) }
+        $x += $colWidth
+    }
+    $layout.HeaderY = $Lines.Count
+    $layout.ListTop = $Lines.Count + 1
+    $layout.ListRows = $ListHeight
+    $layout.CheckWidth = $cols.Sel
     $Lines.Add((Format-MMTuiLine $header $Width))
 
     # Keep the cursor in view

@@ -43,5 +43,12 @@ function New-MMTuiState {
         Spinner      = 0
         Scanning     = $false
         Quit         = $false
+        # Mouse input (see Enable-MMTuiMouse, Read-MMTuiInput and Invoke-MMTuiMouse): how it arrives,
+        # keys read while looking for a mouse report, the last click (for double-clicks), and where
+        # the last frame drew what (set by Get-MMTuiFrame).
+        Mouse        = $null
+        PendingKeys  = [System.Collections.Generic.Queue[object]]::new()
+        LastClick    = $null
+        Layout       = @{}
     }
 }

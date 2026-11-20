@@ -156,6 +156,125 @@ Describe 'The repository lookup script' {
                 $r.Error | Should -BeNullOrEmpty
             }
         }
+
+        It 'Runs Find-Module holding the lock, and releases it even when the search fails' {
+            InModuleScope ModuleManager {
+                $script:MMTestLock = [System.Threading.SemaphoreSlim]::new(1, 1)
+                $script:MMTestHeld = @()
+                Mock Find-Module { $script:MMTestHeld += $script:MMTestLock.CurrentCount; [pscustomobject]@{ Name = 'MMThing'; Version = '1.0'; PublishedDate = $null; Dependencies = @() } }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' -Lock $script:MMTestLock
+                $r.Status | Should -Be 'Found'
+                $script:MMTestHeld | Should -Be @(0)
+                $script:MMTestLock.CurrentCount | Should -Be 1
+
+                Mock Find-Module { throw 'The remote server returned an error: (503)' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' -Lock $script:MMTestLock
+                $r.Status | Should -Be 'Error'
+                $script:MMTestLock.CurrentCount | Should -Be 1
+            }
+        }
+
+        It "Doesn't take the lock with PSResourceGet" {
+            InModuleScope ModuleManager {
+                if (-not (Get-Command -Name Find-PSResource -ErrorAction Ignore)) { Set-ItResult -Skipped -Because 'PSResourceGet is not installed'; return }
+                $script:MMTestLock = [System.Threading.SemaphoreSlim]::new(1, 1)
+                $script:MMTestHeld = @()
+                Mock Find-PSResource { $script:MMTestHeld += $script:MMTestLock.CurrentCount }
+                $null = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PSResourceGet' -Lock $script:MMTestLock
+                $script:MMTestHeld | Should -Be @(1)
+            }
+        }
+    }
+
+    Context 'With a NuGet v2 feed' {
+
+        BeforeAll {
+            InModuleScope ModuleManager {
+                # Feed entries as Invoke-RestMethod returns them.
+                $script:MMTestFeed = @'
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <entry><m:properties>
+    <d:Id>MMThing</d:Id><d:Version>2.0.0-beta1</d:Version>
+    <d:Published m:type="Edm.DateTime">2025-06-01T10:30:00.123</d:Published>
+    <d:Dependencies>MMCore:[1.5.0, ):|MMAny::|</d:Dependencies>
+  </m:properties></entry>
+  <entry><m:properties>
+    <d:Id>MMOther</d:Id><d:Version>3</d:Version>
+    <d:Published m:type="Edm.DateTime">2025-01-01T00:00:00</d:Published>
+    <d:Dependencies></d:Dependencies>
+  </m:properties></entry>
+</feed>
+'@
+            }
+        }
+
+        It 'Looks the whole batch up in one request' -ForEach @(
+            @{ Prerelease = $false; Filter = 'IsLatestVersion and ' }
+            @{ Prerelease = $true; Filter = 'IsAbsoluteLatestVersion and ' }
+        ) {
+            InModuleScope ModuleManager -Parameters $_ {
+                Mock Invoke-RestMethod { ([xml]$script:MMTestFeed).feed.entry }
+                Mock Find-Module { }
+                $r = @(& $script:MMLookupScript -Names 'mmthing', 'MMOther', 'MMMissing' -Repository 'PSGallery' -Prerelease $Prerelease `
+                        -Backend 'PowerShellGet' -ApiUrl 'https://feed.invalid/api/v2')
+                $r.Count | Should -Be 3
+
+                $r[0].Status | Should -Be 'Found'
+                $r[0].RequestedName | Should -Be 'mmthing'
+                $r[0].Name | Should -Be 'MMThing'
+                $r[0].Version | Should -Be '2.0.0-beta1'
+                $r[0].ModuleVersion | Should -Be ([version]'2.0.0')
+                $r[0].PrereleaseLabel | Should -Be 'beta1'
+                $r[0].PublishedDate | Should -Be ([datetime]'2025-06-01T10:30:00.123')
+                $r[0].Dependencies | Should -Be @('MMCore|[1.5.0, )', 'MMAny|')
+                $r[0].Prerelease | Should -Be $Prerelease
+
+                $r[1].Version | Should -Be '3.0'
+                $r[1].Dependencies.Count | Should -Be 0
+                $r[2].Status | Should -Be 'NotFound'
+                $r[2].Error | Should -BeNullOrEmpty
+
+                Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter {
+                    $q = [uri]::UnescapeDataString($Uri)
+                    $q.StartsWith('https://feed.invalid/api/v2/Packages()?$filter=' + $Filter) -and
+                    $q -match "\(Id eq 'mmthing' or Id eq 'MMOther' or Id eq 'MMMissing'\)"
+                }
+                Should -Invoke Find-Module -Times 0 -Exactly
+            }
+        }
+
+        It 'Reports <Status> when the installed version <Answer>' -ForEach @(
+            @{ Answer = 'is found by exact version'; Status = 'Unlisted'; Exact = $true }
+            @{ Answer = 'is missing too (404)'; Status = 'NotFound'; Exact = $false }
+        ) {
+            InModuleScope ModuleManager -Parameters $_ {
+                $script:MMTestExact = $Exact
+                Mock Invoke-RestMethod { }
+                Mock Invoke-RestMethod {
+                    if (-not $script:MMTestExact) { throw 'The remote server returned an error: (404) Not Found.' }
+                    [xml]'<entry xmlns="http://www.w3.org/2005/Atom"><id>x</id></entry>'
+                } -ParameterFilter { $Uri -like '*Packages(Id=*' }
+                $r = & $script:MMLookupScript -Names "MM'Thing" -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' `
+                    -ApiUrl 'https://feed.invalid/api/v2' -Installed @{ "MM'Thing" = '1.1.0' }
+                $r.Status | Should -Be $Status
+                $r.Error | Should -BeNullOrEmpty
+                Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter { [uri]::UnescapeDataString($Uri) -eq "https://feed.invalid/api/v2/Packages(Id='MM''Thing',Version='1.1.0')" }
+            }
+        }
+
+        It 'Falls back to the package manager when the feed <Problem>' -ForEach @(
+            @{ Problem = 'cannot be reached'; Response = { throw 'The remote name could not be resolved' } }
+            @{ Problem = 'returns something else, such as a proxy''s web page'; Response = { '<html>Sign in</html>' } }
+        ) {
+            InModuleScope ModuleManager -Parameters $_ {
+                Mock Invoke-RestMethod $Response
+                Mock Find-Module { [pscustomobject]@{ Name = 'MMThing'; Version = '1.0.0'; PublishedDate = $null; Dependencies = @() } }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' -ApiUrl 'https://feed.invalid/api/v2'
+                $r.Status | Should -Be 'Found'
+                $r.Version | Should -Be '1.0.0'
+                Should -Invoke Find-Module -Times 1 -Exactly
+            }
+        }
     }
 }
 
@@ -206,22 +325,27 @@ Describe 'Start-MMGalleryLookup, Receive-MMGalleryLookup and Wait-MMGalleryLooku
         }
     }
 
-    It 'Runs PowerShellGet lookups one at a time, as PackageManagement fails when used in parallel' {
+    It 'Batches lookups by whether the repository is a v2 feed, and gives every batch the same lock' {
         InModuleScope ModuleManager {
             Mock Write-Progress { }
-            $requests = foreach ($n in 'MMOne', 'MMTwo', 'MMThree') { [pscustomobject]@{ Name = $n; Repository = 'MMNoSuchRepository'; Prerelease = $false } }
-            $cases = @(
-                @{ Backend = 'PowerShellGet'; Module = 'PowerShellGet'; Max = 1 }
-                @{ Backend = 'PSResourceGet'; Module = 'Microsoft.PowerShell.PSResourceGet'; Max = 4 }
+            Mock Get-MMRepositoryApi { 'https://feed.invalid/api/v2' } -ParameterFilter { $Name -eq 'MMFeed' }
+            Mock Get-MMRepositoryApi { $null } -ParameterFilter { $Name -ne 'MMFeed' }
+            $requests = @(
+                foreach ($i in 1..35) { [pscustomobject]@{ Name = "MMFeed$i"; Repository = 'MMFeed'; Prerelease = $false } }
+                foreach ($i in 1..7) { [pscustomobject]@{ Name = "MMShare$i"; Repository = 'MMNoSuchRepository'; Prerelease = $false } }
             )
-            foreach ($case in $cases) {
-                if (-not (Get-Module -ListAvailable -Name $case.Module)) { continue }
-                $script:MMTestBackend = $case.Backend
-                Mock Get-MMBackend { $script:MMTestBackend }
-                $job = Start-MMGalleryLookup -Request $requests -ThrottleLimit 4 -BatchSize 1 -Refresh
-                try { $job.Pool.GetMaxRunspaces() | Should -Be $case.Max -Because $case.Backend }
-                finally { $null = Wait-MMGalleryLookup -Job $job }
+            $job = Start-MMGalleryLookup -Request $requests -ThrottleLimit 4 -Refresh
+            try {
+                $job.Pool.GetMaxRunspaces() | Should -Be 4
+                @($job.Tasks | ForEach-Object { "$($_.Repository) $($_.Names.Count)" }) |
+                    Should -Be @('MMFeed 30', 'MMFeed 5', 'MMNoSuchRepository 6', 'MMNoSuchRepository 1')
+                $arguments = @($job.Tasks | ForEach-Object { , $_.PowerShell.Commands.Commands[0].Parameters })
+                $arguments[0][5].Value | Should -Be 'https://feed.invalid/api/v2'
+                $arguments[2][5].Value | Should -BeNullOrEmpty
+                $arguments[0][6].Value | Should -BeOfType [System.Threading.SemaphoreSlim]
+                foreach ($a in $arguments) { [object]::ReferenceEquals($a[6].Value, $arguments[0][6].Value) | Should -BeTrue }
             }
+            finally { $null = Wait-MMGalleryLookup -Job $job }
         }
     }
 
@@ -300,7 +424,44 @@ Describe 'Start-MMGalleryLookup, Receive-MMGalleryLookup and Wait-MMGalleryLooku
 Describe 'Package manager detection' {
 
     AfterEach {
-        InModuleScope ModuleManager { $script:MMBackend = $null; $script:MMRepositories = $null }
+        InModuleScope ModuleManager { $script:MMBackend = $null; $script:MMRepositories = $null; $script:MMRepositoryApi = @{} }
+    }
+
+    It 'Finds the v2 API address of <Repository> with <Backend>' -ForEach @(
+        @{ Backend = 'PSResourceGet'; Repository = 'PSGallery'; Expected = 'https://www.powershellgallery.com/api/v2' }
+        @{ Backend = 'PSResourceGet'; Repository = 'V3Feed'; Expected = $null }
+        @{ Backend = 'PSResourceGet'; Repository = 'Private'; Expected = $null }
+        @{ Backend = 'PSResourceGet'; Repository = 'Missing'; Expected = $null }
+        @{ Backend = 'PowerShellGet'; Repository = 'PSGallery'; Expected = 'https://www.powershellgallery.com/api/v2' }
+        @{ Backend = 'PowerShellGet'; Repository = 'Share'; Expected = $null }
+        @{ Backend = 'None'; Repository = 'PSGallery'; Expected = $null }
+    ) {
+        InModuleScope ModuleManager -Parameters $_ {
+            $script:MMRepositoryApi = @{}
+            $hasPSResourceGet = [bool](Get-Command -Name Get-PSResourceRepository -ErrorAction Ignore)
+            if ($Backend -eq 'PSResourceGet' -and -not $hasPSResourceGet) { Set-ItResult -Skipped -Because 'PSResourceGet is not installed'; return }
+            Mock Get-MMBackend { $Backend }
+            if ($hasPSResourceGet) {
+                Mock Get-PSResourceRepository {
+                    switch ($Name) {
+                        'PSGallery' { [pscustomobject]@{ Name = 'PSGallery'; Uri = [uri]'https://www.powershellgallery.com/api/v2/'; ApiVersion = 'V2'; CredentialInfo = $null } }
+                        'V3Feed' { [pscustomobject]@{ Name = 'V3Feed'; Uri = [uri]'https://api.nuget.org/v3/index.json'; ApiVersion = 'V3'; CredentialInfo = $null } }
+                        'Private' { [pscustomobject]@{ Name = 'Private'; Uri = [uri]'https://feed.invalid/api/v2'; ApiVersion = 'V2'; CredentialInfo = [pscustomobject]@{ VaultName = 'Vault' } } }
+                        default { throw "Unable to find repository '$Name'." }
+                    }
+                }
+            }
+            Mock Get-PSRepository {
+                switch ($Name) {
+                    'PSGallery' { [pscustomobject]@{ Name = 'PSGallery'; SourceLocation = 'https://www.powershellgallery.com/api/v2' } }
+                    'Share' { [pscustomobject]@{ Name = 'Share'; SourceLocation = '\\server\modules' } }
+                }
+            }
+            Get-MMRepositoryApi -Name $Repository | Should -Be $Expected
+            Get-MMRepositoryApi -Name $Repository | Should -Be $Expected
+            if ($hasPSResourceGet) { Should -Invoke Get-PSResourceRepository -Times ([int]($Backend -eq 'PSResourceGet')) -Exactly }   # then cached
+            Should -Invoke Get-PSRepository -Times ([int]($Backend -eq 'PowerShellGet')) -Exactly
+        }
     }
 
     It 'Picks <Expected> when <Available> is available' -ForEach @(

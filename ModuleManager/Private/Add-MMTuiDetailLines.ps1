@@ -41,6 +41,11 @@ function Add-MMTuiDetailLines {
     if ($State.DCursor -lt $State.DTop) { $State.DTop = $State.DCursor }
     if ($State.DCursor -ge $State.DTop + $avail) { $State.DTop = $State.DCursor - $avail + 1 }
 
+    # For the mouse (see Invoke-MMTuiMouse): the rows and the [ ] box.
+    $State.Layout.DetailTop = $Lines.Count
+    $State.Layout.DetailRows = [Math]::Max(0, $avail)
+    $State.Layout.CheckWidth = $cols.Sel
+
     for ($i = 0; $i -lt $avail; $i++) {
         $index = $State.DTop + $i
         if ($index -ge $installs.Count) { $Lines.Add((' ' * $Width)); continue }

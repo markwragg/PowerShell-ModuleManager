@@ -6,6 +6,8 @@ function Start-MMGalleryLookup {
     .DESCRIPTION
         Starts looking up the latest version of each requested module in parallel using a
         runspace pool. Returns a job object; use Receive-MMGalleryLookup to collect results.
+        NuGet v2 feeds (such as the PowerShell Gallery) are queried directly over HTTP, in batches;
+        other repositories are queried with the package manager.
         Cached results are returned immediately without querying the repository.
     #>
     [CmdletBinding()]
@@ -14,6 +16,8 @@ function Start-MMGalleryLookup {
         [object[]]$Request,
         [ValidateRange(1, 64)][int]$ThrottleLimit = 16,
         [ValidateRange(1, 100)][int]$BatchSize = 6,
+        # Kept well under the v2 feed's page size (100 entries) and URL length limits.
+        [ValidateRange(1, 50)][int]$ApiBatchSize = 30,
         [switch]$Refresh
     )
 
@@ -51,20 +55,21 @@ function Start-MMGalleryLookup {
     if (Test-MMIsWindows) {
         try { $iss.ExecutionPolicy = [Microsoft.PowerShell.ExecutionPolicy]::Bypass } catch { Write-Debug $_ }
     }
-    if ($backend -eq 'PSResourceGet') { $iss.ImportPSModule('Microsoft.PowerShell.PSResourceGet') }
-    else {
-        $iss.ImportPSModule('PowerShellGet')
-        # PowerShellGet goes through PackageManagement, which isn't safe to use from several runspaces
-        # at once: parallel lookups fail at random with errors such as "A parameter cannot be found
-        # that matches parameter name 'Provider'" (or 'MessageResolver'). Run them one at a time.
-        $ThrottleLimit = 1
+    $groups = @($pending | Group-Object -Property { "$($_.Repository)|$($_.Prerelease)" })
+    # Loading the package manager into every runspace is slow (several seconds for PowerShellGet in
+    # Windows PowerShell), so only do it when a repository isn't a v2 feed. Lookups that fall back to
+    # it otherwise load it on first use.
+    if (@($groups | Where-Object { -not (Get-MMRepositoryApi -Name $_.Group[0].Repository) }).Count -gt 0) {
+        if ($backend -eq 'PSResourceGet') { $iss.ImportPSModule('Microsoft.PowerShell.PSResourceGet') }
+        else { $iss.ImportPSModule('PowerShellGet') }
     }
 
     $pool = [runspacefactory]::CreateRunspacePool(1, $ThrottleLimit, $iss, $Host)
     $pool.Open()
     $job.Pool = $pool
+    # PowerShellGet's commands take turns holding this, as PackageManagement fails when used in parallel.
+    $lock = [System.Threading.SemaphoreSlim]::new(1, 1)
 
-    $groups = $pending | Group-Object -Property { "$($_.Repository)|$($_.Prerelease)" }
     foreach ($group in $groups) {
         $first = $group.Group[0]
         $names = @($group.Group | ForEach-Object { $_.Name })
@@ -72,13 +77,17 @@ function Start-MMGalleryLookup {
         foreach ($r in $group.Group) {
             if ($r.PSObject.Properties['InstalledVersion'] -and $r.InstalledVersion) { $installed[$r.Name] = [string]$r.InstalledVersion }
         }
-        for ($i = 0; $i -lt $names.Count; $i += $BatchSize) {
-            $chunk = @($names[$i..([Math]::Min($i + $BatchSize, $names.Count) - 1)])
+        # A NuGet v2 feed answers a whole batch in one request, so it takes bigger batches.
+        $api = Get-MMRepositoryApi -Name $first.Repository
+        $size = $BatchSize
+        if ($api) { $size = $ApiBatchSize }
+        for ($i = 0; $i -lt $names.Count; $i += $size) {
+            $chunk = @($names[$i..([Math]::Min($i + $size, $names.Count) - 1)])
             $ps = [powershell]::Create()
             $ps.RunspacePool = $pool
             [void]$ps.AddScript($script:MMLookupScript.ToString()).
                 AddArgument($chunk).AddArgument($first.Repository).AddArgument([bool]$first.Prerelease).AddArgument($backend).
-                AddArgument($installed)
+                AddArgument($installed).AddArgument($api).AddArgument($lock)
             $job.Tasks.Add([pscustomobject]@{
                     PowerShell = $ps
                     Handle     = $ps.BeginInvoke()

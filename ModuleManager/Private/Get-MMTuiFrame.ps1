@@ -22,6 +22,16 @@ function Get-MMTuiFrame {
     }
     $State.ListHeight = $listHeight
 
+    # Where things are drawn, for mouse clicks (see Invoke-MMTuiMouse): rows (Y) and columns (X,
+    # Start to before End) counted from 0. The list and details views fill in theirs; -1 is nowhere.
+    $layout = @{
+        HeaderY = -1; ListTop = -1; ListRows = 0; SortColumns = @(); DetailTop = -1; DetailRows = 0; CheckWidth = 0
+        LogTop = -1; LogRows = 0; StatusY = -1; HelpY = -1; TitleY = -1
+        Title = [System.Collections.Generic.List[object]]::new()
+        Help = [System.Collections.Generic.List[object]]::new(); Choices = [System.Collections.Generic.List[object]]::new()
+    }
+    $State.Layout = $layout
+
     $lines = [System.Collections.Generic.List[string]]::new()
 
     # --- Title bar
@@ -48,9 +58,10 @@ function Get-MMTuiFrame {
     $title = @(
         , @(' ModuleManager ', 'TitleBold')
         , @(" $total modules  |  $updates updates", $null)
-        , @("  |  view: $($State.Views[$State.View])  |  sort: $($State.Sorts[$State.Sort])", $null)
+        , @("  |  view: $($State.Views[$State.View])", $null)
+        , @("  |  sort: $($State.Sorts[$State.Sort])", $null)
     )
-    if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + $title[1..2] }
+    if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + $title[1..($title.Count - 1)] }
     $selected = @()
     if ($selCount) { $selected += "$selCount module(s)" }
     if ($State.DSelected.Count) { $selected += "$($State.DSelected.Count) version(s)" }
@@ -64,6 +75,17 @@ function Get-MMTuiFrame {
     }
     $pad = $w - $leftLen - $right.Length
     if ($right -and $pad -gt 0) { $title += , @(((' ' * $pad) + $right), $null) }
+    # Clicking view: or sort: cycles it, as V and S do.
+    $layout.TitleY = $lines.Count
+    $x = 0
+    foreach ($t in $title) {
+        $text = [string]$t[0]
+        $key = $null
+        if ($text -match '^  \|  view: ') { $key = ConvertTo-MMTuiKeyInfo 'V' }
+        elseif ($text -match '^  \|  sort: ') { $key = ConvertTo-MMTuiKeyInfo 'S' }
+        if ($key) { $layout.Title.Add(@{ Start = $x + 5; End = $x + $text.Length; Key = $key }) }
+        $x += $text.Length
+    }
     $lines.Add((Format-MMTuiLine $title $w 'Title'))
 
     if ($State.Mode -eq 'details' -or ($State.Mode -eq 'confirm' -and $State.Confirm.ReturnMode -eq 'details')) {
@@ -72,16 +94,27 @@ function Get-MMTuiFrame {
     else {
         Add-MMTuiListLines -State $State -Lines $lines -Width $w -ListHeight $listHeight
     }
-    if ($paneHeight) { Add-MMTuiLogLines -State $State -Lines $lines -Width $w -PaneHeight $paneHeight }
+    if ($paneHeight) {
+        $layout.LogTop = $lines.Count; $layout.LogRows = $paneHeight
+        Add-MMTuiLogLines -State $State -Lines $lines -Width $w -PaneHeight $paneHeight
+    }
 
     # --- Status / prompt line
+    $layout.StatusY = $lines.Count
     switch ($State.Mode) {
         'filter' { $lines.Add((Format-MMTuiLine @(@(' Filter: ', 'Key'), @("$($State.Filter)_", 'Bold'), @('   Enter to apply, Esc to clear', 'Dim')) $w)) }
         'confirm' {
             $choices = 'y'
             if ($State.Confirm.ContainsKey('Choices') -and $State.Confirm.Choices) { $choices = $State.Confirm.Choices }
-            $hint = "[$(($choices.ToCharArray() | ForEach-Object { [string]$_ }) -join '/')/N]"
-            $lines.Add((Format-MMTuiLine @(@(" $($State.Confirm.Prompt) ", 'Yellow'), @($hint, 'Key')) $w))
+            $answers = @($choices.ToCharArray() | ForEach-Object { [string]$_ }) + 'N'
+            $hint = "[$($answers -join '/')]"
+            $prompt = " $($State.Confirm.Prompt) "
+            $lines.Add((Format-MMTuiLine @(@($prompt, 'Yellow'), @($hint, 'Key')) $w))
+            # Each answer in [y/N] can be clicked.
+            for ($i = 0; $i -lt $answers.Count; $i++) {
+                $x = $prompt.Length + 1 + 2 * $i
+                $layout.Choices.Add(@{ Start = $x; End = $x + 1; Key = (ConvertTo-MMTuiKeyInfo $answers[$i]) })
+            }
         }
         default { $lines.Add((Format-MMTuiLine @(, @(" $($State.Message)", $State.MessageStyle)) $w)) }
     }
@@ -102,10 +135,17 @@ function Get-MMTuiFrame {
             'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
+    $x = 0
     for ($i = 0; $i -lt $keys.Count; $i += 2) {
-        $help += , @(" $($keys[$i])", 'Key')
-        $help += , @(" $($keys[$i + 1]) ", $null)
+        $keyText = " $($keys[$i])"; $label = " $($keys[$i + 1]) "
+        $help += , @($keyText, 'Key')
+        $help += , @($label, $null)
+        # Clicking a key (or what it does) presses it.
+        $key = ConvertTo-MMTuiKeyInfo $keys[$i]
+        if ($key) { $layout.Help.Add(@{ Start = $x; End = $x + $keyText.Length + $label.Length; Key = $key }) }
+        $x += $keyText.Length + $label.Length
     }
+    $layout.HelpY = $lines.Count
     $lines.Add((Format-MMTuiLine $help $w 'HelpBar'))
 
     $lines -join "`r`n"

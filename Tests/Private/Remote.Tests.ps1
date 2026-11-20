@@ -447,7 +447,9 @@ Describe 'Connecting to a remote computer' {
             Mock Test-MMInteractiveConsole { $true }
             Mock Write-MMConsole { $script:written.Add($Text) }
             Mock Get-MMConsoleSize { @{ Width = 120; Height = 20 } }
-            Mock Read-MMTuiKey { $script:keys.Dequeue() }
+            Mock Read-MMTuiInput { $script:keys.Dequeue() }
+            Mock Enable-MMTuiMouse { 'VT' }
+            Mock Disable-MMTuiMouse { }
             Mock Start-Sleep { }
             Mock Write-Progress { }
             Mock Connect-MMRemote { $script:testRemote }
@@ -515,7 +517,9 @@ Describe 'Managing the other PowerShell edition' {
             Mock Test-MMInteractiveConsole { $true }
             Mock Write-MMConsole { $script:written.Add($Text) }
             Mock Get-MMConsoleSize { @{ Width = 120; Height = 20 } }
-            Mock Read-MMTuiKey { $script:keys.Dequeue() }
+            Mock Read-MMTuiInput { $script:keys.Dequeue() }
+            Mock Enable-MMTuiMouse { 'VT' }
+            Mock Disable-MMTuiMouse { }
             Mock Start-Sleep { }
             Mock Write-Progress { }
             Mock Connect-MMEdition { $script:testRemote }
@@ -542,7 +546,9 @@ Describe 'Managing the other PowerShell edition' {
             Mock Test-MMInteractiveConsole { $true }
             Mock Write-MMConsole { $script:written.Add($Text) }
             Mock Get-MMConsoleSize { @{ Width = 120; Height = 20 } }
-            Mock Read-MMTuiKey { $script:keys.Dequeue() }
+            Mock Read-MMTuiInput { $script:keys.Dequeue() }
+            Mock Enable-MMTuiMouse { 'VT' }
+            Mock Disable-MMTuiMouse { }
             Mock Start-Sleep { }
             Mock Connect-MMEdition { }
 

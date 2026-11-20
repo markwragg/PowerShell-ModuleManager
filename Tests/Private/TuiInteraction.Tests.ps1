@@ -47,12 +47,16 @@ Describe 'Show-ModuleManager' {
                     $null
                     [ConsoleKeyInfo]::new([char]0, [ConsoleKey]::DownArrow, $false, $false, $false)
                     [ConsoleKeyInfo]::new('v', [ConsoleKey]::V, $false, $false, $false)
+                    # A click on the Status column header (at 100 wide, from column 83)
+                    [pscustomobject]@{ Button = 'Left'; X = 85; Y = 1 }
                     [ConsoleKeyInfo]::new('q', [ConsoleKey]::Q, $false, $false, $false)
                 )) { $script:keys.Enqueue($k) }
             Mock Test-MMInteractiveConsole { $true }
             Mock Write-MMConsole { $script:written.Add($Text) }
             Mock Get-MMConsoleSize { @{ Width = 100; Height = 20 } }
-            Mock Read-MMTuiKey { $script:keys.Dequeue() }
+            Mock Read-MMTuiInput { $script:keys.Dequeue() }
+            Mock Enable-MMTuiMouse { 'VT' }
+            Mock Disable-MMTuiMouse { }
             Mock Start-Sleep { }
             Mock Write-Progress { }
 
@@ -63,6 +67,8 @@ Describe 'Show-ModuleManager' {
             $plain | Should -Match 'ModuleManager'
             $plain | Should -Match 'MMAlpha'
             $plain | Should -Match 'view: Updates'
+            $plain | Should -Match 'sort: Status'
+            Should -Invoke Disable-MMTuiMouse -Times 1 -ParameterFilter { $Mode -eq 'VT' }
             if ($NoUpdateCheck) { $plain | Should -Match 'Update check skipped' }
             $script:written[0] | Should -Match '\[\?1049h'        # entered the alternate screen
             $script:written[-1] | Should -Match '\[\?1049l'       # and left it

@@ -33,10 +33,11 @@ Install-PSResource ModuleManager
 ```
 
 > [!TIP]
-> For the best performance, make sure PSResourceGet is installed. With only PowerShellGet (such as the
-> PowerShellGet 1.0 built into Windows PowerShell 5.1), repository lookups run one at a time, because the
-> PackageManagement module it uses can't be used safely from several lookups at once. That makes update
-> checks much slower. To install PSResourceGet:
+> Update checks against the PowerShell Gallery, and other NuGet v2 feeds, are fast with either package
+> manager, as ModuleManager queries the feed directly. For other repositories (such as file shares) it uses
+> the package manager's own commands. With only PowerShellGet (such as the PowerShellGet 1.0 built into
+> Windows PowerShell 5.1), those run one at a time, because the PackageManagement module it uses can't be
+> used safely from several lookups at once. For the best performance there, install PSResourceGet:
 >
 > ```powershell
 > Install-Module Microsoft.PowerShell.PSResourceGet -Scope CurrentUser
@@ -169,6 +170,14 @@ The update check runs in the background, so you can use the list while it fills 
 | Esc | Close the output pane, then clear the selection, then the filter | Back to the list |
 | Q | Quit (Ctrl+C while an operation is running stops it first) | Back to the list |
 
+You can also use the mouse. Click a module to move to it, and double-click it for its versions and paths
+(right-click to go back). Click its `[ ]` box to select it, a family's arrow to expand or collapse the family, and
+a column header (Name, #, Scope, Status) to sort by that column, or `view:` or `sort:` in the title bar to cycle
+them. Clicking a key in the help bar presses it, and a confirmation is answered by clicking **y** or **N** (other
+clicks are ignored while it's shown). The wheel scrolls the list, the details view, and the output pane when the
+pointer is over it. While modman has the mouse, hold Shift to select text in the terminal, or start it with
+`-NoMouse` to leave the mouse to the terminal.
+
 Every action asks for confirmation first, then runs in the background with its progress bar, output, warnings
 and errors in a pane at the bottom of the screen. The list stays on screen and you can keep browsing while it
 runs. Updates end with one result line per module. When the action finishes, the list is rescanned and the
@@ -247,9 +256,12 @@ version on a computer shares the same module folders, so there's one set to mana
   `Get-Module -ListAvailable`. On a machine with about 800 module versions that takes about 1.5 s, against
   about 17 s for `Get-Module -ListAvailable`. The parsed results are cached per folder, so rescans are faster.
 - **Parallel, cached gallery lookups.** Lookups run in a runspace pool, which works in both Windows PowerShell
-  5.1 and PowerShell 7. About 220 modules take roughly 10 s. Results are cached for 30 minutes; use `-Refresh`
-  to bypass the cache. This needs PSResourceGet: with PowerShellGet, lookups run one at a time, because
-  PackageManagement fails when it's used by several lookups at once.
+  5.1 and PowerShell 7. A NuGet v2 feed (such as the PowerShell Gallery) is queried directly over its API, 30
+  modules per request, which is several times faster than `Find-PSResource` or `Find-Module` for each module:
+  about 230 modules take roughly 2 s with either package manager. Other repositories, or a feed that can't be
+  reached, are queried with the package manager; with PowerShellGet those queries run one at a time, because
+  PackageManagement fails when it's used by several lookups at once. Results are cached for 30 minutes; use
+  `-Refresh` to bypass the cache.
 - **Scopes.** `CurrentUser` means under your profile. `AllUsers` means Program Files or `/usr/local/share`.
   `System` means it ships with PowerShell (`$PSHOME`) or Windows, and is hidden unless you use
   `-IncludeSystem`. `Other` is anything else.
