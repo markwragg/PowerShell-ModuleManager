@@ -45,7 +45,7 @@ function Get-ModuleUpdate {
         Include modules that ship with PowerShell or Windows.
 
     .PARAMETER ThrottleLimit
-        The maximum number of concurrent repository queries.
+        The maximum number of concurrent repository queries. With PowerShellGet (rather than PSResourceGet), queries always run one at a time.
 
     .EXAMPLE
         Get-ModuleUpdate -Outdated

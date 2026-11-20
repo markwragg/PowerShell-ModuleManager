@@ -248,7 +248,7 @@ Accept wildcard characters: False
 ```
 
 ### -ThrottleLimit
-The maximum number of concurrent repository queries.
+The maximum number of concurrent repository queries. With PowerShellGet (rather than PSResourceGet), queries always run one at a time.
 
 ```yaml
 Type: Int32

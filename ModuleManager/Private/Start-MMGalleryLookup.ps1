@@ -52,7 +52,13 @@ function Start-MMGalleryLookup {
         try { $iss.ExecutionPolicy = [Microsoft.PowerShell.ExecutionPolicy]::Bypass } catch { Write-Debug $_ }
     }
     if ($backend -eq 'PSResourceGet') { $iss.ImportPSModule('Microsoft.PowerShell.PSResourceGet') }
-    else { $iss.ImportPSModule('PowerShellGet') }
+    else {
+        $iss.ImportPSModule('PowerShellGet')
+        # PowerShellGet goes through PackageManagement, which isn't safe to use from several runspaces
+        # at once: parallel lookups fail at random with errors such as "A parameter cannot be found
+        # that matches parameter name 'Provider'" (or 'MessageResolver'). Run them one at a time.
+        $ThrottleLimit = 1
+    }
 
     $pool = [runspacefactory]::CreateRunspacePool(1, $ThrottleLimit, $iss, $Host)
     $pool.Open()

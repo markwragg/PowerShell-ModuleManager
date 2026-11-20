@@ -32,6 +32,16 @@ Or:
 Install-PSResource ModuleManager
 ```
 
+> [!TIP]
+> For the best performance, make sure PSResourceGet is installed. With only PowerShellGet (such as the
+> PowerShellGet 1.0 built into Windows PowerShell 5.1), repository lookups run one at a time, because the
+> PackageManagement module it uses can't be used safely from several lookups at once. That makes update
+> checks much slower. To install PSResourceGet:
+>
+> ```powershell
+> Install-Module Microsoft.PowerShell.PSResourceGet -Scope CurrentUser
+> ```
+
 ## Quick start
 
 Interactive UI (Alias: `modman`):
@@ -238,7 +248,8 @@ version on a computer shares the same module folders, so there's one set to mana
   about 17 s for `Get-Module -ListAvailable`. The parsed results are cached per folder, so rescans are faster.
 - **Parallel, cached gallery lookups.** Lookups run in a runspace pool, which works in both Windows PowerShell
   5.1 and PowerShell 7. About 220 modules take roughly 10 s. Results are cached for 30 minutes; use `-Refresh`
-  to bypass the cache.
+  to bypass the cache. This needs PSResourceGet: with PowerShellGet, lookups run one at a time, because
+  PackageManagement fails when it's used by several lookups at once.
 - **Scopes.** `CurrentUser` means under your profile. `AllUsers` means Program Files or `/usr/local/share`.
   `System` means it ships with PowerShell (`$PSHOME`) or Windows, and is hidden unless you use
   `-IncludeSystem`. `Other` is anything else.

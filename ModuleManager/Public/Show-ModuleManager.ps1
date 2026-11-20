@@ -88,7 +88,7 @@ function Show-ModuleManager {
         Don't check repositories when the UI opens. Press R to check later.
 
     .PARAMETER ThrottleLimit
-        The maximum number of concurrent repository queries.
+        The maximum number of concurrent repository queries. With PowerShellGet (rather than PSResourceGet), queries always run one at a time.
 
     .PARAMETER ComputerName
         Manage the modules on this computer instead, over PowerShell remoting. The UI runs here;

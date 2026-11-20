@@ -206,6 +206,25 @@ Describe 'Start-MMGalleryLookup, Receive-MMGalleryLookup and Wait-MMGalleryLooku
         }
     }
 
+    It 'Runs PowerShellGet lookups one at a time, as PackageManagement fails when used in parallel' {
+        InModuleScope ModuleManager {
+            Mock Write-Progress { }
+            $requests = foreach ($n in 'MMOne', 'MMTwo', 'MMThree') { [pscustomobject]@{ Name = $n; Repository = 'MMNoSuchRepository'; Prerelease = $false } }
+            $cases = @(
+                @{ Backend = 'PowerShellGet'; Module = 'PowerShellGet'; Max = 1 }
+                @{ Backend = 'PSResourceGet'; Module = 'Microsoft.PowerShell.PSResourceGet'; Max = 4 }
+            )
+            foreach ($case in $cases) {
+                if (-not (Get-Module -ListAvailable -Name $case.Module)) { continue }
+                $script:MMTestBackend = $case.Backend
+                Mock Get-MMBackend { $script:MMTestBackend }
+                $job = Start-MMGalleryLookup -Request $requests -ThrottleLimit 4 -BatchSize 1 -Refresh
+                try { $job.Pool.GetMaxRunspaces() | Should -Be $case.Max -Because $case.Backend }
+                finally { $null = Wait-MMGalleryLookup -Job $job }
+            }
+        }
+    }
+
     It 'Passes each module''s installed version to the lookup' {
         InModuleScope ModuleManager {
             $requests = @(
