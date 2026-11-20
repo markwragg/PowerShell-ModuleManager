@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.5.1] - 2026-11-20
 
 * [feature] In the terminal UI, the output pane can be used with the mouse: right-click hides it (anywhere in the list, or over the pane in the details view), as does clicking `L hide` (or `L/Esc hide`) in its header, and clicking `[` or `]` there scrolls it.
 
