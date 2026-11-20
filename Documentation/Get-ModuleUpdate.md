@@ -166,7 +166,8 @@ Accept wildcard characters: False
 ```
 
 ### -ThrottleLimit
-The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
+The maximum number of concurrent repository queries.
+Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
 
 ```yaml
 Type: Int32
