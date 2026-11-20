@@ -56,10 +56,13 @@ function Start-MMTuiElevatedAction {
         "& `$m { param(`$Directory) Invoke-MMElevatedAction -Directory `$Directory } `$d") -join '; '
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
 
+    # pwsh only takes -WindowStyle on Windows (elsewhere it exits with code 64).
+    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass'
+    if (Test-MMIsWindows) { $arguments += ' -WindowStyle Hidden' }
     $relay = @{
         Directory    = $directory
         FilePath     = Join-Path $PSHOME $exe
-        ArgumentList = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand $encoded"
+        ArgumentList = "$arguments -EncodedCommand $encoded"
     }
     Start-MMTuiLocalAction -Task $Task -Data $relay -Options $Options -Action {
         param($Data)
