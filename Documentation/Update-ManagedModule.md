@@ -21,7 +21,12 @@ By default the new version is installed into the same scope as the newest
 version you already have.
 Installing for AllUsers requires an elevated session.
 
-Uses Microsoft.PowerShell.PSResourceGet when available, otherwise PowerShellGet.
+Each module is updated with the package manager that installed it (PowerShellGet or
+Microsoft.PowerShell.PSResourceGet), when that is available, so the module is still
+recognised by that package manager's own commands, such as Update-Module or
+Update-PSResource.
+Modules with no install record are updated with PSResourceGet when
+available, otherwise PowerShellGet.
 
 Dependencies:
   - The package manager installs any dependencies the new version needs.

@@ -33,11 +33,14 @@ function New-FakeModule {
         PSResourceGet's format, or PowerShellGet's with -PowerShellGetFormat ('[1.0]' becomes
         RequiredVersion, '[1.0, )' MinimumVersion). -ManifestText is added to the .psd1 as is.
         -ProjectUri is written to PSGetModuleInfo.xml (with -Repository).
+        -InstalledBy ('PSResourceGet' or 'PowerShellGet', with -Repository) writes the type name and
+        InstalledLocation (the module root, or the version folder) that package manager writes.
     #>
     param(
         [string]$Root, [string]$Name, [string]$Version, [string]$Prerelease,
         [string[]]$RequiredModules, [string]$Repository, [switch]$Unversioned, [switch]$ObjDate,
-        [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText, [string]$ProjectUri
+        [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText, [string]$ProjectUri,
+        [ValidateSet('PSResourceGet', 'PowerShellGet')][string]$InstalledBy
     )
     $dir = if ($Unversioned) { Join-Path $Root $Name } else { Join-Path (Join-Path $Root $Name) $Version }
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -64,6 +67,15 @@ function New-FakeModule {
         else { '<DT N="InstalledDate">2025-01-02T03:04:05.0000000+00:00</DT>' }
         $project = ''
         if ($ProjectUri) { $project = "<URI N=`"ProjectUri`">$ProjectUri</URI>" }
+        $installer = ''
+        switch ($InstalledBy) {
+            'PSResourceGet' {
+                $installer = "<TN RefId=`"90`"><T>Microsoft.PowerShell.PSResourceGet.UtilClasses.ResourceType</T></TN><S N=`"InstalledLocation`">$Root</S>"
+            }
+            'PowerShellGet' {
+                $installer = "<TN RefId=`"90`"><T>Microsoft.PowerShell.Commands.PSRepositoryItemInfo</T></TN><S N=`"InstalledLocation`">$dir</S>"
+            }
+        }
         $deps = ''
         if ($PSBoundParameters.ContainsKey('Dependency')) {
             $items = foreach ($d in $Dependency) {
@@ -88,6 +100,7 @@ function New-FakeModule {
     <S N="Name">$Name</S>
     <S N="Repository">$Repository</S>
     $project
+    $installer
     $date
     $deps
   </MS></Obj>

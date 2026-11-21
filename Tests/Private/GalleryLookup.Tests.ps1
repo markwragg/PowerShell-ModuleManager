@@ -495,11 +495,26 @@ Describe 'Package manager detection' {
         }
     }
 
+    It "Counts a repository as untrusted when either package manager doesn't trust it" {
+        if (-not (Get-Command -Name Get-PSResourceRepository -ErrorAction Ignore)) { Set-ItResult -Skipped -Because 'PSResourceGet is not installed'; return }
+        InModuleScope ModuleManager {
+            Mock Get-MMBackend { 'PSResourceGet' }
+            # Updates use whichever package manager installed the module, and each has its own trust settings.
+            Mock Get-PSResourceRepository { [pscustomobject]@{ Name = 'PSGallery'; Trusted = $true }, [pscustomobject]@{ Name = 'Internal'; Trusted = $false } }
+            Mock Get-PSRepository { [pscustomobject]@{ Name = 'PSGallery'; InstallationPolicy = 'Untrusted' }, [pscustomobject]@{ Name = 'Other'; InstallationPolicy = 'Untrusted' } }
+            @(Get-MMUntrustedRepository -Name 'PSGallery', 'Internal') | Should -Be @('Internal', 'PSGallery')
+            # One it can't check doesn't stop it checking the other.
+            Mock Get-PSResourceRepository { throw 'repository store is corrupt' }
+            @(Get-MMUntrustedRepository -Name 'PSGallery', 'Internal') | Should -Be @('PSGallery')
+        }
+    }
+
     It 'Copes when repositories cannot be listed' {
         InModuleScope ModuleManager {
             $script:MMRepositories = $null
             Mock Get-MMBackend { 'PSResourceGet' }
             Mock Get-PSResourceRepository { throw 'repository store is corrupt' }
+            Mock Get-PSRepository { throw 'repository store is corrupt' }
             @(Get-MMRegisteredRepository).Count | Should -Be 0
             @(Get-MMUntrustedRepository -Name 'PSGallery').Count | Should -Be 0
             @(Get-MMUntrustedRepository -Name @()).Count | Should -Be 0

@@ -72,5 +72,7 @@ function New-MMInstalledVersion {
         DependenciesKnown = $dependenciesKnown
         ProjectUri      = $projectUri
         SourceLocation  = $meta.SourceLocation
+        # The package manager that installed this version (PSResourceGet or PowerShellGet), if known.
+        InstalledBy     = $meta.InstalledBy
     }
 }

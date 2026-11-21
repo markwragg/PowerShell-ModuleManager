@@ -23,6 +23,31 @@ Describe 'Update-ManagedModule' {
         }
     }
 
+    It 'Updates with the package manager that installed the module: <InstalledBy>' -ForEach @(
+        @{ InstalledBy = 'PowerShellGet' }
+        @{ InstalledBy = 'PSResourceGet' }
+    ) {
+        # The newest version (2.0.0-beta1) has a record that doesn't say, so the next one down decides.
+        New-FakeModule $script:UserRoot 'MMAlpha' '1.1.0' -Repository PSGallery -InstalledBy $InstalledBy | Out-Null
+        InModuleScope ModuleManager { $script:MMScanCache = @{} }
+        $expected = $InstalledBy   # the mock's own -InstalledBy hides the test's variable in the filter
+        try {
+            Update-ManagedModule MMAlpha -Confirm:$false
+            Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 1 -Exactly -ParameterFilter {
+                $Name -eq 'MMAlpha' -and $InstalledBy -eq $expected
+            }
+        }
+        finally {
+            New-FakeModule $script:UserRoot 'MMAlpha' '1.1.0' -Repository PSGallery | Out-Null
+            InModuleScope ModuleManager { $script:MMScanCache = @{} }
+        }
+    }
+
+    It "Leaves the choice to the default when no install record says which package manager to use" {
+        Update-ManagedModule MMAlpha -Confirm:$false
+        Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 1 -Exactly -ParameterFilter { -not $InstalledBy }
+    }
+
     It 'Shows a progress bar while updating and clears it afterwards' {
         Mock -ModuleName ModuleManager Write-Progress {}
         Update-ManagedModule MMAlpha -Confirm:$false

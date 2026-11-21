@@ -6,7 +6,7 @@ function Read-MMInstallMetadata {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The noun describes a set of lines/rows (or metadata, which has no singular form).')]
     param([string]$ModuleBase)
 
-    $meta = @{ IsManaged = $false; Repository = $null; InstalledDate = $null; Dependencies = $null; ProjectUri = $null; SourceLocation = $null }
+    $meta = @{ IsManaged = $false; Repository = $null; InstalledDate = $null; Dependencies = $null; ProjectUri = $null; SourceLocation = $null; InstalledBy = $null }
     $xmlPath = [IO.Path]::Combine($ModuleBase, 'PSGetModuleInfo.xml')
     if (-not [IO.File]::Exists($xmlPath)) { return $meta }
     $meta.IsManaged = $true
@@ -35,6 +35,7 @@ function Read-MMInstallMetadata {
             }
         }
         $meta.Dependencies = Read-MMXmlDependency -Text $text
+        $meta.InstalledBy = Get-MMInstalledBy -Text $text -ModuleBase $ModuleBase
     }
     catch { Write-Debug "Could not read $xmlPath : $_" }
     $meta
