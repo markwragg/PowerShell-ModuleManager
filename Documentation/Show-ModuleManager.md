@@ -84,6 +84,16 @@ depend on it and accept that version.
 Only the modules in the list are looked at, so a
 dependency outside it (such as a system module, without -IncludeSystem) shows as not found.
 
+Modules and versions their publisher has unlisted (withdrawn, often because they're deprecated)
+are flagged.
+A module unlisted from its repository shows Unlisted in the list and a warning in
+the details view.
+Unlisted installed versions are marked in the details view, with a warning
+when the cursor is on one, and a module whose newest installed version is unlisted (with no
+newer version to update to) shows Version unlisted.
+Versions are checked in NuGet v2 feeds,
+such as the PowerShell Gallery; other repositories can only report a whole module unlisted.
+
 Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
 its versions and paths; right-click goes back.
 Click the \[ \] box to select it, a family's arrow

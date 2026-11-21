@@ -28,6 +28,10 @@ Status values:
   NotInRepository  The module was not found in the repository.
   Unlisted         The module is in the repository but its publisher has unlisted it
                    (usually because it is deprecated), so it can't be updated.
+  VersionUnlisted  The module is listed, but its publisher has unlisted the newest
+                   installed version and there's no newer one to update to.
+Only
+                   checked for NuGet v2 feeds, such as the PowerShell Gallery.
   Error            The repository could not be queried.
 
 ## EXAMPLES
