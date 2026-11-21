@@ -1,11 +1,18 @@
 function Uninstall-ManagedModule {
     <#
     .SYNOPSIS
-        Uninstalls modules, or specific versions of modules.
+        Uninstalls modules, specific versions of modules, or the old versions of modules.
 
     .DESCRIPTION
         Removes installed module versions from disk, whether they were installed by
         PowerShellGet, PSResourceGet or copied in by hand.
+
+        With -OldVersions, removes all but the newest -Keep versions of each module instead.
+        Updating a module installs the new version alongside the old one, so versions build up
+        over time. Loaded versions, and old versions that another installed module depends on,
+        are skipped with a warning (unless -Force is used) rather than as errors. For example,
+        each Az rollup version pins exact versions of the Az.* modules, so those are kept while
+        that Az version is installed.
 
         Safety checks:
           - Modules that ship with PowerShell or Windows are never removed.
@@ -22,20 +29,31 @@ function Uninstall-ManagedModule {
 
     .PARAMETER Name
         The module name(s) to uninstall. Wildcards are supported. All versions are removed
-        unless -Version is given.
+        unless -Version or -OldVersions is given. With -OldVersions it defaults to all modules,
+        and accepts names from the pipeline.
 
     .PARAMETER Version
         Only remove these versions (for example '1.2.0' or '2.0.0-beta1'). Wildcards are supported.
 
+    .PARAMETER OldVersions
+        Remove the old versions of each module, keeping the newest (or the newest -Keep).
+
+    .PARAMETER Keep
+        With -OldVersions, how many of the newest versions to keep. Defaults to 1.
+
     .PARAMETER Scope
-        Only remove versions installed in these scopes.
+        Only remove versions installed in these scopes. With -OldVersions, all scopes are still
+        counted when working out which versions are newest.
 
     .PARAMETER ModuleBase
         The folder of a specific installed version. Bound automatically when you pipe output
-        from Get-ModuleLocation or Get-ModuleInventory -AllVersions.
+        from Get-ManagedModuleLocation or Get-ManagedModule -AllVersions.
 
     .PARAMETER Force
         Remove modules even if they are loaded, or required by other installed modules.
+
+    .PARAMETER PassThru
+        Output an object for each version that was removed.
 
     .EXAMPLE
         Uninstall-ManagedModule OldModule
@@ -48,14 +66,26 @@ function Uninstall-ManagedModule {
         Removes only the Pester 4.x versions, keeping any others.
 
     .EXAMPLE
-        Get-ModuleLocation Az.* -Scope AllUsers | Uninstall-ManagedModule -WhatIf
+        Get-ManagedModuleLocation Az.* -Scope AllUsers | Uninstall-ManagedModule -WhatIf
 
         Shows which all-users Az module versions would be removed, without removing anything.
+
+    .EXAMPLE
+        Uninstall-ManagedModule -OldVersions -WhatIf
+
+        Previews which old versions of every module would be removed.
+
+    .EXAMPLE
+        Uninstall-ManagedModule Pester -OldVersions -Keep 2 -Confirm:$false
+
+        Keeps the two newest versions of Pester and removes the rest, without prompting.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByModuleBase')]
+    [OutputType('ModuleManager.InstalledVersion')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'ShouldProcess is called by Remove-MMInstallation, using the $PSCmdlet this cmdlet passes to it.')]
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipelineByPropertyName, ParameterSetName = 'ByName')]
+        [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName = 'OldVersions')]
         [SupportsWildcards()]
         [string[]]$Name,
 
@@ -63,22 +93,36 @@ function Uninstall-ManagedModule {
         [SupportsWildcards()]
         [string[]]$Version,
 
+        [Parameter(Mandatory, ParameterSetName = 'OldVersions')]
+        [switch]$OldVersions,
+
+        [Parameter(ParameterSetName = 'OldVersions')]
+        [ValidateRange(1, 1000)]
+        [int]$Keep = 1,
+
         [Parameter(ParameterSetName = 'ByName')]
+        [Parameter(ParameterSetName = 'OldVersions')]
         [ValidateSet('CurrentUser', 'AllUsers', 'Other')]
         [string[]]$Scope,
 
         [Parameter(Mandatory, ValueFromPipelineByPropertyName, ParameterSetName = 'ByModuleBase')]
         [string[]]$ModuleBase,
 
-        [switch]$Force
+        [switch]$Force,
+
+        [switch]$PassThru
     )
 
     begin {
-        $all = @(Get-MMInstalledVersion -IncludeSystem)
+        $names = [System.Collections.Generic.List[string]]::new()
+        if (-not $OldVersions) { $all = @(Get-MMInstalledVersion -IncludeSystem) }
         $targets = [System.Collections.Generic.List[object]]::new()
         $seen = @{}
     }
     process {
+        # The old versions are worked out once every name is in.
+        if ($OldVersions) { foreach ($n in $Name) { $names.Add($n) }; return }
+
         $matched = @()
         if ($PSCmdlet.ParameterSetName -eq 'ByName') {
             $matched = @($all | Where-Object {
@@ -108,6 +152,12 @@ function Uninstall-ManagedModule {
         }
     }
     end {
+        if ($OldVersions) {
+            if ($names.Count -eq 0) { $names.Add('*') }
+            $removed = Remove-MMOldVersion -Name $names.ToArray() -Keep $Keep -Scope $Scope -Force:$Force -Cmdlet $PSCmdlet
+            if ($PassThru) { $removed }
+            return
+        }
         if (-not $targets.Count) { return }
 
         # Block removing versions that modules staying installed depend on (checked against the
@@ -124,7 +174,7 @@ function Uninstall-ManagedModule {
 
         foreach ($t in $targets) {
             if ($blocked.ContainsKey((Get-MMPathKey $t.ModuleBase))) { continue }
-            $null = Remove-MMInstallation -Installation $t -Cmdlet $PSCmdlet -Force:$Force
+            if ((Remove-MMInstallation -Installation $t -Cmdlet $PSCmdlet -Force:$Force) -and $PassThru) { $t }
         }
     }
 }

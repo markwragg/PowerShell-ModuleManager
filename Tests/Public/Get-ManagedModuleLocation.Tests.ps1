@@ -8,17 +8,17 @@ AfterAll {
     Clear-MMTestEnvironment
 }
 
-Describe 'Get-ModuleLocation' {
+Describe 'Get-ManagedModuleLocation' {
 
     It 'Lists every installed version with its location' {
-        $loc = @(Get-ModuleLocation MMAlpha)
+        $loc = @(Get-ManagedModuleLocation MMAlpha)
         $loc.Count | Should -Be 4
         $loc[-1].ModuleRoot | Should -Be $script:OtherRoot
         $loc[0].PSObject.TypeNames | Should -Contain 'ModuleManager.InstalledVersion'
     }
 
     It 'Summarises by module path' {
-        $summary = @(Get-ModuleLocation -Summary)
+        $summary = @(Get-ManagedModuleLocation -Summary)
         $summary.Count | Should -Be 2
         $summary[0].Modules | Should -Be 4
         $summary[0].Versions | Should -Be 6
@@ -26,6 +26,6 @@ Describe 'Get-ModuleLocation' {
     }
 
     It 'Includes sizes when asked' {
-        (Get-ModuleLocation MMGamma -IncludeSize).SizeMB | Should -BeGreaterOrEqual 0
+        (Get-ManagedModuleLocation MMGamma -IncludeSize).SizeMB | Should -BeGreaterOrEqual 0
     }
 }

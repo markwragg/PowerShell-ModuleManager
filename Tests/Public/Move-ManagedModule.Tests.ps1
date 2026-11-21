@@ -20,7 +20,7 @@ Describe 'Move-ManagedModule' {
         Move-ManagedModule MMAlpha -Version 1.0.0 -Destination AllUsers
         Test-Path ([IO.Path]::Combine($script:UserRoot, 'MMAlpha', '1.0.0')) | Should -BeFalse
         Test-Path ([IO.Path]::Combine($script:OtherRoot, 'MMAlpha', '1.0.0', 'MMAlpha.psd1')) | Should -BeTrue
-        $moved = Get-ModuleLocation MMAlpha | Where-Object Version -EQ '1.0.0'
+        $moved = Get-ManagedModuleLocation MMAlpha | Where-Object Version -EQ '1.0.0'
         $moved.Scope | Should -Be 'AllUsers'
         $moved.Repository | Should -Be 'PSGallery'
         @(Get-ChildItem -LiteralPath ([IO.Path]::Combine($script:UserRoot, 'MMAlpha')) -Filter '*.mmmove-*').Count | Should -Be 0
@@ -28,7 +28,7 @@ Describe 'Move-ManagedModule' {
 
     It 'Moves a version back to CurrentUser' {
         Move-ManagedModule MMAlpha -Version 0.9 -Destination CurrentUser
-        (Get-ModuleLocation MMAlpha | Where-Object Version -EQ '0.9').Scope | Should -Be 'CurrentUser'
+        (Get-ManagedModuleLocation MMAlpha | Where-Object Version -EQ '0.9').Scope | Should -Be 'CurrentUser'
         Test-Path ([IO.Path]::Combine($script:OtherRoot, 'MMAlpha')) | Should -BeFalse   # the empty name folder is tidied up
     }
 
@@ -38,11 +38,11 @@ Describe 'Move-ManagedModule' {
         Test-Path ([IO.Path]::Combine($script:UserRoot, 'MMBeta')) | Should -BeFalse
     }
 
-    It 'Moves what is piped from Get-ModuleLocation, and outputs the moved versions with -PassThru' {
-        $r = @(Get-ModuleLocation MMAlpha -Scope CurrentUser | Move-ManagedModule -Destination AllUsers -PassThru)
+    It 'Moves what is piped from Get-ManagedModuleLocation, and outputs the moved versions with -PassThru' {
+        $r = @(Get-ManagedModuleLocation MMAlpha -Scope CurrentUser | Move-ManagedModule -Destination AllUsers -PassThru)
         $r.Count | Should -Be 3
         $r | ForEach-Object { $_.Scope | Should -Be 'AllUsers' }
-        (Get-ModuleInventory MMAlpha).VersionCount | Should -Be 4
+        (Get-ManagedModule MMAlpha).VersionCount | Should -Be 4
     }
 
     It 'Updates the install location in <Format> install records' -ForEach @(
@@ -86,7 +86,7 @@ Describe 'Move-ManagedModule' {
 
     It 'Does nothing with -WhatIf' {
         Move-ManagedModule MMAlpha -Destination AllUsers -WhatIf
-        @(Get-ModuleLocation MMAlpha | Where-Object Scope -EQ 'CurrentUser').Count | Should -Be 3
+        @(Get-ManagedModuleLocation MMAlpha | Where-Object Scope -EQ 'CurrentUser').Count | Should -Be 3
     }
 
     It 'Puts the module back when the copy fails' {
@@ -102,7 +102,7 @@ Describe 'Move-ManagedModule' {
         New-FakeModule $script:OtherRoot 'MMNeedy' '1.0.0' -Repository PSGallery -Dependency 'MMShared|[1.0.0, )' | Out-Null
         Move-ManagedModule MMShared -Destination CurrentUser -WarningVariable warnings -WarningAction SilentlyContinue
         $warnings | Should -BeLike "*MMShared 1.0.0 is required by: MMNeedy 1.0.0*Other users won't have it*"
-        (Get-ModuleLocation MMShared).Scope | Should -Be 'CurrentUser'
+        (Get-ManagedModuleLocation MMShared).Scope | Should -Be 'CurrentUser'
     }
 
     It 'Errors when there is no folder for the destination scope' {

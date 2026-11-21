@@ -101,7 +101,9 @@ function Show-ModuleManager {
         A view or filter shows the matching members under their family.
 
     .PARAMETER Name
-        Only show modules matching these names. Wildcards are supported.
+        Only show modules matching these names. Wildcards are supported. Accepts pipeline input:
+        names, or objects with a Name property, such as the output of Get-ManagedModuleUpdate,
+        Get-ManagedModule or Get-Module.
 
     .PARAMETER Scope
         Only show modules in these scopes.
@@ -161,6 +163,11 @@ function Show-ModuleManager {
         Opens the terminal UI (via its alias) showing only the Az modules.
 
     .EXAMPLE
+        Get-ManagedModuleUpdate -Outdated | modman
+
+        Opens the terminal UI showing only the modules that have updates.
+
+    .EXAMPLE
         modman -ComputerName Server01
 
         Manages the modules installed on Server01, from this console.
@@ -184,7 +191,7 @@ function Show-ModuleManager {
     [CmdletBinding(DefaultParameterSetName = 'Local')]
     [Alias('modman')]
     param(
-        [Parameter(Position = 0)]
+        [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]
         [string[]]$Name = '*',
 
@@ -221,83 +228,94 @@ function Show-ModuleManager {
         [string]$Edition
     )
 
-    if (-not (Test-MMInteractiveConsole)) {
-        throw ('Show-ModuleManager needs an interactive console, so it does not work inside Enter-PSSession or Invoke-Command. ' +
-            'To manage another computer, run it here with -ComputerName or -Session, or use Get-ModuleInventory and Get-ModuleUpdate.')
-    }
-
-    $remote = $null
-    # The edition this is runs here, as without -Edition.
-    if ($PSCmdlet.ParameterSetName -ne 'Local' -and $Edition -ne $PSVersionTable.PSEdition) {
-        Write-Progress -Activity 'Show-ModuleManager' -Status 'Connecting...'
-        try {
-            if ($Edition) { $remote = Connect-MMEdition -Edition $Edition }
-            else { $remote = Connect-MMRemote -ComputerName $ComputerName -Credential $Credential -ConfigurationName $ConfigurationName -Session $Session }
+    begin { $names = [System.Collections.Generic.List[string]]::new() }
+    process { foreach ($n in $Name) { if (-not $names.Contains($n)) { $names.Add($n) } } }
+    end {
+        # Nothing piped (such as Get-ManagedModuleUpdate -Outdated with nothing outdated) shouldn't open
+        # the UI on every module.
+        if ($names.Count -eq 0) {
+            if ($MyInvocation.ExpectingInput) { Write-Warning 'No modules were piped to Show-ModuleManager.'; return }
+            $names.Add('*')
         }
-        finally { Write-Progress -Activity 'Show-ModuleManager' -Completed }
-    }
 
-    $state = New-MMTuiState -Options @{
-        Name              = $Name
-        Scope             = $Scope
-        IncludeSystem     = [bool]$IncludeSystem
-        IncludePrerelease = [bool]$IncludePrerelease
-        Repository        = $Repository
-        ThrottleLimit     = $ThrottleLimit
-    }
-    $state.Remote = $remote
+        if (-not (Test-MMInteractiveConsole)) {
+            throw ('Show-ModuleManager needs an interactive console, so it does not work inside Enter-PSSession or Invoke-Command. ' +
+                'To manage another computer, run it here with -ComputerName or -Session, or use Get-ManagedModule and Get-ManagedModuleUpdate.')
+        }
 
-    # Progress would be drawn over the terminal UI, and as only the lines that change are redrawn
-    # (see Write-MMTuiFrame), it would stay there. This also applies to the commands this calls.
-    $ProgressPreference = 'SilentlyContinue'
-
-    $originalEncoding = [Console]::OutputEncoding
-    try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        $script:MMTuiHyperlink = Test-MMTuiHyperlink
-        Enter-MMTuiScreen
-        # The first scan can take a few seconds (many modules, or a slow disk or connection), so
-        # say what's happening rather than leaving the screen blank.
-        $state.Scanning = $true
-        Write-MMTuiFrame $state
-        # After the first frame, as on Windows this compiles a helper the first time (under a second).
-        if (-not $NoMouse) { $state.Mouse = Enable-MMTuiMouse }
-        try { Update-MMTuiRows $state }
-        finally { $state.Scanning = $false }
-        if ($NoUpdateCheck) { Set-MMTuiMessage $state 'Update check skipped. Press R to check repositories.' }
-        else { Start-MMTuiLookup $state }
-        Update-MMTuiVisible $state
-
-        $dirty = $true
-        $lastSpin = [datetime]::MinValue
-        while (-not $state.Quit) {
-            if ($state.Job -and (Receive-MMTuiLookup $state)) { Update-MMTuiVisible $state; $dirty = $true }
-            if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
-            if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
-            if ($state.Job -or $state.Task) {
-                if (([datetime]::UtcNow - $lastSpin).TotalMilliseconds -ge 150) {
-                    $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true
-                }
+        $remote = $null
+        # The edition this is runs here, as without -Edition.
+        if ($PSCmdlet.ParameterSetName -ne 'Local' -and $Edition -ne $PSVersionTable.PSEdition) {
+            Write-Progress -Activity 'Show-ModuleManager' -Status 'Connecting...'
+            try {
+                if ($Edition) { $remote = Connect-MMEdition -Edition $Edition }
+                else { $remote = Connect-MMRemote -ComputerName $ComputerName -Credential $Credential -ConfigurationName $ConfigurationName -Session $Session }
             }
-            $size = Get-MMConsoleSize
-            if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) { $dirty = $true }
-            if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
-
-            $received = Read-MMTuiInput -State $state
-            if ($null -eq $received) { Start-Sleep -Milliseconds 30; continue }
-            if ($received -is [ConsoleKeyInfo]) { Invoke-MMTuiKey -State $state -Key $received }
-            else { Invoke-MMTuiMouse -State $state -Mouse $received }
-            Update-MMTuiVisible $state -IfChanged
-            $dirty = $true
+            finally { Write-Progress -Activity 'Show-ModuleManager' -Completed }
         }
-    }
-    finally {
-        Stop-MMTuiTask $state -Closing
-        Stop-MMTuiLookup $state -Closing
-        Disable-MMTuiMouse $state.Mouse
-        Exit-MMTuiScreen
-        $script:MMTuiHyperlink = $false
-        [Console]::OutputEncoding = $originalEncoding
-        Disconnect-MMRemote $remote
+
+        $state = New-MMTuiState -Options @{
+            Name              = [string[]]$names
+            Scope             = $Scope
+            IncludeSystem     = [bool]$IncludeSystem
+            IncludePrerelease = [bool]$IncludePrerelease
+            Repository        = $Repository
+            ThrottleLimit     = $ThrottleLimit
+        }
+        $state.Remote = $remote
+
+        # Progress would be drawn over the terminal UI, and as only the lines that change are redrawn
+        # (see Write-MMTuiFrame), it would stay there. This also applies to the commands this calls.
+        $ProgressPreference = 'SilentlyContinue'
+
+        $originalEncoding = [Console]::OutputEncoding
+        try {
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            $script:MMTuiHyperlink = Test-MMTuiHyperlink
+            Enter-MMTuiScreen
+            # The first scan can take a few seconds (many modules, or a slow disk or connection), so
+            # say what's happening rather than leaving the screen blank.
+            $state.Scanning = $true
+            Write-MMTuiFrame $state
+            # After the first frame, as on Windows this compiles a helper the first time (under a second).
+            if (-not $NoMouse) { $state.Mouse = Enable-MMTuiMouse }
+            try { Update-MMTuiRows $state }
+            finally { $state.Scanning = $false }
+            if ($NoUpdateCheck) { Set-MMTuiMessage $state 'Update check skipped. Press R to check repositories.' }
+            else { Start-MMTuiLookup $state }
+            Update-MMTuiVisible $state
+
+            $dirty = $true
+            $lastSpin = [datetime]::MinValue
+            while (-not $state.Quit) {
+                if ($state.Job -and (Receive-MMTuiLookup $state)) { Update-MMTuiVisible $state; $dirty = $true }
+                if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
+                if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
+                if ($state.Job -or $state.Task) {
+                    if (([datetime]::UtcNow - $lastSpin).TotalMilliseconds -ge 150) {
+                        $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true
+                    }
+                }
+                $size = Get-MMConsoleSize
+                if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) { $dirty = $true }
+                if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
+
+                $received = Read-MMTuiInput -State $state
+                if ($null -eq $received) { Start-Sleep -Milliseconds 30; continue }
+                if ($received -is [ConsoleKeyInfo]) { Invoke-MMTuiKey -State $state -Key $received }
+                else { Invoke-MMTuiMouse -State $state -Mouse $received }
+                Update-MMTuiVisible $state -IfChanged
+                $dirty = $true
+            }
+        }
+        finally {
+            Stop-MMTuiTask $state -Closing
+            Stop-MMTuiLookup $state -Closing
+            Disable-MMTuiMouse $state.Mouse
+            Exit-MMTuiScreen
+            $script:MMTuiHyperlink = $false
+            [Console]::OutputEncoding = $originalEncoding
+            Disconnect-MMRemote $remote
+        }
     }
 }

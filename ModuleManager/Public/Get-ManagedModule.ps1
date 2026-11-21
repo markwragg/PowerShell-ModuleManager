@@ -1,4 +1,4 @@
-function Get-ModuleInventory {
+function Get-ManagedModule {
     <#
     .SYNOPSIS
         Lists the PowerShell modules installed on this machine, one row per module.
@@ -30,22 +30,23 @@ function Get-ModuleInventory {
         Return one object per installed version instead of one per module.
 
     .EXAMPLE
-        Get-ModuleInventory
+        Get-ManagedModule
 
         Lists all user-installed modules.
 
     .EXAMPLE
-        Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
+        Get-ManagedModule -MultipleVersions | Sort-Object VersionCount -Descending
 
         Shows which modules have accumulated the most old versions.
 
     .EXAMPLE
-        Get-ModuleInventory Az.* -AllVersions
+        Get-ManagedModule Az.* -AllVersions
 
         Lists every installed version of the Az modules, one row per version.
     #>
     [CmdletBinding()]
     [OutputType('ModuleManager.ModuleInfo', 'ModuleManager.InstalledVersion')]
+    [Alias('Get-ModuleInventory')]
     param(
         [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]

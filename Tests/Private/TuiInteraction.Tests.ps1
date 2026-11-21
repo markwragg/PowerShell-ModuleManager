@@ -36,6 +36,26 @@ Describe 'Show-ModuleManager' {
         { Show-ModuleManager } | Should -Throw '*interactive console*'
     }
 
+    It 'Takes module names from the pipeline (<Case>)' -ForEach @(
+        @{ Case = 'strings'; Piped = { 'MMAlpha', 'MMGamma', 'MMAlpha' } }
+        @{ Case = 'objects with a Name'; Piped = { Get-ManagedModuleUpdate -Outdated; [pscustomobject]@{ Name = 'MMGamma' } } }
+    ) {
+        Mock -ModuleName ModuleManager Test-MMInteractiveConsole { $true }
+        Mock -ModuleName ModuleManager New-MMTuiState { throw 'stop here' }
+        { & $Piped | Show-ModuleManager } | Should -Throw 'stop here'
+        Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 1 -Exactly -ParameterFilter { ($Options.Name -join ',') -eq 'MMAlpha,MMGamma' }
+    }
+
+    It 'Warns and does not open when nothing is piped, and shows every module when nothing is given' {
+        Mock -ModuleName ModuleManager Test-MMInteractiveConsole { $true }
+        Mock -ModuleName ModuleManager New-MMTuiState { throw 'stop here' }
+        @() | Show-ModuleManager -WarningVariable warnings -WarningAction SilentlyContinue
+        $warnings | Should -Match 'No modules were piped'
+        Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 0 -Exactly
+        { Show-ModuleManager } | Should -Throw 'stop here'
+        Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 1 -Exactly -ParameterFilter { ($Options.Name -join ',') -eq '*' }
+    }
+
     It 'Draws the screen, handles keys and restores the console on exit (<Case>)' -ForEach @(
         @{ Case = 'checking repositories'; NoUpdateCheck = $false }
         @{ Case = 'with -NoUpdateCheck'; NoUpdateCheck = $true }
@@ -370,7 +390,7 @@ Describe 'Terminal UI actions' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Get-MMUntrustedRepository { }
-            Mock Uninstall-OldModuleVersion { }
+            Mock Uninstall-ManagedModule { }
             Mock Update-ManagedModule {
                 [pscustomobject]@{ Name = 'MMAlpha'; Version = '2.0.0'; UpdatedAsDependencyOf = $null }
                 [pscustomobject]@{ Name = 'MMGamma'; Version = '3.0.0'; UpdatedAsDependencyOf = 'MMAlpha' }
@@ -381,8 +401,8 @@ Describe 'Terminal UI actions' {
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
 
             Should -Invoke Update-ManagedModule -Times 1 -Exactly -ParameterFilter { $Name -eq 'MMAlpha' -and $PassThru -and -not $RemoveOldVersions }
-            Should -Invoke Uninstall-OldModuleVersion -Times 1 -Exactly -ParameterFilter {
-                $Name.Count -eq 2 -and $Name -contains 'MMAlpha' -and $Name -contains 'MMGamma' -and $Keep -eq 1 -and $Verbose
+            Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter {
+                $Name.Count -eq 2 -and $Name -contains 'MMAlpha' -and $Name -contains 'MMGamma' -and $OldVersions -and $Verbose
             }
             @($S.Rows | Where-Object Selected).Count | Should -Be 0
         }
@@ -392,19 +412,19 @@ Describe 'Terminal UI actions' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Get-MMUntrustedRepository { }
-            Mock Uninstall-OldModuleVersion { }
+            Mock Uninstall-ManagedModule { }
             Mock Update-ManagedModule { [pscustomobject]@{ Name = 'MMAlpha'; Version = '2.0.0'; UpdatedAsDependencyOf = $null } }
             $alpha = @($S.Rows | Where-Object Name -EQ 'MMAlpha')
             Request-MMTuiUpdate $S $alpha
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
             Should -Invoke Update-ManagedModule -Times 1 -Exactly
-            Should -Invoke Uninstall-OldModuleVersion -Times 0 -Exactly
+            Should -Invoke Uninstall-ManagedModule -Times 0 -Exactly -ParameterFilter { $OldVersions }
 
             # A failed update keeps its old versions.
             Mock Update-ManagedModule { Write-Error -Message 'Failed to update MMAlpha: boom' -ErrorId 'ModuleManager.UpdateFailed' }
             Request-MMTuiUpdate $S $alpha
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
-            Should -Invoke Uninstall-OldModuleVersion -Times 0 -Exactly
+            Should -Invoke Uninstall-ManagedModule -Times 0 -Exactly -ParameterFilter { $OldVersions }
             Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -eq '0 updated, 1 failed.' }
         }
     }
@@ -517,7 +537,6 @@ Describe 'Terminal UI actions' {
         InModuleScope ModuleManager -Parameters @{ S = $s } {
             Mock Move-ManagedModule { }
             Mock Uninstall-ManagedModule { }
-            Mock Uninstall-OldModuleVersion { }
             Mock Update-ManagedModule { }
             Mock Get-MMUntrustedRepository { }
             Mock Test-MMIsAdmin { $false }
@@ -588,14 +607,14 @@ Describe 'Terminal UI actions' {
     It 'Removes old versions, or says there are none' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s } {
-            Mock Uninstall-OldModuleVersion { }
+            Mock Uninstall-ManagedModule { }
             Request-MMTuiRemoveOld $S @($S.Rows | Where-Object Name -EQ 'MMGamma')
             $S.Message | Should -Match 'only one version'
             ($S.Rows | Where-Object Name -EQ 'MMAlpha').Selected = $true
             Request-MMTuiRemoveOld $S @($S.Rows | Where-Object Name -EQ 'MMAlpha')
             $S.Confirm.Prompt | Should -Be 'Remove 3 old version(s) of 1 module(s), keeping the newest?'
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
-            Should -Invoke Uninstall-OldModuleVersion -Times 1 -ParameterFilter { $Name -eq 'MMAlpha' -and $Keep -eq 1 }
+            Should -Invoke Uninstall-ManagedModule -Times 1 -ParameterFilter { $Name -eq 'MMAlpha' -and $OldVersions }
             @($S.Rows | Where-Object Selected).Count | Should -Be 0
         }
     }
@@ -709,7 +728,6 @@ Describe 'Uninstalling loaded modules' {
         }
         Mock -ModuleName ModuleManager Write-MMTuiOutput { }
         Mock -ModuleName ModuleManager Uninstall-ManagedModule { }
-        Mock -ModuleName ModuleManager Uninstall-OldModuleVersion { }
         Mock -ModuleName ModuleManager Remove-MMSessionModule { }
         Mock -ModuleName ModuleManager Get-MMLoadedAssemblyPath { }
     }
@@ -792,7 +810,7 @@ Describe 'Uninstalling loaded modules' {
             $S.Confirm.Prompt | Should -Be 'Remove 3 old version(s) of 1 module(s), keeping the newest? MMAlpha 1.1.0, MMAlpha 1.0.0 and 1 more is loaded: y skips it, f unloads it first.'
             Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('f', [ConsoleKey]::F, $false, $false, $false))
             Should -Invoke Remove-MMSessionModule -Times 1 -Exactly -ParameterFilter { $ModuleBase.Count -eq 3 -and $ModuleBase -notcontains $newest.ModuleBase }
-            Should -Invoke Uninstall-OldModuleVersion -Times 1 -Exactly
+            Should -Invoke Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter { $OldVersions }
 
             $script:dll = Join-Path (@($alpha.Info.Installations) | Where-Object Version -EQ '1.0.0').ModuleBase 'x.dll'
             Mock Get-MMLoadedAssemblyPath { $script:dll }

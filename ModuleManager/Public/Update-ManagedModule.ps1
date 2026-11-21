@@ -5,7 +5,7 @@ function Update-ManagedModule {
 
     .DESCRIPTION
         Checks each module against its repository (using cached results from
-        Get-ModuleUpdate where available) and installs the newest version alongside
+        Get-ManagedModuleUpdate where available) and installs the newest version alongside
         the existing ones. Modules that are already up to date are skipped.
 
         By default the new version is installed into the same scope as the newest
@@ -34,7 +34,7 @@ function Update-ManagedModule {
 
     .PARAMETER Name
         One or more module names. Wildcards are supported. Accepts pipeline input from
-        Get-ModuleInventory and Get-ModuleUpdate.
+        Get-ManagedModule and Get-ManagedModuleUpdate.
 
     .PARAMETER Scope
         Install the new version into this scope instead of the existing one.
@@ -62,7 +62,7 @@ function Update-ManagedModule {
         Installs the latest version of Pester alongside the existing versions, in the same scope.
 
     .EXAMPLE
-        Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions
+        Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions
 
         Updates every module that has a newer version available, then removes the old versions.
 
@@ -95,7 +95,7 @@ function Update-ManagedModule {
     begin { $names = [System.Collections.Generic.List[string]]::new() }
     process { foreach ($n in $Name) { $names.Add($n) } }
     end {
-        $updates = @(Get-ModuleUpdate -Name $names -Repository $Repository -IncludePrerelease:$IncludePrerelease)
+        $updates = @(Get-ManagedModuleUpdate -Name $names -Repository $Repository -IncludePrerelease:$IncludePrerelease)
         $pending = [System.Collections.Generic.List[object]]::new()
         foreach ($u in $updates) {
             switch ($u.Status) {
@@ -204,13 +204,13 @@ function Update-ManagedModule {
             # depend on each other (an old Az rollup and the Az.* versions it pins) go together.
             if ($RemoveOldVersions -and $updated.Count) {
                 Write-Progress -Activity $activity -Status 'Removing old versions' -PercentComplete 100
-                Uninstall-OldModuleVersion -Name @($updated.Keys) -Keep 1 -Confirm:$false -WhatIf:$false
+                Uninstall-ManagedModule -Name @($updated.Keys) -OldVersions -Confirm:$false -WhatIf:$false
             }
         }
         finally { Write-Progress -Activity $activity -Completed }
 
         if ($PassThru -and $updated.Count) {
-            foreach ($m in (Get-ModuleInventory -Name @($updated.Keys))) {
+            foreach ($m in (Get-ManagedModule -Name @($updated.Keys))) {
                 $m | Add-Member -NotePropertyName UpdatedAsDependencyOf -NotePropertyValue $updated[$m.Name].DependencyOf -Force -PassThru
             }
         }

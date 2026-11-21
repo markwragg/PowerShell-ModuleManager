@@ -1,45 +1,48 @@
-# Get-ModuleLocation
+# Get-ManagedModule
 
 ## SYNOPSIS
-Shows where modules are installed on disk.
+Lists the PowerShell modules installed on this machine, one row per module.
 
 ## SYNTAX
 
 ```
-Get-ModuleLocation [[-Name] <String[]>] [-Scope <String[]>] [-Summary] [-IncludeSize] [-IncludeSystem]
- [-ProgressAction <ActionPreference>] [<CommonParameters>]
+Get-ManagedModule [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-MultipleVersions]
+ [-AllVersions] [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-By default returns one object per installed module version, with its scope, the
-folder it lives in and the PSModulePath entry that contains it.
+Scans every folder on $env:PSModulePath and summarises each module: the newest
+installed version, every other installed version, the scope it is installed in,
+the repository it came from and whether it is loaded in the current session.
 
-With -Summary, returns one object per PSModulePath entry in search order, with
-the number of modules and versions in each.
-Use -IncludeSize to add disk usage.
+The scan reads folders and manifests directly, so it is much faster than
+Get-Module -ListAvailable.
+
+Modules that ship with PowerShell or Windows (scope 'System') are hidden unless
+-IncludeSystem or -Scope System is used.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
 ```
-Get-ModuleLocation Pester
+Get-ManagedModule
 ```
 
-Lists every installed Pester version and where it is.
+Lists all user-installed modules.
 
 ### EXAMPLE 2
 ```
-Get-ModuleLocation -Summary -IncludeSize
+Get-ManagedModule -MultipleVersions | Sort-Object VersionCount -Descending
 ```
 
-Shows how many modules and versions are in each PSModulePath location, and the disk space they use.
+Shows which modules have accumulated the most old versions.
 
 ### EXAMPLE 3
 ```
-Get-ModuleInventory | Where-Object { ($_.Installations.ModuleRoot | Select-Object -Unique).Count -gt 1 }
+Get-ManagedModule Az.* -AllVersions
 ```
 
-Finds modules installed in more than one PSModulePath location.
+Lists every installed version of the Az modules, one row per version.
 
 ## PARAMETERS
 
@@ -60,7 +63,7 @@ Accept wildcard characters: True
 ```
 
 ### -Scope
-Only include these scopes: CurrentUser, AllUsers, System, Other.
+Only include installations in these scopes: CurrentUser, AllUsers, System, Other.
 
 ```yaml
 Type: String[]
@@ -74,40 +77,38 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Summary
-Summarise by PSModulePath entry instead of listing each module version.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -IncludeSize
-Calculate the size on disk of each module version (or each path, with -Summary).
-This reads every file, so it can be slow.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -IncludeSystem
 Include modules that ship with PowerShell or Windows.
--Summary always includes them.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -MultipleVersions
+Only return modules that have more than one version installed.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -AllVersions
+Return one object per installed version instead of one per module.
 
 ```yaml
 Type: SwitchParameter
@@ -144,8 +145,8 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## OUTPUTS
 
+### ModuleManager.ModuleInfo
 ### ModuleManager.InstalledVersion
-### ModuleManager.ModuleRoot
 ## NOTES
 
 ## RELATED LINKS

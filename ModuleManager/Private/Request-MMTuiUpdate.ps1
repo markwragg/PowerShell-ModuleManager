@@ -76,7 +76,7 @@ function Request-MMTuiUpdate {
             # for all of them, so old versions that depend on each other (an old Az rollup and the
             # Az.* versions it pins) go together. -Verbose shows a line per version removed.
             if ($Data.RemoveOld -and $updated.Count) {
-                Uninstall-OldModuleVersion -Name @($updated | ForEach-Object { $_.Name }) -Keep 1 -Confirm:$false -Verbose
+                Uninstall-ManagedModule -Name @($updated | ForEach-Object { $_.Name }) -OldVersions -Confirm:$false -Verbose
             }
         } -OnComplete {
             param($State)

@@ -13,7 +13,7 @@ Update-ManagedModule [-Name] <String[]> [-Scope <String>] [-Repository <String>]
 
 ## DESCRIPTION
 Checks each module against its repository (using cached results from
-Get-ModuleUpdate where available) and installs the newest version alongside
+Get-ManagedModuleUpdate where available) and installs the newest version alongside
 the existing ones.
 Modules that are already up to date are skipped.
 
@@ -56,7 +56,7 @@ Installs the latest version of Pester alongside the existing versions, in the sa
 
 ### EXAMPLE 2
 ```
-Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions
+Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions
 ```
 
 Updates every module that has a newer version available, then removes the old versions.
@@ -74,7 +74,7 @@ Shows what would be updated without installing anything.
 One or more module names.
 Wildcards are supported.
 Accepts pipeline input from
-Get-ModuleInventory and Get-ModuleUpdate.
+Get-ManagedModule and Get-ManagedModuleUpdate.
 
 ```yaml
 Type: String[]

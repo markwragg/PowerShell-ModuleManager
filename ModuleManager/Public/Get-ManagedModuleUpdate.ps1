@@ -1,4 +1,4 @@
-function Get-ModuleUpdate {
+function Get-ManagedModuleUpdate {
     <#
     .SYNOPSIS
         Compares the installed version of each module with the latest version in its repository.
@@ -26,7 +26,7 @@ function Get-ModuleUpdate {
 
     .PARAMETER Name
         One or more module names. Wildcards are supported. Accepts pipeline input from
-        Get-ModuleInventory.
+        Get-ManagedModule.
 
     .PARAMETER Scope
         Only check modules installed in these scopes.
@@ -51,22 +51,23 @@ function Get-ModuleUpdate {
         The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
 
     .EXAMPLE
-        Get-ModuleUpdate -Outdated
+        Get-ManagedModuleUpdate -Outdated
 
         Lists only the installed modules that have a newer version available in their repository.
 
     .EXAMPLE
-        Get-ModuleUpdate Pester, PSReadLine
+        Get-ManagedModuleUpdate Pester, PSReadLine
 
         Compares the installed versions of Pester and PSReadLine with the latest available.
 
     .EXAMPLE
-        Get-ModuleUpdate -Outdated | Update-ManagedModule -WhatIf
+        Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -WhatIf
 
         Shows which updates would be installed, without installing anything.
     #>
     [CmdletBinding()]
     [OutputType('ModuleManager.ModuleUpdate')]
+    [Alias('Get-ModuleUpdate')]
     param(
         [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]

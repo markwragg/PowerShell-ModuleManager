@@ -46,7 +46,7 @@ function Request-MMTuiRemoveOld {
         Invoke-MMTuiAction $State "Removing old versions of $($Data.Names.Count) module(s)" -Data $run -Elevated:$Data.Elevate -Action {
             param($Data)
             foreach ($n in $Data.Notes) { Write-MMTuiOutput "  $n" 'Yellow' }
-            Uninstall-OldModuleVersion -Name $Data.Names -Keep 1 -Confirm:$false -Verbose
+            Uninstall-ManagedModule -Name $Data.Names -OldVersions -Confirm:$false -Verbose
             foreach ($b in $Data.Blocked) { Write-MMTuiOutput "  Skipped  $b" 'Yellow' }
         } -OnComplete {
             param($State)

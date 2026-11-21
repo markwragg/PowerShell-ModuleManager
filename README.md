@@ -53,10 +53,16 @@ Show-ModuleManager
 
 ![alt text](/Media/Show-ModuleManager.png)
 
+Pipe modules to it to open it on just those, such as the ones with updates:
+
+```powershell
+Get-ManagedModuleUpdate -Outdated | modman
+```
+
 See where modules are installed:
 
 ```powershell
-Get-ModuleLocation -Summary
+Get-ManagedModuleLocation -Summary
 ```
 ```plaintext
 Order Scope        Modules Versions   SizeMB Path
@@ -71,7 +77,7 @@ Order Scope        Modules Versions   SizeMB Path
 See what can be updated:
 
 ```powershell
-Get-ModuleUpdate -Outdated
+Get-ManagedModuleUpdate -Outdated
 ```
 ```plaintext
 Name                                 Installed        Latest           Status             # Scope        Repository
@@ -88,36 +94,35 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 
 | Cmdlet | Synopsis |
 | --- | --- |
-| `Get-ModuleInventory` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. |
-| `Get-ModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated), `VersionUnlisted` (the newest installed version was withdrawn and there's no newer one; checked for NuGet v2 feeds such as the PowerShell Gallery) or `Error`. |
-| `Get-ModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
+| `Get-ManagedModule` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. |
+| `Get-ManagedModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated), `VersionUnlisted` (the newest installed version was withdrawn and there's no newer one; checked for NuGet v2 feeds such as the PowerShell Gallery) or `Error`. |
+| `Get-ManagedModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
-| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). Supports `-WhatIf` and `-Confirm`. |
-| `Uninstall-OldModuleVersion` | Keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
+| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). With `-OldVersions`, keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
 | `Move-ManagedModule` | Moves modules or specific versions between the `CurrentUser` and `AllUsers` scopes (`-Destination AllUsers`), updating their install record so PowerShellGet and PSResourceGet still recognise them. Needs an elevated session. Supports `-WhatIf` and `-Confirm`. |
 | `Show-ModuleManager` | The terminal UI. |
 
-See the [Documentation](/Documentation/) folder for full help on each cmdlet.
+See the [Documentation](/Documentation/) folder for full help on each cmdlet. The `Get-` cmdlets' earlier names, `Get-ModuleInventory`, `Get-ModuleUpdate` and `Get-ModuleLocation`, still work as aliases.
 
 All of these accept wildcards and pipeline input:
 
 ```powershell
-Get-ModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -WhatIf
+Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -WhatIf
 ```
 ```powershell
-Get-ModuleInventory -MultipleVersions | Sort-Object VersionCount -Descending
+Get-ManagedModule -MultipleVersions | Sort-Object VersionCount -Descending
 ```
 ```powershell
-Get-ModuleLocation -Summary -IncludeSize
+Get-ManagedModuleLocation -Summary -IncludeSize
 ```
 ```powershell
-Uninstall-OldModuleVersion Az.* -WhatIf
+Uninstall-ManagedModule Az.* -OldVersions -WhatIf
 ```
 ```powershell
-Get-ModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
+Get-ManagedModuleLocation Pester | Where-Object Version -like '4.*' | Uninstall-ManagedModule
 ```
 ```powershell
-Get-ModuleLocation -Scope CurrentUser | Move-ManagedModule -Destination AllUsers -WhatIf
+Get-ManagedModuleLocation -Scope CurrentUser | Move-ManagedModule -Destination AllUsers -WhatIf
 ```
 
 > [!NOTE]
@@ -296,9 +301,9 @@ entries in the manifest. This matters for families like Az: the `Az` rollup modu
 every `Az.*` module, and the `Az.*` modules need a minimum version of `Az.Accounts`.
 
 - **Removing.** `Uninstall-ManagedModule` refuses to remove a version that a module staying installed needs, and
-  `Uninstall-OldModuleVersion` keeps such versions, with one warning (details with `-Verbose`). For example, old
+  `Uninstall-ManagedModule -OldVersions` keeps such versions, with one warning (details with `-Verbose`). For example, old
   `Az.*` versions are kept while the `Az` version that pins them is installed. Remove them together with
-  `Uninstall-OldModuleVersion Az, Az.*`.
+  `Uninstall-ManagedModule Az, Az.* -OldVersions`.
 - **Updating.** `Update-ManagedModule` updates dependencies first (`Az.Accounts`, then `Az.*`, then `Az`). If an
   update installs another module as a dependency, that module is skipped later in the same run, and `-PassThru`
   shows it with `UpdatedAsDependencyOf`. `-RemoveOldVersions` runs once at the end, so an old rollup and the

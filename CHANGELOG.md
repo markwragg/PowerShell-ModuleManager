@@ -1,5 +1,16 @@
 # Change Log
 
+## !Deploy 0.10.0
+
+* [feature] **Breaking:** the commands are renamed so they all use the `ManagedModule` noun. The old `Get-` names still work, as aliases, but `Uninstall-OldModuleVersion` is removed, so update any scripts that use it:
+  * `Get-ModuleInventory` → `Get-ManagedModule` (alias kept)
+  * `Get-ModuleUpdate` → `Get-ManagedModuleUpdate` (alias kept)
+  * `Get-ModuleLocation` → `Get-ManagedModuleLocation` (alias kept)
+  * `Uninstall-OldModuleVersion` → `Uninstall-ManagedModule -OldVersions` (with `-Keep` as before), for example `Uninstall-ManagedModule Az.* -OldVersions -WhatIf`
+
+  `Uninstall-ManagedModule` also has a `-PassThru` switch, which outputs the versions it removed.
+* [feature] `Show-ModuleManager` (`modman`) takes module names from the pipeline: names, or objects with a `Name` property, such as the output of `Get-ManagedModuleUpdate`, `Get-ManagedModule` or `Get-Module`. For example, `Get-ManagedModuleUpdate -Outdated | modman` opens the terminal UI on just the modules with updates. When nothing is piped (nothing is outdated, say), it warns instead of opening on every module.
+
 ## [0.9.0] - 2026-11-21
 
 * [feature] In the terminal UI, A in the **Multiple versions** view selects every module in view that has old versions (the help bar shows `A select old`), so V to that view, A, then O removes the old versions of them all, keeping the newest. In the other views, A still selects the modules with updates.

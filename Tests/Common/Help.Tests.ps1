@@ -68,7 +68,9 @@ Describe "Test help for <_.Name>" -ForEach $commands {
 
         # Required value in Help should match IsMandatory property of parameter
         It 'Help for <_.Name> parameter has correct Mandatory value' -ForEach $parameters {
-            $codeMandatory = $_.IsMandatory.ToString()
+            # Help shows a parameter as required only when it's mandatory in every parameter set it's in.
+            $sets = (Get-Command $commandName).Parameters[$_.Name].ParameterSets.Values
+            $codeMandatory = (-not @($sets | Where-Object { -not $_.IsMandatory }).Count).ToString()
             $parameterHelp = $help.parameters.parameter | Where-Object Name -EQ $_.Name
             $parameterHelp.Required | Should -Be $codeMandatory
         }

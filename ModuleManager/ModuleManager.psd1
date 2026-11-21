@@ -69,7 +69,7 @@ FormatsToProcess = @('ModuleManager.Format.ps1xml')
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','Move-ManagedModule','Show-ModuleManager','Uninstall-ManagedModule','Uninstall-OldModuleVersion','Update-ManagedModule')
+FunctionsToExport = @('Get-ManagedModule','Get-ManagedModuleLocation','Get-ManagedModuleUpdate','Move-ManagedModule','Show-ModuleManager','Uninstall-ManagedModule','Update-ManagedModule')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
@@ -78,7 +78,7 @@ CmdletsToExport = @()
 VariablesToExport = @()
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = @('modman')
+AliasesToExport = @('Get-ModuleInventory','Get-ModuleLocation','Get-ModuleUpdate','modman')
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()

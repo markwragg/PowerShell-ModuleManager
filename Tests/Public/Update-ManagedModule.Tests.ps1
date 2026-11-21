@@ -65,7 +65,7 @@ Describe 'Update-ManagedModule' {
     }
 
     It 'Does nothing with -WhatIf' {
-        Get-ModuleUpdate -Outdated | Update-ManagedModule -WhatIf
+        Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -WhatIf
         Should -Invoke -ModuleName ModuleManager Invoke-MMInstall -Times 0 -Exactly
     }
 
@@ -132,10 +132,10 @@ Describe 'Update-ManagedModule' {
         }
 
         It 'Removes old versions once, after all updates, keeping versions still pinned' {
-            Mock -ModuleName ModuleManager Uninstall-OldModuleVersion {}
+            Mock -ModuleName ModuleManager Uninstall-ManagedModule {}
             Update-ManagedModule MMRoll, MMRoll.Core -RemoveOldVersions -Confirm:$false
-            Should -Invoke -ModuleName ModuleManager Uninstall-OldModuleVersion -Times 1 -Exactly -ParameterFilter {
-                ($Name | Sort-Object) -join ',' -eq 'MMRoll,MMRoll.Core'
+            Should -Invoke -ModuleName ModuleManager Uninstall-ManagedModule -Times 1 -Exactly -ParameterFilter {
+                $OldVersions -and (($Name | Sort-Object) -join ',') -eq 'MMRoll,MMRoll.Core'
             }
         }
     }

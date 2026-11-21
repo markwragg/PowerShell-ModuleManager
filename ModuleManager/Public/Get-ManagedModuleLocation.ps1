@@ -1,4 +1,4 @@
-function Get-ModuleLocation {
+function Get-ManagedModuleLocation {
     <#
     .SYNOPSIS
         Shows where modules are installed on disk.
@@ -27,22 +27,23 @@ function Get-ModuleLocation {
         Include modules that ship with PowerShell or Windows. -Summary always includes them.
 
     .EXAMPLE
-        Get-ModuleLocation Pester
+        Get-ManagedModuleLocation Pester
 
         Lists every installed Pester version and where it is.
 
     .EXAMPLE
-        Get-ModuleLocation -Summary -IncludeSize
+        Get-ManagedModuleLocation -Summary -IncludeSize
 
         Shows how many modules and versions are in each PSModulePath location, and the disk space they use.
 
     .EXAMPLE
-        Get-ModuleInventory | Where-Object { ($_.Installations.ModuleRoot | Select-Object -Unique).Count -gt 1 }
+        Get-ManagedModule | Where-Object { ($_.Installations.ModuleRoot | Select-Object -Unique).Count -gt 1 }
 
         Finds modules installed in more than one PSModulePath location.
     #>
     [CmdletBinding()]
     [OutputType('ModuleManager.InstalledVersion', 'ModuleManager.ModuleRoot')]
+    [Alias('Get-ModuleLocation')]
     param(
         [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]

@@ -43,7 +43,7 @@ function Move-ManagedModule {
 
     .PARAMETER ModuleBase
         The folder of a specific installed version. Bound automatically when you pipe output
-        from Get-ModuleLocation or Get-ModuleInventory -AllVersions.
+        from Get-ManagedModuleLocation or Get-ManagedModule -AllVersions.
 
     .PARAMETER Destination
         The scope to move to: CurrentUser or AllUsers.
@@ -60,7 +60,7 @@ function Move-ManagedModule {
         Moves every version of Pester installed for the current user to the all users module folder.
 
     .EXAMPLE
-        Get-ModuleLocation -Scope AllUsers | Move-ManagedModule -Destination CurrentUser -WhatIf
+        Get-ManagedModuleLocation -Scope AllUsers | Move-ManagedModule -Destination CurrentUser -WhatIf
 
         Shows which all-users module versions would be moved to the current user's module folder,
         without moving anything.

@@ -1,4 +1,4 @@
-# Get-ModuleUpdate
+# Get-ManagedModuleUpdate
 
 ## SYNOPSIS
 Compares the installed version of each module with the latest version in its repository.
@@ -6,7 +6,7 @@ Compares the installed version of each module with the latest version in its rep
 ## SYNTAX
 
 ```
-Get-ModuleUpdate [[-Name] <String[]>] [-Scope <String[]>] [-Repository <String>] [-IncludePrerelease]
+Get-ManagedModuleUpdate [[-Name] <String[]>] [-Scope <String[]>] [-Repository <String>] [-IncludePrerelease]
  [-Outdated] [-Refresh] [-IncludeSystem] [-ThrottleLimit <Int32>] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
@@ -38,21 +38,21 @@ Only
 
 ### EXAMPLE 1
 ```
-Get-ModuleUpdate -Outdated
+Get-ManagedModuleUpdate -Outdated
 ```
 
 Lists only the installed modules that have a newer version available in their repository.
 
 ### EXAMPLE 2
 ```
-Get-ModuleUpdate Pester, PSReadLine
+Get-ManagedModuleUpdate Pester, PSReadLine
 ```
 
 Compares the installed versions of Pester and PSReadLine with the latest available.
 
 ### EXAMPLE 3
 ```
-Get-ModuleUpdate -Outdated | Update-ManagedModule -WhatIf
+Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -WhatIf
 ```
 
 Shows which updates would be installed, without installing anything.
@@ -63,7 +63,7 @@ Shows which updates would be installed, without installing anything.
 One or more module names.
 Wildcards are supported.
 Accepts pipeline input from
-Get-ModuleInventory.
+Get-ManagedModule.
 
 ```yaml
 Type: String[]

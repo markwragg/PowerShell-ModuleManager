@@ -55,7 +55,7 @@ Removes only the Pester 4.x versions, keeping any others.
 
 ### EXAMPLE 3
 ```
-Get-ModuleLocation Az.* -Scope AllUsers | Uninstall-ManagedModule -WhatIf
+Get-ManagedModuleLocation Az.* -Scope AllUsers | Uninstall-ManagedModule -WhatIf
 ```
 
 Shows which all-users Az module versions would be removed, without removing anything.
@@ -114,7 +114,7 @@ Accept wildcard characters: False
 ### -ModuleBase
 The folder of a specific installed version.
 Bound automatically when you pipe output
-from Get-ModuleLocation or Get-ModuleInventory -AllVersions.
+from Get-ManagedModuleLocation or Get-ManagedModule -AllVersions.
 
 ```yaml
 Type: String[]
