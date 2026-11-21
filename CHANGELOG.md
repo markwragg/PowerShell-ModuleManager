@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.9.0
+## [0.9.0] - 2026-11-21
 
 * [feature] In the terminal UI, A in the **Multiple versions** view selects every module in view that has old versions (the help bar shows `A select old`), so V to that view, A, then O removes the old versions of them all, keeping the newest. In the other views, A still selects the modules with updates.
 
