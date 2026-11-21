@@ -70,7 +70,17 @@ Keys (details view):
                                  current one)
   O                              Remove all but the newest version
   U                              Update this module
+  P                              Open the module's project page (or its PowerShell
+                                 Gallery page) in the browser
   Esc, Left or Backspace         Back to the list
+
+The details view shows each version's size, and the module's project and gallery pages
+(click one to open it).
+Under the versions is what the version under the cursor depends on
+(with the installed version that satisfies each dependency) and which installed modules
+depend on it and accept that version.
+Only the modules in the list are looked at, so a
+dependency outside it (such as a system module, without -IncludeSystem) shows as not found.
 
 Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
 its versions and paths; right-click goes back.
