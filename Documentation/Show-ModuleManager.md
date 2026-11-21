@@ -170,19 +170,26 @@ Opens the terminal UI (via its alias) showing only the Az modules.
 
 ### EXAMPLE 3
 ```
+Get-ManagedModuleUpdate -Outdated | modman
+```
+
+Opens the terminal UI showing only the modules that have updates.
+
+### EXAMPLE 4
+```
 modman -ComputerName Server01
 ```
 
 Manages the modules installed on Server01, from this console.
 
-### EXAMPLE 4
+### EXAMPLE 5
 ```
 modman -ComputerName Server01 -ConfigurationName PowerShell.7 -Credential (Get-Credential)
 ```
 
 Manages the PowerShell 7 modules on Server01, connecting as another user.
 
-### EXAMPLE 5
+### EXAMPLE 6
 ```
 $s = New-PSSession -HostName linux01 -UserName admin
 Show-ModuleManager -Session $s
@@ -190,7 +197,7 @@ Show-ModuleManager -Session $s
 
 Manages the modules on linux01, connecting over SSH.
 
-### EXAMPLE 6
+### EXAMPLE 7
 ```
 modman -Edition Desktop
 ```
@@ -202,6 +209,9 @@ From PowerShell 7, manages the modules Windows PowerShell 5.1 uses on this compu
 ### -Name
 Only show modules matching these names.
 Wildcards are supported.
+Accepts pipeline input:
+names, or objects with a Name property, such as the output of Get-ManagedModuleUpdate,
+Get-ManagedModule or Get-Module.
 
 ```yaml
 Type: String[]
@@ -211,7 +221,7 @@ Aliases:
 Required: False
 Position: 1
 Default value: *
-Accept pipeline input: False
+Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: True
 ```
 

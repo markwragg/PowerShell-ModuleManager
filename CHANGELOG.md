@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.10.0
+## [0.10.0] - 2026-11-21
 
 * [feature] **Breaking:** the commands are renamed so they all use the `ManagedModule` noun. The old `Get-` names still work, as aliases, but `Uninstall-OldModuleVersion` is removed, so update any scripts that use it:
   * `Get-ModuleInventory` → `Get-ManagedModule` (alias kept)

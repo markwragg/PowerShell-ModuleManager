@@ -1,25 +1,40 @@
 # Uninstall-ManagedModule
 
 ## SYNOPSIS
-Uninstalls modules, or specific versions of modules.
+Uninstalls modules, specific versions of modules, or the old versions of modules.
 
 ## SYNTAX
 
 ### ByModuleBase (Default)
 ```
-Uninstall-ManagedModule -ModuleBase <String[]> [-Force] [-ProgressAction <ActionPreference>] [-WhatIf]
- [-Confirm] [<CommonParameters>]
+Uninstall-ManagedModule -ModuleBase <String[]> [-Force] [-PassThru] [-ProgressAction <ActionPreference>]
+ [-WhatIf] [-Confirm] [<CommonParameters>]
+```
+
+### OldVersions
+```
+Uninstall-ManagedModule [[-Name] <String[]>] [-OldVersions] [-Keep <Int32>] [-Scope <String[]>] [-Force]
+ [-PassThru] [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ByName
 ```
-Uninstall-ManagedModule [-Name] <String[]> [-Version <String[]>] [-Scope <String[]>] [-Force]
+Uninstall-ManagedModule [-Name] <String[]> [-Version <String[]>] [-Scope <String[]>] [-Force] [-PassThru]
  [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 Removes installed module versions from disk, whether they were installed by
 PowerShellGet, PSResourceGet or copied in by hand.
+
+With -OldVersions, removes all but the newest -Keep versions of each module instead.
+Updating a module installs the new version alongside the old one, so versions build up
+over time.
+Loaded versions, and old versions that another installed module depends on,
+are skipped with a warning (unless -Force is used) rather than as errors.
+For example,
+each Az rollup version pins exact versions of the Az.* modules, so those are kept while
+that Az version is installed.
 
 Safety checks:
   - Modules that ship with PowerShell or Windows are never removed.
@@ -60,13 +75,41 @@ Get-ManagedModuleLocation Az.* -Scope AllUsers | Uninstall-ManagedModule -WhatIf
 
 Shows which all-users Az module versions would be removed, without removing anything.
 
+### EXAMPLE 4
+```
+Uninstall-ManagedModule -OldVersions -WhatIf
+```
+
+Previews which old versions of every module would be removed.
+
+### EXAMPLE 5
+```
+Uninstall-ManagedModule Pester -OldVersions -Keep 2 -Confirm:$false
+```
+
+Keeps the two newest versions of Pester and removes the rest, without prompting.
+
 ## PARAMETERS
 
 ### -Name
 The module name(s) to uninstall.
 Wildcards are supported.
 All versions are removed
-unless -Version is given.
+unless -Version or -OldVersions is given.
+With -OldVersions it defaults to all modules,
+and accepts names from the pipeline.
+
+```yaml
+Type: String[]
+Parameter Sets: OldVersions
+Aliases:
+
+Required: False
+Position: 1
+Default value: None
+Accept pipeline input: True (ByPropertyName, ByValue)
+Accept wildcard characters: True
+```
 
 ```yaml
 Type: String[]
@@ -76,7 +119,7 @@ Aliases:
 Required: True
 Position: 1
 Default value: None
-Accept pipeline input: True (ByPropertyName)
+Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: True
 ```
 
@@ -96,12 +139,45 @@ Accept pipeline input: False
 Accept wildcard characters: True
 ```
 
+### -OldVersions
+Remove the old versions of each module, keeping the newest (or the newest -Keep).
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: OldVersions
+Aliases:
+
+Required: True
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Keep
+With -OldVersions, how many of the newest versions to keep.
+Defaults to 1.
+
+```yaml
+Type: Int32
+Parameter Sets: OldVersions
+Aliases:
+
+Required: False
+Position: Named
+Default value: 1
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -Scope
 Only remove versions installed in these scopes.
+With -OldVersions, all scopes are still
+counted when working out which versions are newest.
 
 ```yaml
 Type: String[]
-Parameter Sets: ByName
+Parameter Sets: OldVersions, ByName
 Aliases:
 
 Required: False
@@ -130,6 +206,21 @@ Accept wildcard characters: False
 
 ### -Force
 Remove modules even if they are loaded, or required by other installed modules.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -PassThru
+Output an object for each version that was removed.
 
 ```yaml
 Type: SwitchParameter
@@ -197,6 +288,7 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## OUTPUTS
 
+### ModuleManager.InstalledVersion
 ## NOTES
 
 ## RELATED LINKS

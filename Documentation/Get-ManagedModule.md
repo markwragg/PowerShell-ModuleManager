@@ -6,8 +6,8 @@ Lists the PowerShell modules installed on this machine, one row per module.
 ## SYNTAX
 
 ```
-Get-ManagedModule [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-MultipleVersions]
- [-AllVersions] [-ProgressAction <ActionPreference>] [<CommonParameters>]
+Get-ManagedModule [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-MultipleVersions] [-AllVersions]
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
