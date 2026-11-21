@@ -15,7 +15,9 @@ function Update-ManagedModule {
         Microsoft.PowerShell.PSResourceGet), when that is available, so the module is still
         recognised by that package manager's own commands, such as Update-Module or
         Update-PSResource. Modules with no install record are updated with PSResourceGet when
-        available, otherwise PowerShellGet.
+        available, otherwise PowerShellGet. You're warned when a module has to be updated with the
+        other package manager: when the one that installed it isn't available, or for a
+        prerelease when that is PowerShellGet 1.x, which can't install prereleases.
 
         Dependencies:
           - The package manager installs any dependencies the new version needs.

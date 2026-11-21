@@ -340,8 +340,51 @@ Describe 'Terminal UI actions' {
             Mock Get-MMUntrustedRepository { }
             $rows = foreach ($i in 1..6) { [pscustomobject]@{ Name = "MM$i"; Status = 'UpdateAvailable'; Latest = '2.0'; Info = @{ Version = '1.0'; Installations = @() }; Result = $null } }
             Request-MMTuiUpdate $S $rows
-            $S.Confirm.Prompt | Should -Match 'MM4 1\.0 -> 2\.0 and 2 more \?$'
+            $S.Confirm.Prompt | Should -Match 'MM4 1\.0 -> 2\.0 and 2 more \? o also removes old versions\.$'
             $S.Confirm.Data.Trust | Should -BeFalse
+        }
+    }
+
+    It 'Removes the old versions of the updated modules, and their dependencies, with o' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Get-MMUntrustedRepository { }
+            Mock Uninstall-OldModuleVersion { }
+            Mock Update-ManagedModule {
+                [pscustomobject]@{ Name = 'MMAlpha'; Version = '2.0.0'; UpdatedAsDependencyOf = $null }
+                [pscustomobject]@{ Name = 'MMGamma'; Version = '3.0.0'; UpdatedAsDependencyOf = 'MMAlpha' }
+            }
+            ($S.Rows | Where-Object Name -EQ 'MMAlpha').Selected = $true
+            Request-MMTuiUpdate $S (Get-MMTuiTarget $S)
+            $S.Confirm.Choices | Should -Be 'yo'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
+
+            Should -Invoke Update-ManagedModule -Times 1 -Exactly -ParameterFilter { $Name -eq 'MMAlpha' -and $PassThru -and -not $RemoveOldVersions }
+            Should -Invoke Uninstall-OldModuleVersion -Times 1 -Exactly -ParameterFilter {
+                $Name.Count -eq 2 -and $Name -contains 'MMAlpha' -and $Name -contains 'MMGamma' -and $Keep -eq 1 -and $Verbose
+            }
+            @($S.Rows | Where-Object Selected).Count | Should -Be 0
+        }
+    }
+
+    It "Doesn't remove old versions with y, or when nothing was updated" {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s } {
+            Mock Get-MMUntrustedRepository { }
+            Mock Uninstall-OldModuleVersion { }
+            Mock Update-ManagedModule { [pscustomobject]@{ Name = 'MMAlpha'; Version = '2.0.0'; UpdatedAsDependencyOf = $null } }
+            $alpha = @($S.Rows | Where-Object Name -EQ 'MMAlpha')
+            Request-MMTuiUpdate $S $alpha
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('y', [ConsoleKey]::Y, $false, $false, $false))
+            Should -Invoke Update-ManagedModule -Times 1 -Exactly
+            Should -Invoke Uninstall-OldModuleVersion -Times 0 -Exactly
+
+            # A failed update keeps its old versions.
+            Mock Update-ManagedModule { Write-Error -Message 'Failed to update MMAlpha: boom' -ErrorId 'ModuleManager.UpdateFailed' }
+            Request-MMTuiUpdate $S $alpha
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
+            Should -Invoke Uninstall-OldModuleVersion -Times 0 -Exactly
+            Should -Invoke Write-MMTuiOutput -Times 1 -Exactly -ParameterFilter { $Text -eq '0 updated, 1 failed.' }
         }
     }
 
@@ -489,11 +532,26 @@ Describe 'Terminal UI actions' {
             # Updates install into the newest version's scope.
             $alpha.Status = 'UpdateAvailable'
             $alpha.Latest = '9.0.0'
+            @($alpha.Info.Installations)[1].Scope = 'CurrentUser'
             Request-MMTuiUpdate $S @($alpha)
             $S.Confirm.Prompt | Should -Not -Match 'administrator'
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
+            Should -Invoke Invoke-MMTuiAction -Times 1 -Exactly -ParameterFilter { $Title -like 'Updating*' -and -not $Elevated }
+
+            # Removing old versions afterwards also covers the versions installed now, so it can
+            # need administrator rights when the update doesn't.
+            @($alpha.Info.Installations)[1].Scope = 'AllUsers'
+            Request-MMTuiUpdate $S @($alpha)
+            $S.Confirm.Prompt | Should -BeLike '* ? o also removes old versions. o runs as administrator: Windows asks first.'
+            Invoke-MMTuiKey $S $y
+            Should -Invoke Invoke-MMTuiAction -Times 2 -Exactly -ParameterFilter { $Title -like 'Updating*' -and -not $Elevated }
+            Request-MMTuiUpdate $S @($alpha)
+            Invoke-MMTuiKey $S ([ConsoleKeyInfo]::new('o', [ConsoleKey]::O, $false, $false, $false))
+            Should -Invoke Invoke-MMTuiAction -Times 1 -Exactly -ParameterFilter { $Title -eq 'Updating 1 module(s) and removing old versions' -and $Elevated }
+
             @($alpha.Info.Installations)[0].Scope = 'AllUsers'
             Request-MMTuiUpdate $S @($alpha)
-            $S.Confirm.Prompt | Should -BeLike '* ? Runs as administrator: Windows asks first.'
+            $S.Confirm.Prompt | Should -BeLike '* ? o also removes old versions. Runs as administrator: Windows asks first.'
             Invoke-MMTuiKey $S $y
             Should -Invoke Invoke-MMTuiAction -Times 1 -ParameterFilter { $Title -like 'Updating*' -and $Elevated }
 

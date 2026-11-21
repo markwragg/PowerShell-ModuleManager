@@ -15,8 +15,9 @@ function Show-ModuleManager {
           Right                          Expand a module family, or show versions and paths
           Left                           Collapse the module family
           Enter                          Show installed versions and paths
-          U                              Update selected modules (or the current one)
-          X or Delete                    Uninstall everything selected: modules (all versions) and
+          U                              Update selected modules (or the current one). Answer o
+                                         to also remove their old versions
+          X or Delete                   Uninstall everything selected: modules (all versions) and
                                          versions selected in the details view
           O                              Remove old versions, keeping the newest
           M                              Move selected modules (or the current one) to the other
@@ -37,8 +38,8 @@ function Show-ModuleManager {
           X or Delete                    Uninstall the selected versions, of every module (or the
                                          current one)
           O                              Remove all but the newest version
-          U                              Update this module
-          P                              Open the module's project page (or its PowerShell
+          U                              Update this module (o also removes its old versions)
+          P                             Open the module's project page (or its PowerShell
                                          Gallery page) in the browser
           Esc, Left or Backspace         Back to the list
 
@@ -55,6 +56,11 @@ function Show-ModuleManager {
         y or N to answer a confirmation. The wheel scrolls the list, the details and the output pane;
         right-click, or L hide in its header, hides the pane. While modman has the mouse, select text
         in the terminal with Shift held down. -NoMouse leaves the mouse to the terminal.
+
+        When you update, the confirmation offers y (update) or o (update, then remove the old
+        versions of the modules that were updated, and of dependencies installed with them,
+        keeping the newest), so you don't need to press O afterwards. As with O, old versions that
+        other installed modules depend on are kept, and so are loaded ones.
 
         Modules marked with * are loaded in the current session. When you uninstall or remove old
         versions and some of them are loaded, the confirmation offers y (leave the loaded versions

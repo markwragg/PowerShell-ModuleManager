@@ -160,13 +160,13 @@ Describe 'Managing modules on a remote computer' {
             $alpha = @($S.Rows | Where-Object Name -EQ 'MMAlpha')
 
             Request-MMTuiUpdate $S $alpha
-            $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 ?'
+            $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 ? o also removes old versions.'
 
             $S.Mode = 'list'; $S.Confirm = $null
             $null = Invoke-MMRemote -Remote $S.Remote -ScriptBlock { $script:MMTestUntrusted = @('PSGallery') }
             try {
                 Request-MMTuiUpdate $S $alpha
-                $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 - from untrusted repository PSGallery ?'
+                $S.Confirm.Prompt | Should -Be 'Update 1 module(s): MMAlpha 2.0.0-beta1 -> 2.0.0 - from untrusted repository PSGallery ? o also removes old versions.'
             }
             finally { $null = Invoke-MMRemote -Remote $S.Remote -ScriptBlock { $script:MMTestUntrusted = @() } }
             Should -Invoke Get-MMUntrustedRepository -Times 0 -Exactly

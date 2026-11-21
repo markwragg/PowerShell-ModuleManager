@@ -565,6 +565,7 @@ Describe 'Invoke-MMInstall' {
         InModuleScope ModuleManager {
             Mock Get-MMBackend { 'PowerShellGet' }
             Mock Get-Command { [pscustomobject]@{ Parameters = @{ Name = $null; RequiredVersion = $null } } } -ParameterFilter { $Name -eq 'PowerShellGet\Install-Module' }
+            Mock Get-Command { } -ParameterFilter { $Name -eq 'Microsoft.PowerShell.PSResourceGet\Install-PSResource' }    # as in Windows PowerShell
             Mock Install-Module { }
             Invoke-MMInstall -Name 'MMOne' -Version '2.0.0' -Repository 'PSGallery' -Scope CurrentUser
             Should -Invoke Install-Module -Times 1 -Exactly -ParameterFilter {

@@ -156,7 +156,7 @@ The update check runs in the background, so you can use the list while it fills 
 | → | Expand a module family, or show versions and paths | |
 | ← | Collapse the module family | Back to the list |
 | Enter | Show versions and paths | |
-| U | Update the selected modules (or the current one) | Update this module |
+| U | Update the selected modules (or the current one). Answer **o** to also remove their old versions | Update this module (**o** also removes its old versions) |
 | X / Del | Uninstall everything selected: modules (all versions) and versions | Uninstall the selected versions, of every module |
 | M | Move everything selected (or the current module) to the other scope: CurrentUser to AllUsers or back. Needs administrator rights (see below) | Move the selected versions (or the current one) to the other scope |
 | O | Remove old versions, keeping the newest | Same, for this module |
@@ -192,6 +192,12 @@ runs. Updates end with one result line per module. When the action finishes, the
 output stays in the pane until you close it (Esc or L). Only one action runs at a time. Nothing can answer a
 prompt while an action runs, so anything that would prompt is asked up front: updating from an untrusted
 repository says so in the confirmation. Modules marked `*` are loaded in the current session.
+
+When you update (U), the confirmation offers **y** to update, or **o** to update and then remove the old versions,
+keeping the newest, all in one action. It removes the old versions of each module that was updated, and of any
+dependencies installed with them; a module whose update failed keeps its old versions. As with O, old versions
+that other installed modules depend on are kept, and so are any loaded in the session. From the command line,
+`Update-ManagedModule -RemoveOldVersions` does the same.
 
 When you uninstall (X) or remove old versions (O) and some of those versions are loaded in the session, the
 confirmation offers a choice: **y** leaves the loaded versions installed, and **f** unloads them from the session
