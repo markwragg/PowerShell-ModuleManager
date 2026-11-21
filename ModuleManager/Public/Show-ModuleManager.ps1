@@ -38,7 +38,15 @@ function Show-ModuleManager {
                                          current one)
           O                              Remove all but the newest version
           U                              Update this module
+          P                              Open the module's project page (or its PowerShell
+                                         Gallery page) in the browser
           Esc, Left or Backspace         Back to the list
+
+        The details view shows each version's size, and the module's project and gallery pages
+        (click one to open it). Under the versions is what the version under the cursor depends on
+        (with the installed version that satisfies each dependency) and which installed modules
+        depend on it and accept that version. Only the modules in the list are looked at, so a
+        dependency outside it (such as a system module, without -IncludeSystem) shows as not found.
 
         Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
         its versions and paths; right-click goes back. Click the [ ] box to select it, a family's arrow
@@ -227,6 +235,7 @@ function Show-ModuleManager {
     $originalEncoding = [Console]::OutputEncoding
     try {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $script:MMTuiHyperlink = Test-MMTuiHyperlink
         Enter-MMTuiScreen
         # The first scan can take a few seconds (many modules, or a slow disk or connection), so
         # say what's happening rather than leaving the screen blank.
@@ -245,6 +254,7 @@ function Show-ModuleManager {
         while (-not $state.Quit) {
             if ($state.Job -and (Receive-MMTuiLookup $state)) { Update-MMTuiVisible $state; $dirty = $true }
             if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
+            if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
             if ($state.Job -or $state.Task) {
                 if (([datetime]::UtcNow - $lastSpin).TotalMilliseconds -ge 150) {
                     $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true
@@ -267,6 +277,7 @@ function Show-ModuleManager {
         Stop-MMTuiLookup $state -Closing
         Disable-MMTuiMouse $state.Mouse
         Exit-MMTuiScreen
+        $script:MMTuiHyperlink = $false
         [Console]::OutputEncoding = $originalEncoding
         Disconnect-MMRemote $remote
     }

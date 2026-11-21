@@ -31,6 +31,12 @@ function New-MMTuiState {
         DCursor      = 0
         DTop         = 0
         DSelected    = @{}
+        # Details view: each version's size in bytes by folder ($null if it couldn't be read; see
+        # Update-MMTuiDetailSize), and each version's dependencies (see Get-MMTuiDependencyInfo).
+        # Both are cleared when the modules are rescanned.
+        Sizes        = @{}
+        DepIndex     = $null
+        DepInfo      = @{}
         Task         = $null
         Log          = [System.Collections.Generic.List[object]]::new()
         LogOpen      = $false

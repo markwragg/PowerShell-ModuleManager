@@ -18,9 +18,12 @@ function Group-MMInstallation {
         $latest = $sorted[0]
         $scopes = [System.Collections.Generic.List[string]]::new()
         $anyLoaded = $false
+        $projectUri = $null
         foreach ($s in $sorted) {
             if (-not $scopes.Contains($s.Scope)) { $scopes.Add($s.Scope) }
             if ($s.IsLoaded) { $anyLoaded = $true }
+            # The newest version's, or failing that the newest one that has one.
+            if (-not $projectUri -and $s.PSObject.Properties['ProjectUri'] -and $s.ProjectUri) { $projectUri = $s.ProjectUri }
         }
         [pscustomobject]@{
             PSTypeName    = 'ModuleManager.ModuleInfo'
@@ -36,6 +39,7 @@ function Group-MMInstallation {
             IsLoaded      = $anyLoaded
             Path          = $latest.ModuleBase
             Description   = $latest.Description
+            ProjectUri    = $projectUri
             Dependencies  = $latest.Dependencies
             Installations = $sorted
         }

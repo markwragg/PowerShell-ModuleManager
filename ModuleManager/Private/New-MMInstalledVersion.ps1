@@ -24,7 +24,7 @@ function New-MMInstalledVersion {
         $meta = $cached.Meta
     }
     else {
-        $manifest = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; RequiredModules = @(); Dependencies = @() }
+        $manifest = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; RequiredModules = @(); Dependencies = @() }
         if ($ManifestPath) { $manifest = Read-MMManifest -Path $ManifestPath -Full:$Full }
         $meta = Read-MMInstallMetadata -ModuleBase $ModuleBase
         $script:MMScanCache[$cacheKey] = @{ Stamp = $stamp; Manifest = $manifest; Meta = $meta }
@@ -40,7 +40,10 @@ function New-MMInstalledVersion {
     # The package manager's record (with version ranges) is authoritative. Modules copied in by hand
     # fall back to the manifest, which is only read in full for the newest version of each module.
     $dependencies = $meta.Dependencies
+    $dependenciesKnown = $null -ne $dependencies -or $Full -or -not $ManifestPath
     if ($null -eq $dependencies) { $dependencies = $manifest.Dependencies }
+    $projectUri = $meta.ProjectUri
+    if (-not $projectUri) { $projectUri = $manifest.ProjectUri }
 
     $pre = $manifest.Prerelease
     $display = [string]$version
@@ -64,5 +67,10 @@ function New-MMInstalledVersion {
         Author          = $manifest.Author
         RequiredModules = $manifest.RequiredModules
         Dependencies    = @($dependencies)
+        # False when the dependencies weren't read: for an older version with no install record,
+        # whose manifest is only read in part.
+        DependenciesKnown = $dependenciesKnown
+        ProjectUri      = $projectUri
+        SourceLocation  = $meta.SourceLocation
     }
 }

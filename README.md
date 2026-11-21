@@ -160,6 +160,7 @@ The update check runs in the background, so you can use the list while it fills 
 | X / Del | Uninstall everything selected: modules (all versions) and versions | Uninstall the selected versions, of every module |
 | M | Move everything selected (or the current module) to the other scope: CurrentUser to AllUsers or back. Needs administrator rights (see below) | Move the selected versions (or the current one) to the other scope |
 | O | Remove old versions, keeping the newest | Same, for this module |
+| P | | Open the module's project page (or its PowerShell Gallery page) in the browser |
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |
 | / | Filter by name or description | |
@@ -169,6 +170,12 @@ The update check runs in the background, so you can use the list while it fills 
 | R | Rescan and re-check the repositories | |
 | Esc | Close the output pane, then clear the selection, then the filter | Back to the list |
 | Q | Quit (Ctrl+C while an operation is running stops it first) | Back to the list |
+
+The details view shows each version's size, with the total, and links to the module's project page and its
+PowerShell Gallery page (click one to open it). Below the versions, a panel shows what the version under the cursor
+depends on, with the installed version that satisfies each dependency, and which installed modules need it (their
+versions that accept it). Only the modules in the list are checked, so a dependency outside it (such as a system
+module, unless you use `-IncludeSystem`) shows as not found.
 
 You can also use the mouse. Click a module to move to it, and double-click it for its versions and paths
 (right-click to go back). Click its `[ ]` box to select it, a family's arrow to expand or collapse the family, and

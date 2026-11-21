@@ -32,11 +32,12 @@ function New-FakeModule {
         -Dependency takes 'Name|NuGetRange' strings and writes them to PSGetModuleInfo.xml in
         PSResourceGet's format, or PowerShellGet's with -PowerShellGetFormat ('[1.0]' becomes
         RequiredVersion, '[1.0, )' MinimumVersion). -ManifestText is added to the .psd1 as is.
+        -ProjectUri is written to PSGetModuleInfo.xml (with -Repository).
     #>
     param(
         [string]$Root, [string]$Name, [string]$Version, [string]$Prerelease,
         [string[]]$RequiredModules, [string]$Repository, [switch]$Unversioned, [switch]$ObjDate,
-        [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText
+        [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText, [string]$ProjectUri
     )
     $dir = if ($Unversioned) { Join-Path $Root $Name } else { Join-Path (Join-Path $Root $Name) $Version }
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -61,6 +62,8 @@ function New-FakeModule {
             "<Obj N=`"InstalledDate`" RefId=`"1`">`n      <DT>2025-01-02T03:04:05.0000000+00:00</DT>`n    </Obj>"
         }
         else { '<DT N="InstalledDate">2025-01-02T03:04:05.0000000+00:00</DT>' }
+        $project = ''
+        if ($ProjectUri) { $project = "<URI N=`"ProjectUri`">$ProjectUri</URI>" }
         $deps = ''
         if ($PSBoundParameters.ContainsKey('Dependency')) {
             $items = foreach ($d in $Dependency) {
@@ -84,6 +87,7 @@ function New-FakeModule {
   <Obj RefId="0"><MS>
     <S N="Name">$Name</S>
     <S N="Repository">$Repository</S>
+    $project
     $date
     $deps
   </MS></Obj>

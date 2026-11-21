@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy 0.6.0
+
+* [feature] The terminal UI's details view shows more about a module. Each version's size is shown, with the total for the module (worked out when you open the details, which takes a few milliseconds per version). The module's project page and its PowerShell Gallery page are shown under its description: click one, or press P, to open it in the browser. In terminals that support hyperlinks (such as Windows Terminal and the VS Code terminal), they're also links. Below the versions, a panel shows what the version under the cursor depends on, with the installed version that satisfies each dependency (or "not found"), and which installed modules need it. `Get-ModuleInventory` objects have a new `ProjectUri` property.
+
 ## [0.5.1] - 2026-11-20
 
 * [feature] In the terminal UI, the output pane can be used with the mouse: right-click hides it (anywhere in the list, or over the pane in the details view), as does clicking `L hide` (or `L/Esc hide`) in its header, and clicking `[` or `]` there scrolls it.

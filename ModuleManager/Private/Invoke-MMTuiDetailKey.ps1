@@ -31,5 +31,6 @@ function Invoke-MMTuiDetailKey {
         'm' { Request-MMTuiMove $State -Detail }
         'o' { Request-MMTuiRemoveOld $State @($State.Detail) }
         'u' { Request-MMTuiUpdate $State @($State.Detail) }
+        'p' { Request-MMTuiWebPage $State }
     }
 }

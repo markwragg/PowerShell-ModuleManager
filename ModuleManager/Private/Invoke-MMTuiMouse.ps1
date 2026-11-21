@@ -16,6 +16,7 @@ function Invoke-MMTuiMouse {
           A column header            Sorts the list by that column.
           view: or sort: (title)     Cycles the view or sort, as V and S do (in the list).
           A key in the help bar      Presses that key.
+          A web page (details)       Opens it in the browser, as P does for the project page.
           An answer in [y/N]         Gives that answer. While a confirmation is shown, other clicks
                                      are ignored, so a stray click can't answer it.
           The wheel                  Scrolls the output pane when the pointer is over it, otherwise
@@ -94,6 +95,10 @@ function Invoke-MMTuiMouse {
     }
 
     $space = ConvertTo-MMTuiKeyInfo 'Space'
+    if ($details -and $click) {
+        $hit = @($layout.Links | Where-Object { $y -eq $_.Y -and $x -ge $_.Start -and $x -lt $_.End }) | Select-Object -First 1
+        if ($hit) { Request-MMTuiWebPage $State $hit.Uri; return }
+    }
     if ($details) {
         if ($y -lt $layout.DetailTop -or $y -ge $layout.DetailTop + $layout.DetailRows) { return }
         $index = $State.DTop + $y - $layout.DetailTop

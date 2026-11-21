@@ -278,7 +278,12 @@ $script:MMStyle = @{
     Cyan      = "$([char]27)[96m"
     Magenta   = "$([char]27)[95m"
     Bold      = "$([char]27)[1m"
+    Link      = "$([char]27)[4m$([char]27)[96m"
 }
+
+# Whether the terminal UI writes web addresses as terminal hyperlinks (OSC 8). Set by Show-ModuleManager
+# (see Test-MMTuiHyperlink); off otherwise, as some terminals print the sequence as text.
+$script:MMTuiHyperlink = $false
 
 # Module family tree markers. Built from code points so the source stays ASCII (Windows PowerShell 5.1
 # misreads UTF-8 files without a BOM), and chosen from characters common console fonts have.

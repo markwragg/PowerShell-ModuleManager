@@ -10,7 +10,7 @@ function Read-MMManifest {
     #>
     param([string]$Path, [switch]$Full)
 
-    $result = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; RequiredModules = @(); Dependencies = @() }
+    $result = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; RequiredModules = @(); Dependencies = @() }
     $text = $null
     try { $text = [IO.File]::ReadAllText($Path) } catch { return $result }
 
@@ -25,6 +25,8 @@ function Read-MMManifest {
     $desc = Get-MMManifestString $text 'Description'
     if ($desc) { $result.Description = ($desc -replace '\s+', ' ').Trim() }
     $result.Author = Get-MMManifestString $text 'Author'
+    # In PrivateData.PSData; only read when the manifest mentions it.
+    if ($text.IndexOf('ProjectUri', [StringComparison]::OrdinalIgnoreCase) -ge 0) { $result.ProjectUri = Get-MMManifestString $text 'ProjectUri' }
 
     $required = [System.Collections.Generic.List[string]]::new()
     $deps = [System.Collections.Generic.List[object]]::new()

@@ -26,6 +26,7 @@ function Get-MMTuiFrame {
     # Start to before End) counted from 0. The list and details views fill in theirs; -1 is nowhere.
     $layout = @{
         HeaderY = -1; ListTop = -1; ListRows = 0; SortColumns = @(); DetailTop = -1; DetailRows = 0; CheckWidth = 0
+        Links = [System.Collections.Generic.List[object]]::new()
         LogTop = -1; LogRows = 0; LogKeys = @(); StatusY = -1; HelpY = -1; TitleY = -1
         Title = [System.Collections.Generic.List[object]]::new()
         Help = [System.Collections.Generic.List[object]]::new(); Choices = [System.Collections.Generic.List[object]]::new()
@@ -124,7 +125,11 @@ function Get-MMTuiFrame {
         # X acts on the versions selected (of any module), if there are some.
         $uninstall = 'uninstall'; $move = 'move scope'
         if ($State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
-        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', $uninstall, 'M', $move, 'O', 'remove old', 'U', 'update', 'L', 'output', 'Esc', 'back')
+        $keys = @('Up/Dn', 'move', 'Space', 'select', 'X', $uninstall, 'M', $move, 'O', 'remove old', 'U', 'update')
+        # P opens the project page (or the gallery page), when the module has one.
+        $links = Get-MMTuiDetailLink $State
+        if ($links.Project) { $keys += 'P', 'project page' } elseif ($links.Gallery) { $keys += 'P', 'gallery page' }
+        $keys += 'L', 'output', 'Esc', 'back'
     }
     else {
         # U and O act on the selected modules, and X on selected modules and versions, if there are some.
