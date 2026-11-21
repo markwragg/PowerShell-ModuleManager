@@ -129,14 +129,25 @@ function Invoke-MMTuiKey {
             # Includes members of collapsed families that are in view.
             $inView = [ordered]@{}
             foreach ($r in $State.Visible) { foreach ($m in (Get-MMTuiFamily $State $r)) { $inView[$m.Name] = $m } }
-            $updatable = @($inView.Values | Where-Object Status -EQ 'UpdateAvailable')
-            if (-not $updatable) {
-                if ($State.Job) { Set-MMTuiMessage $State 'Still checking repositories...' 'Yellow' }
-                else { Set-MMTuiMessage $State 'No updates available in this view.' }
+            # In the Multiple versions view it selects the modules with old versions, for O;
+            # in the other views, the modules with updates, for U.
+            if ($State.Views[$State.View] -eq 'Multiple versions') {
+                $targets = @($inView.Values | Where-Object { $_.Info.VersionCount -gt 1 })
+                if (-not $targets) { Set-MMTuiMessage $State 'No modules with old versions in this view.'; return }
+                $selected = "Selected $($targets.Count) module(s) with old versions. Press O to remove them."
             }
-            elseif (@($updatable | Where-Object { -not $_.Selected }).Count) {
-                foreach ($r in $updatable) { $r.Selected = $true }
-                Set-MMTuiMessage $State "Selected $($updatable.Count) module(s) with updates. Press U to update."
+            else {
+                $targets = @($inView.Values | Where-Object Status -EQ 'UpdateAvailable')
+                if (-not $targets) {
+                    if ($State.Job) { Set-MMTuiMessage $State 'Still checking repositories...' 'Yellow' }
+                    else { Set-MMTuiMessage $State 'No updates available in this view.' }
+                    return
+                }
+                $selected = "Selected $($targets.Count) module(s) with updates. Press U to update."
+            }
+            if (@($targets | Where-Object { -not $_.Selected }).Count) {
+                foreach ($r in $targets) { $r.Selected = $true }
+                Set-MMTuiMessage $State $selected
             }
             else { foreach ($r in $State.Rows) { $r.Selected = $false } }
         }

@@ -11,7 +11,9 @@ function Show-ModuleManager {
         Keys (module list):
           Up/Down, PgUp/PgDn, Home/End   Move
           Space                          Select / deselect module (a collapsed family: all of it)
-          A                              Select every module with an update (press again to clear)
+          A                              Select every module in view with an update (press again to
+                                         clear). In the Multiple versions view: every module with
+                                         old versions, so V to that view, A, O removes them all
           Right                          Expand a module family, or show versions and paths
           Left                           Collapse the module family
           Enter                          Show installed versions and paths

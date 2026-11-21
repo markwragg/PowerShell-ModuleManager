@@ -152,7 +152,7 @@ The update check runs in the background, so you can use the list while it fills 
 | --- | --- | --- |
 | ↑ ↓ / PgUp PgDn / Home End (or j k) | Move | Move |
 | Space | Select a module (a collapsed family: all of it) | Select a version (kept when you go back, so you can pick versions of several modules) |
-| A | Select every module with an update (press again to clear) | |
+| A | Select every module in view with an update (press again to clear). In the Multiple versions view, every module with old versions: **V** to that view, **A**, **O** removes them all | |
 | → | Expand a module family, or show versions and paths | |
 | ← | Collapse the module family | Back to the list |
 | Enter | Show versions and paths | |

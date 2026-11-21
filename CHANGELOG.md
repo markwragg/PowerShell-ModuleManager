@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy 0.9.0
+
+* [feature] In the terminal UI, A in the **Multiple versions** view selects every module in view that has old versions (the help bar shows `A select old`), so V to that view, A, then O removes the old versions of them all, keeping the newest. In the other views, A still selects the modules with updates.
+
 ## [0.8.0] - 2026-11-21
 
 * [feature] The terminal UI warns about modules and versions their publisher has unlisted. For an unlisted module, the details view shows the PowerShell Gallery's warning: "The owner has unlisted this package. This could mean that the module is deprecated or shouldn't be used anymore." The repository check now also finds which installed versions have been unlisted (in NuGet v2 feeds such as the PowerShell Gallery, with one extra request per batch of modules). The details view marks them, with a warning when the cursor is on one, and a module whose newest installed version is unlisted shows **Version unlisted** when there's no newer version to update to (before, it showed as up to date, or as newer than the repository). `Get-ModuleUpdate` reports this as the new `VersionUnlisted` status.

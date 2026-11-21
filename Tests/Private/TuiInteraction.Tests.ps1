@@ -215,6 +215,27 @@ Describe 'Terminal UI keys' {
         }
     }
 
+    It 'Selects every module with old versions in the Multiple versions view, then clears the selection' {
+        $s = New-TestState
+        InModuleScope ModuleManager -Parameters @{ S = $s; Key = ${function:Key} } {
+            # Regardless of updates: none of them has one here.
+            foreach ($r in $S.Rows) { $r.Status = 'UpToDate' }
+            $S.View = [array]::IndexOf($S.Views, 'Multiple versions')
+            Update-MMTuiVisible $S
+            (Get-MMTuiFrame $S 160 30) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' | Should -Match 'A select old'
+
+            Invoke-MMTuiKey $S (& $Key 'a' A)
+            @($S.Rows | Where-Object Selected | ForEach-Object { $_.Name }) | Should -Be @('MMAlpha')
+            $S.Message | Should -Match 'Selected 1 module\(s\) with old versions'
+            Invoke-MMTuiKey $S (& $Key 'a' A)
+            @($S.Rows | Where-Object Selected).Count | Should -Be 0
+
+            foreach ($r in $S.Rows) { $r.Info.VersionCount = 1 }
+            Update-MMTuiVisible $S
+            Invoke-MMTuiKey $S (& $Key 'a' A); $S.Message | Should -Match 'No modules with old versions'
+        }
+    }
+
     It 'Rescans and checks the repositories again with R' {
         $s = New-TestState
         InModuleScope ModuleManager -Parameters @{ S = $s; Key = ${function:Key} } {

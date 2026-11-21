@@ -144,7 +144,8 @@ function Get-MMTuiFrame {
         $update = 'update'; $removeOld = 'remove old'; $uninstall = 'uninstall'; $move = 'move scope'
         if ($selCount) { $update = 'update selected'; $removeOld = 'remove old from selected' }
         if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
-        $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', 'select updates', 'Enter', 'details', 'U', $update, 'X', $uninstall,
+        $selectAll = if ($State.Views[$State.View] -eq 'Multiple versions') { 'select old' } else { 'select updates' }
+        $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', $selectAll, 'Enter', 'details', 'U', $update, 'X', $uninstall,
             'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
