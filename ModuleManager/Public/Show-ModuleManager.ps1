@@ -49,6 +49,13 @@ function Show-ModuleManager {
         depend on it and accept that version. Only the modules in the list are looked at, so a
         dependency outside it (such as a system module, without -IncludeSystem) shows as not found.
 
+        Modules and versions their publisher has unlisted (withdrawn, often because they're deprecated)
+        are flagged. A module unlisted from its repository shows Unlisted in the list and a warning in
+        the details view. Unlisted installed versions are marked in the details view, with a warning
+        when the cursor is on one, and a module whose newest installed version is unlisted (with no
+        newer version to update to) shows Version unlisted. Versions are checked in NuGet v2 feeds,
+        such as the PowerShell Gallery; other repositories can only report a whole module unlisted.
+
         Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
         its versions and paths; right-click goes back. Click the [ ] box to select it, a family's arrow
         to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
@@ -238,6 +245,10 @@ function Show-ModuleManager {
     }
     $state.Remote = $remote
 
+    # Progress would be drawn over the terminal UI, and as only the lines that change are redrawn
+    # (see Write-MMTuiFrame), it would stay there. This also applies to the commands this calls.
+    $ProgressPreference = 'SilentlyContinue'
+
     $originalEncoding = [Console]::OutputEncoding
     try {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -274,7 +285,7 @@ function Show-ModuleManager {
             if ($null -eq $received) { Start-Sleep -Milliseconds 30; continue }
             if ($received -is [ConsoleKeyInfo]) { Invoke-MMTuiKey -State $state -Key $received }
             else { Invoke-MMTuiMouse -State $state -Mouse $received }
-            Update-MMTuiVisible $state
+            Update-MMTuiVisible $state -IfChanged
             $dirty = $true
         }
     }

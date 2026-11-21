@@ -74,8 +74,10 @@ function Start-MMGalleryLookup {
         $first = $group.Group[0]
         $names = @($group.Group | ForEach-Object { $_.Name })
         $installed = @{}
+        $installedAll = @{}
         foreach ($r in $group.Group) {
             if ($r.PSObject.Properties['InstalledVersion'] -and $r.InstalledVersion) { $installed[$r.Name] = [string]$r.InstalledVersion }
+            if ($r.PSObject.Properties['InstalledVersions'] -and $r.InstalledVersions) { $installedAll[$r.Name] = [string[]]@($r.InstalledVersions) }
         }
         # A NuGet v2 feed answers a whole batch in one request, so it takes bigger batches.
         $api = Get-MMRepositoryApi -Name $first.Repository
@@ -87,7 +89,7 @@ function Start-MMGalleryLookup {
             $ps.RunspacePool = $pool
             [void]$ps.AddScript($script:MMLookupScript.ToString()).
                 AddArgument($chunk).AddArgument($first.Repository).AddArgument([bool]$first.Prerelease).AddArgument($backend).
-                AddArgument($installed).AddArgument($api).AddArgument($lock)
+                AddArgument($installed).AddArgument($api).AddArgument($lock).AddArgument($installedAll)
             $job.Tasks.Add([pscustomobject]@{
                     PowerShell = $ps
                     Handle     = $ps.BeginInvoke()

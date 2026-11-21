@@ -71,9 +71,10 @@ function Add-MMTuiListLines {
         elseif ($State.DSelected.Count) {
             # Some versions of this module (or, for a collapsed family, of its members) are selected.
             foreach ($member in (Get-MMTuiFamily $State $row)) {
-                if (@($member.Info.Installations | Where-Object { $State.DSelected.ContainsKey($_.ModuleBase) }).Count) {
-                    $mark = '[-]'; $markStyle = 'Selected'; break
+                foreach ($inst in @($member.Info.Installations)) {
+                    if ($State.DSelected.ContainsKey($inst.ModuleBase)) { $mark = '[-]'; $markStyle = 'Selected'; break }
                 }
+                if ($mark -eq '[-]') { break }
             }
         }
         $nameText = $row.Name
@@ -90,7 +91,8 @@ function Add-MMTuiListLines {
                 if (-not $row.Open) {
                     $nameText = "$($glyph.Collapsed) $nameText (+$($row.Children.Count))"
                     # A collapsed family shows how many of its modules have updates.
-                    $familyUpdates = @(@($row) + @($row.Children) | Where-Object Status -EQ 'UpdateAvailable').Count
+                    $familyUpdates = 0
+                    foreach ($member in @($row) + @($row.Children)) { if ($member.Status -eq 'UpdateAvailable') { $familyUpdates++ } }
                     if ($familyUpdates -gt 1 -or ($familyUpdates -eq 1 -and $row.Status -ne 'UpdateAvailable')) {
                         $statusInfo = @("$familyUpdates updates", 'Yellow')
                     }
@@ -104,19 +106,30 @@ function Add-MMTuiListLines {
         $nameStyle = $null
         if ($row.Selected) { $nameStyle = 'Bold' }
 
+        # The cells, padded here rather than with Format-MMCell, as calling a function for each of
+        # them every frame is slow; only text too long for its column goes through it, to be cut.
+        $cells = [string[]]@(" $mark", $nameText, $info.Version, $row.Latest, $info.VersionCount, $info.Scope, $statusInfo[0])
+        $cellWidths = $cols.Sel, $cols.Name, $cols.Installed, $cols.Latest, ($cols.Count - 1), $cols.Scope, $cols.Status
+        for ($c = 0; $c -lt $cells.Count; $c++) {
+            $cw = $cellWidths[$c]
+            if ($cw -le 0) { $cells[$c] = '' }
+            elseif ($cells[$c].Length -gt $cw) { $cells[$c] = Format-MMCell $cells[$c] $cw }
+            elseif ($c -eq 4) { $cells[$c] = $cells[$c].PadLeft($cw) }   # the version count is right-aligned
+            else { $cells[$c] = $cells[$c].PadRight($cw) }
+        }
         $segs = @(
-            , @((Format-MMCell " $mark" $cols.Sel), $markStyle)
-            , @(((Format-MMCell $nameText $cols.Name) + ' '), $nameStyle)
-            , @((Format-MMCell $info.Version $cols.Installed), $null)
-            , @((Format-MMCell $row.Latest $cols.Latest), $latestStyle)
+            , @($cells[0], $markStyle)
+            , @(($cells[1] + ' '), $nameStyle)
+            , @($cells[2], $null)
+            , @($cells[3], $latestStyle)
         )
         if ($wide) {
             $countStyle = $null
             if ($info.VersionCount -gt 1) { $countStyle = 'Magenta' }
-            $segs += , @(((Format-MMCell $info.VersionCount ($cols.Count - 1) -Right) + ' '), $countStyle)
-            $segs += , @((Format-MMCell $info.Scope $cols.Scope), $null)
+            $segs += , @(($cells[4] + ' '), $countStyle)
+            $segs += , @($cells[5], $null)
         }
-        $segs += , @((Format-MMCell $statusInfo[0] $cols.Status), $statusInfo[1])
+        $segs += , @($cells[6], $statusInfo[1])
         $base = ''
         if ($isCursor) { $base = 'Cursor' }
         $Lines.Add((Format-MMTuiLine $segs $Width $base))

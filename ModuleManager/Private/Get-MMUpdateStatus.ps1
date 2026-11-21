@@ -11,5 +11,10 @@ function Get-MMUpdateStatus {
         'Error' { return 'Error' }
     }
     $c = Compare-MMVersion $Result.ModuleVersion $Result.PrereleaseLabel $Module.ModuleVersion $Module.Prerelease
-    if ($c -gt 0) { 'UpdateAvailable' } elseif ($c -lt 0) { 'LocalNewer' } else { 'UpToDate' }
+    if ($c -gt 0) { return 'UpdateAvailable' }
+    # The newest installed version has been unlisted (the module itself is still listed). An update
+    # matters more, but this says more than up to date, or newer than the repository (which is what
+    # it looks like when the newest version was the one unlisted).
+    if ($Result.PSObject.Properties['UnlistedVersions'] -and @($Result.UnlistedVersions) -contains [string]$Module.Version) { return 'VersionUnlisted' }
+    if ($c -lt 0) { 'LocalNewer' } else { 'UpToDate' }
 }

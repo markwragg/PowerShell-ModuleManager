@@ -36,6 +36,8 @@ function Receive-MMGalleryLookup {
                     if ($parts.Count -gt 1) { $range = $parts[1] }
                     New-MMDependency -Name $parts[0] -VersionRange $range
                 })
+            $unlistedVersions = $null
+            if ($o.PSObject.Properties['UnlistedVersions'] -and $null -ne $o.UnlistedVersions) { $unlistedVersions = [string[]]@($o.UnlistedVersions) }
             $result = [pscustomobject]@{
                 RequestedName   = [string]$o.RequestedName
                 Name            = [string]$o.Name
@@ -48,6 +50,8 @@ function Receive-MMGalleryLookup {
                 PublishedDate   = $o.PublishedDate
                 Dependencies    = $deps
                 Error           = $o.Error
+                # Installed versions the publisher has unlisted; $null when that wasn't checked.
+                UnlistedVersions = $unlistedVersions
                 CachedAt        = [datetime]::UtcNow
             }
             if ($result.Status -ne 'Error') {

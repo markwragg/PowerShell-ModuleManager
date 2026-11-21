@@ -222,3 +222,41 @@ Describe 'Get-MMTuiFrame' {
         }
     }
 }
+
+Describe 'Write-MMTuiFrame' {
+
+    It 'Draws the whole screen first, then only the lines that changed, and again in full after a resize' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $script:written = [System.Collections.Generic.List[string]]::new()
+            $script:size = @{ Width = 100; Height = 20 }
+            Mock Write-MMConsole { $script:written.Add($Text) }
+            Mock Get-MMConsoleSize { $script:size }
+            $E = [char]27
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s; Update-MMTuiVisible $s
+
+            Write-MMTuiFrame $s
+            $script:written[0] | Should -Match ([regex]::Escape("$E[2J"))
+            $script:written[0] | Should -Match 'MMAlpha'
+
+            # Nothing changed: nothing is written.
+            Write-MMTuiFrame $s
+            $script:written.Count | Should -Be 1
+
+            # Only the status line changed (the second-last line).
+            Set-MMTuiMessage $s 'Something happened'
+            Write-MMTuiFrame $s
+            $script:written.Count | Should -Be 2
+            $script:written[1] | Should -Not -Match ([regex]::Escape("$E[2J"))
+            $script:written[1] | Should -Match ([regex]::Escape("$E[19;1H"))
+            $script:written[1] | Should -Match 'Something happened'
+            $script:written[1] | Should -Not -Match 'MMAlpha'
+            $script:written[1] | Should -Match ([regex]::Escape("$E[?2026h"))
+
+            $script:size = @{ Width = 90; Height = 20 }
+            Write-MMTuiFrame $s
+            $script:written[2] | Should -Match ([regex]::Escape("$E[2J"))
+            $script:written[2] | Should -Match 'MMAlpha'
+        }
+    }
+}

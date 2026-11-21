@@ -255,3 +255,45 @@ Describe 'Dependency panel' {
         $plain | Should -Match 'Required by: MMRoll 1\.0\.0'
     }
 }
+
+Describe 'Unlisted modules and versions' {
+
+    It "Shows the gallery's warning when the whole module is unlisted" {
+        $s = New-DetailState 'MMHand'
+        $s.Detail.Status = 'Unlisted'
+        $s.Detail.Result = [pscustomobject]@{ Repository = 'PSGallery'; Status = 'Unlisted'; UnlistedVersions = @('2.0.0', '1.0.0') }
+        $plain = Get-PlainFrame $s 160 30
+        $plain | Should -Match ([regex]::Escape("! The owner has unlisted this package. This could mean that the module is deprecated or shouldn't be used anymore."))
+        # The panel doesn't repeat it for the version under the cursor.
+        $plain | Should -Not -Match 'unlisted this version'
+    }
+
+    It 'Marks unlisted versions, and warns about the one under the cursor' {
+        $s = New-DetailState 'MMHand'
+        $s.Detail.Status = 'UpToDate'
+        $s.Detail.Result = [pscustomobject]@{ Repository = 'PSGallery'; Status = 'Found'; UnlistedVersions = @('1.0.0') }
+        $s.DCursor = 0
+        $plain = Get-PlainFrame $s 160 30
+        $plain | Should -Match '1\.0\.0 unlisted'
+        $plain | Should -Not -Match '2\.0\.0 unlisted'
+        $plain | Should -Not -Match 'The owner has unlisted'
+        $s.DCursor = 1
+        $plain = Get-PlainFrame $s 160 30
+        $plain | Should -Match ([regex]::Escape('Unlisted:    The owner has unlisted this version.'))
+        @($plain -split "`r`n").Count | Should -Be 30
+    }
+
+    It 'Reports VersionUnlisted when the newest installed version is unlisted and there is nothing newer (<Case>)' -ForEach @(
+        @{ Case = 'latest listed is older'; Latest = '2.1.0'; Unlisted = @('2.1.1'); Expected = 'VersionUnlisted' }
+        @{ Case = 'same as latest'; Latest = '2.1.1'; Unlisted = @('2.1.1'); Expected = 'VersionUnlisted' }
+        @{ Case = 'an update is available'; Latest = '3.0.0'; Unlisted = @('2.1.1'); Expected = 'UpdateAvailable' }
+        @{ Case = 'only an older version is unlisted'; Latest = '2.1.1'; Unlisted = @('2.0.0'); Expected = 'UpToDate' }
+        @{ Case = 'not checked'; Latest = '2.1.0'; Unlisted = $null; Expected = 'LocalNewer' }
+    ) {
+        InModuleScope ModuleManager -Parameters $_ {
+            $module = [pscustomobject]@{ Version = '2.1.1'; ModuleVersion = [version]'2.1.1'; Prerelease = $null }
+            $result = [pscustomobject]@{ Status = 'Found'; ModuleVersion = [version]$Latest; PrereleaseLabel = $null; UnlistedVersions = $Unlisted }
+            Get-MMUpdateStatus -Module $module -Result $result | Should -Be $Expected
+        }
+    }
+}

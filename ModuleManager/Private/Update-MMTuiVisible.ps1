@@ -8,9 +8,20 @@ function Update-MMTuiVisible {
         Applies view, filter and sort, and keeps the cursor on the same module.
         With grouping on, family members are listed under their parent (see Set-MMTuiFamily):
         only when the family is expanded, or when a view or filter matches them.
+
+        With -IfChanged it does nothing when none of what it works from has changed since it last
+        ran: the rows, their statuses (see Update-MMTuiStatus), the view, sort, grouping, expanded
+        families and filter. That's most key presses (moving the cursor, selecting), and sorting
+        takes a while with many modules.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Changes only the in-memory state of the terminal UI or an in-memory object, not system state.')]
-    param([hashtable]$State)
+    param([hashtable]$State, [switch]$IfChanged)
+
+    # The filter goes last, as it can contain any character.
+    $key = "$($State.View)|$($State.Sort)|$($State.Group)|$($State.StatusVersion)|$([string]::Join('/', [string[]]@($State.Expanded.Keys)))|$($State.Filter)"
+    $last = $State.VisibleKey
+    if ($IfChanged -and $last -and [object]::ReferenceEquals($last.Rows, $State.Rows) -and $last.Key -ceq $key) { return }
+    $State.VisibleKey = @{ Rows = $State.Rows; Key = $key }
 
     $view = $State.Views[$State.View]
     $f = $State.Filter

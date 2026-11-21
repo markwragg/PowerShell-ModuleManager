@@ -45,6 +45,9 @@ $script:MMAnsiColour = [regex]::new('\x1b\[(?:[0-9;]*;)?(3[0-7]|9[0-7])m')
 # Parsed version ranges (see ConvertFrom-MMVersionRange).
 $script:MMRangeCache = @{}
 
+# Key presses for the key names in the terminal UI's help bar (see ConvertTo-MMTuiKeyInfo).
+$script:MMTuiKeyCache = @{}
+
 # Repository lookups. Results are cached for MMCacheLifetime; backend and repositories are detected on first use.
 $script:MMGalleryCache = @{}
 $script:MMCacheLifetime = [timespan]::FromMinutes(30)
@@ -56,7 +59,12 @@ $script:MMRepositoryApi = @{}
 # Runs inside a background runspace, so it must be fully self-contained.
 $script:MMLookupScript = {
     param([string[]]$Names, [string]$Repository, [bool]$Prerelease, [string]$Backend, [hashtable]$Installed,
-        [string]$ApiUrl, [System.Threading.SemaphoreSlim]$Lock)
+        [string]$ApiUrl, [System.Threading.SemaphoreSlim]$Lock, [hashtable]$InstalledVersions)
+
+    # The runspaces share the console's host, so progress (Invoke-RestMethod's download progress,
+    # PowerShellGet's) would be drawn on the console, over the terminal UI. Lookup progress is
+    # reported from the results instead (see Wait-MMGalleryLookup).
+    $ProgressPreference = 'SilentlyContinue'
 
     # PowerShellGet goes through PackageManagement, which fails at random when several runspaces use it
     # at once ("A parameter cannot be found that matches parameter name 'Provider'"), so its commands take
@@ -99,10 +107,73 @@ $script:MMLookupScript = {
         catch { $api = $null }
     }
 
+    # Which installed versions the publisher has unlisted: the feed still returns them when asked by
+    # exact version, published on 1900-01-01. One request per batch of versions: the PowerShell
+    # Gallery answers 400 (Bad Request) to more than about 22 (Id and version) pairs in one filter,
+    # whatever its length, so batches are at most 20, and kept short enough for URL length limits
+    # too. $null for a module means it wasn't checked (not a v2 feed, or the
+    # request failed); the package managers can't tell, short of a command per version.
+    $unlisted = @{}
+    if ($null -ne $api -and $InstalledVersions) {
+        # The feed's NormalizedVersion: at least three parts, the fourth only if it isn't 0.
+        $normalize = {
+            param([string]$Text)
+            $p = $Text.Split('+')[0].Split('-', 2)
+            $numeric = $p[0]; if ($numeric -notmatch '\.') { $numeric = "$numeric.0" }
+            $v = $null
+            if (-not [version]::TryParse($numeric, [ref]$v)) { return $null }
+            $out = "$($v.Major).$($v.Minor).$([Math]::Max(0, $v.Build))"
+            if ($v.Revision -gt 0) { $out += ".$($v.Revision)" }
+            if ($p.Count -gt 1 -and $p[1]) { $out += "-$($p[1])" }
+            $out.ToLowerInvariant()
+        }
+        $clauses = [System.Collections.Generic.List[object]]::new()
+        $failed = @{}
+        foreach ($n in $Names) {
+            foreach ($text in @($InstalledVersions[$n])) {
+                if (-not $text) { continue }
+                $norm = & $normalize ([string]$text)
+                if (-not $norm) { continue }
+                $clauses.Add(@{ Name = $n; Version = [string]$text; Key = "$($n.ToLowerInvariant())|$norm"
+                        Filter = "(Id eq '$($n.Replace("'", "''"))' and NormalizedVersion eq '$($norm.Replace("'", "''"))')" })
+            }
+        }
+        $byKey = @{}
+        foreach ($c in $clauses) { $byKey[$c.Key] = $c }
+        $start = 0
+        while ($start -lt $clauses.Count) {
+            $chunk = [System.Collections.Generic.List[object]]::new()
+            $length = 0
+            while ($start -lt $clauses.Count -and $chunk.Count -lt 20 -and ($chunk.Count -eq 0 -or $length + $clauses[$start].Filter.Length -lt 1500)) {
+                $chunk.Add($clauses[$start]); $length += $clauses[$start].Filter.Length + 4; $start++
+            }
+            try {
+                $filter = [uri]::EscapeDataString((@($chunk | ForEach-Object { $_.Filter }) -join ' or '))
+                $response = @(Invoke-RestMethod -Uri "$ApiUrl/Packages()?`$filter=$filter&`$select=Id,NormalizedVersion,Published" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop)
+                foreach ($c in $chunk) { if (-not $unlisted.ContainsKey($c.Name)) { $unlisted[$c.Name] = [System.Collections.Generic.List[string]]::new() } }
+                foreach ($entry in $response) {
+                    if ($entry -isnot [System.Xml.XmlElement] -or -not $entry.properties) { continue }
+                    $text = $entry.properties.Published
+                    if ($text -is [System.Xml.XmlElement]) { $text = $text.InnerText }
+                    if ([string]$text -notmatch '^1900-01-01') { continue }
+                    $c = $byKey["$(([string]$entry.properties.Id).ToLowerInvariant())|$(([string]$entry.properties.NormalizedVersion).ToLowerInvariant())"]
+                    if ($c) { $unlisted[$c.Name].Add($c.Version) }
+                }
+            }
+            catch {
+                # Not known for these modules; the rest of the lookup isn't affected.
+                foreach ($c in $chunk) { $failed[$c.Name] = $true }
+            }
+        }
+        foreach ($n in @($failed.Keys)) { $unlisted[$n] = $null }
+    }
+
     foreach ($n in $Names) {
         $found = $null
         $message = $null
         $source = $Backend
+        $unlistedVersions = $null
+        if ($unlisted.ContainsKey($n) -and $null -ne $unlisted[$n]) { $unlistedVersions = [string[]]$unlisted[$n].ToArray() }
         if ($null -ne $api) {
             $source = 'Api'
             $found = $api[$n.ToLowerInvariant()]
@@ -208,6 +279,8 @@ $script:MMLookupScript = {
                 PublishedDate   = $published
                 Dependencies    = $deps
                 Error           = $null
+                # Installed versions the publisher has unlisted; $null when that wasn't checked.
+                UnlistedVersions = $unlistedVersions
             }
         }
         else {
@@ -218,6 +291,8 @@ $script:MMLookupScript = {
             # can still be found by exact version. Look for the installed version to tell them apart.
             $installedVersion = $null
             if ($Installed) { $installedVersion = [string]$Installed[$n] }
+            # The check for unlisted versions may already have found it.
+            if ($status -eq 'NotFound' -and $installedVersion -and $unlistedVersions -contains $installedVersion) { $status = 'Unlisted'; $message = $null }
             if ($status -eq 'NotFound' -and $installedVersion) {
                 $exact = $null
                 try {
@@ -256,6 +331,7 @@ $script:MMLookupScript = {
                 PublishedDate   = $null
                 Dependencies    = @()
                 Error           = $message
+                UnlistedVersions = $unlistedVersions
             }
         }
     }
@@ -300,13 +376,14 @@ $script:MMStatusDisplay = @{
     LocalNewer      = @('Newer than repo', 'Cyan')
     NotInRepository = @('Not in repo', 'Dim')
     Unlisted        = @('Unlisted', 'Magenta')
+    VersionUnlisted = @('Version unlisted', 'Magenta')
     Error          = @('Lookup failed', 'Red')
     Checking        = @('Checking...', 'Dim')
     Unknown         = @('-', 'Dim')
 }
 
 $script:MMStatusSortOrder = @{
-    UpdateAvailable = 0; Error = 1; Unlisted = 2; LocalNewer = 3; UpToDate = 4; NotInRepository = 5; Checking = 6; Unknown = 7
+    UpdateAvailable = 0; Error = 1; Unlisted = 2; VersionUnlisted = 2; LocalNewer = 3; UpToDate = 4; NotInRepository = 5; Checking = 6; Unknown = 7
 }
 
 # Terminal UI mouse input on Windows (see Enable-MMTuiMouse and Read-MMTuiInput). Compiled the first time

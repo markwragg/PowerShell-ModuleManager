@@ -6,16 +6,21 @@ function ConvertTo-MMTuiKeyInfo {
     #>
     param([string]$Name)
 
-    switch -Regex ($Name) {
-        '^Space$' { return [ConsoleKeyInfo]::new(' ', [ConsoleKey]::Spacebar, $false, $false, $false) }
-        '^Enter$' { return [ConsoleKeyInfo]::new([char]13, [ConsoleKey]::Enter, $false, $false, $false) }
-        '^Esc$' { return [ConsoleKeyInfo]::new([char]27, [ConsoleKey]::Escape, $false, $false, $false) }
-        '^/$' { return [ConsoleKeyInfo]::new('/', [ConsoleKey]::Oem2, $false, $false, $false) }
-        '^\[$' { return [ConsoleKeyInfo]::new('[', [ConsoleKey]::Oem4, $false, $false, $false) }
-        '^\]$' { return [ConsoleKeyInfo]::new(']', [ConsoleKey]::Oem6, $false, $false, $false) }
+    # Each frame looks up every key in the help bar, so remember them. Letters give the same key
+    # whatever their case, so the cache ignoring case is right.
+    if ($script:MMTuiKeyCache.ContainsKey($Name)) { return $script:MMTuiKeyCache[$Name] }
+
+    $key = switch -Regex ($Name) {
+        '^Space$' { [ConsoleKeyInfo]::new(' ', [ConsoleKey]::Spacebar, $false, $false, $false); break }
+        '^Enter$' { [ConsoleKeyInfo]::new([char]13, [ConsoleKey]::Enter, $false, $false, $false); break }
+        '^Esc$' { [ConsoleKeyInfo]::new([char]27, [ConsoleKey]::Escape, $false, $false, $false); break }
+        '^/$' { [ConsoleKeyInfo]::new('/', [ConsoleKey]::Oem2, $false, $false, $false); break }
+        '^\[$' { [ConsoleKeyInfo]::new('[', [ConsoleKey]::Oem4, $false, $false, $false); break }
+        '^\]$' { [ConsoleKeyInfo]::new(']', [ConsoleKey]::Oem6, $false, $false, $false); break }
         '^[A-Za-z]$' {
-            return [ConsoleKeyInfo]::new([char]::ToLowerInvariant($Name[0]), [ConsoleKey]$Name.ToUpperInvariant(), $false, $false, $false)
+            [ConsoleKeyInfo]::new([char]::ToLowerInvariant($Name[0]), [ConsoleKey]$Name.ToUpperInvariant(), $false, $false, $false); break
         }
     }
-    $null
+    $script:MMTuiKeyCache[$Name] = $key
+    $key
 }

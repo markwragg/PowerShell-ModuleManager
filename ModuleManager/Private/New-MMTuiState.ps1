@@ -46,6 +46,12 @@ function New-MMTuiState {
         Width        = 0
         Height       = 0
         ListHeight   = 0
+        # Bumped when row statuses change, and what the visible rows were last worked out from
+        # (see Update-MMTuiVisible -IfChanged).
+        StatusVersion = 0
+        VisibleKey   = $null
+        # The lines last drawn (see Write-MMTuiFrame); $null draws the whole screen next time.
+        Screen       = $null
         Spinner      = 0
         Scanning     = $false
         Quit         = $false

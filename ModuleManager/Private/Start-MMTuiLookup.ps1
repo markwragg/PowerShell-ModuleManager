@@ -12,7 +12,7 @@ function Start-MMTuiLookup {
     if ($State.Remote) {
         # Look up from the remote computer, which may use repositories this one doesn't know,
         # and send back each result as it arrives.
-        $modules = @($State.Rows | ForEach-Object { [pscustomobject]@{ Name = $_.Info.Name; Repository = $_.Info.Repository; Prerelease = $_.Info.Prerelease; Version = $_.Info.Version } })
+        $modules = @($State.Rows | ForEach-Object { [pscustomobject]@{ Name = $_.Info.Name; Repository = $_.Info.Repository; Prerelease = $_.Info.Prerelease; Version = $_.Info.Version; Versions = @(foreach ($i in @($_.Info.Installations)) { [string]$i.Version }) } })
         if (-not $modules) { return }
         $command = Start-MMRemoteCommand -Remote $State.Remote -ArgumentList (@(, $modules) + @($o.Repository, [bool]$o.IncludePrerelease, [bool]$Refresh, $o.ThrottleLimit)) -ScriptBlock {
             param($Modules, $Repository, $IncludePrerelease, $Refresh, $ThrottleLimit)

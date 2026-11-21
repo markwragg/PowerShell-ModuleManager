@@ -1,5 +1,12 @@
 # Change Log
 
+## !Deploy 0.8.0
+
+* [feature] The terminal UI warns about modules and versions their publisher has unlisted. For an unlisted module, the details view shows the PowerShell Gallery's warning: "The owner has unlisted this package. This could mean that the module is deprecated or shouldn't be used anymore." The repository check now also finds which installed versions have been unlisted (in NuGet v2 feeds such as the PowerShell Gallery, with one extra request per batch of modules). The details view marks them, with a warning when the cursor is on one, and a module whose newest installed version is unlisted shows **Version unlisted** when there's no newer version to update to (before, it showed as up to date, or as newer than the repository). `Get-ModuleUpdate` reports this as the new `VersionUnlisted` status.
+
+* [fix] The terminal UI no longer flickers while the update check runs (as when it first lists the modules). It used to repaint the whole screen several times a second, for the spinner and each batch of repository results; now it redraws only the lines that changed, and in terminals that support synchronized output (such as Windows Terminal) each frame appears all at once. The repository check's web requests also no longer draw progress bars over the screen.
+* [fix] The terminal UI responds faster with many modules: drawing the screen takes about a third of the time it did, and moving the cursor or selecting no longer re-sorts the list.
+
 ## [0.7.0] - 2026-11-21
 
 * [feature] In the terminal UI, updating and removing old versions is one step. When you press U, the confirmation offers **o** as well as **y**: it updates the modules, then removes their old versions (and those of any dependencies installed with them), keeping the newest, so you no longer need to press O afterwards. A module whose update failed keeps its old versions, and as with O, old versions that other installed modules depend on are kept, as are loaded ones. When removing an old version installed for all users needs administrator rights but the update doesn't, the confirmation says that **o** runs as administrator. From the command line, `Update-ManagedModule -RemoveOldVersions` already does this in one step.

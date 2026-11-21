@@ -35,7 +35,12 @@ function Add-MMTuiDetailLines {
     $headLines = 0
     $optional = $ListHeight - 3
     $links = Get-MMTuiDetailLink $State
-    if ($info.Description -and $optional -ge 1) {
+    # The PowerShell Gallery's warning for an unlisted module, first, as it matters most.
+    if ($row.Status -eq 'Unlisted' -and $optional -ge 1) {
+        $Lines.Add((Format-MMTuiLine @(, @(" ! The owner has unlisted this package. This could mean that the module is deprecated or shouldn't be used anymore.", 'Yellow')) $Width))
+        $headLines++
+    }
+    if ($info.Description -and $optional - $headLines -ge 1) {
         $Lines.Add((Format-MMTuiLine @(, @(" $($info.Description)", 'Dim')) $Width))
         $headLines++
     }
@@ -82,6 +87,15 @@ function Add-MMTuiDetailLines {
     $requiredLabel = ' Required by: '
     $dependsLines = @(); $requiredLines = @(); $dependsItems = @(); $requiredItems = @()
     $wantDepends = 0; $wantRequired = 0
+    # Installed versions the publisher has unlisted (see Start-MMGalleryLookup). When the whole
+    # module is, the warning above says so, so the panel doesn't repeat it.
+    $unlisted = @()
+    if ($row.Result -and $row.Result.PSObject.Properties['UnlistedVersions']) { $unlisted = @($row.Result.UnlistedVersions) }
+    $unlistedLine = $null
+    if ($current -and $row.Status -ne 'Unlisted' -and $unlisted -contains [string]$current.Version) {
+        $unlistedLine = Format-MMTuiLine @(@(' Unlisted:    ', 'Dim'), @("The owner has unlisted this version. This could mean that it's deprecated or shouldn't be used anymore.", 'Yellow')) $Width
+    }
+    $wantUnlisted = [int][bool]$unlistedLine
     if ($current -and $avail -ge 4) {
         $deps = Get-MMTuiDependencyInfo -State $State -Installation $current
         $dependsItems = @(foreach ($d in $deps.DependsOn) {
@@ -112,7 +126,7 @@ function Add-MMTuiDetailLines {
     # The versions get the room they need, but leave the panel (a divider, then the two lists) the
     # lines it needs, up to a third of the space (and at least three lines); it gets any room left.
     if ($current -and $avail -ge 4) {
-        $panelMin = [Math]::Min(1 + $wantDepends + $wantRequired, [Math]::Max(3, [Math]::Floor($avail / 3)))
+        $panelMin = [Math]::Min(1 + $wantUnlisted + $wantDepends + $wantRequired, [Math]::Max(3 + $wantUnlisted, [Math]::Floor($avail / 3)))
         $tableRows = [Math]::Min($installs.Count, $avail - $panelMin)
     }
     else { $tableRows = [Math]::Max(0, $avail) }
@@ -145,12 +159,14 @@ function Add-MMTuiDetailLines {
         $loaded = ''
         if ($inst.IsLoaded) { $loaded = 'yes' }
         $versionStyle = $null
+        $versionText = $inst.Version
         if ($index -eq 0) { $versionStyle = 'Green' }
+        if ($unlisted -contains [string]$inst.Version) { $versionText = "$versionText unlisted"; $versionStyle = 'Magenta' }
         $base = ''
         if ($index -eq $State.DCursor -and $State.Mode -eq 'details') { $base = 'Cursor' }
         $Lines.Add((Format-MMTuiLine @(
                     , @((Format-MMCell " $mark" $cols.Sel), $markStyle)
-                    , @((Format-MMCell $inst.Version $cols.Version), $versionStyle)
+                    , @((Format-MMCell $versionText $cols.Version), $versionStyle)
                     , @((Format-MMCell $inst.Scope $cols.Scope), $null)
                     , @((Format-MMCell $repo $cols.Repo), $null)
                     , @((Format-MMCell $date $cols.Date), $null)
@@ -167,6 +183,7 @@ function Add-MMTuiDetailLines {
         $title = " $($current.Version) "
         $panel.Add((Format-MMTuiLine @(@(" $line$line", 'Dim'), @($title, 'Bold'), @(($line * [Math]::Max(0, $Width - $title.Length - 3)), 'Dim')) $Width))
         $room = $panelRows - 1
+        if ($unlistedLine) { $panel.Add($unlistedLine); $room-- }
         $maxRequired = 0
         if ($room -ge 2) { $maxRequired = [Math]::Min($wantRequired, [Math]::Max(1, [Math]::Floor($room / 2))) }
         $maxDepends = [Math]::Min($wantDepends, $room - $maxRequired)

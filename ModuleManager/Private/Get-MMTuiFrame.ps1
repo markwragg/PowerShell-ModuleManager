@@ -36,9 +36,18 @@ function Get-MMTuiFrame {
     $lines = [System.Collections.Generic.List[string]]::new()
 
     # --- Title bar
+    # Counted in one pass, as this runs every frame (a pipeline per count is slow with many modules).
+    # Found: modules the repository check found (newer than the repository counts as latest).
     $total = $State.Rows.Count
-    $updates = @($State.Rows | Where-Object Status -EQ 'UpdateAvailable').Count
-    $selCount = @($State.Rows | Where-Object Selected).Count
+    $updates = 0; $selCount = 0; $found = 0
+    foreach ($r in $State.Rows) {
+        if ($r.Selected) { $selCount++ }
+        switch ($r.Status) {
+            'UpdateAvailable' { $updates++; $found++ }
+            'UpToDate' { $found++ }
+            'LocalNewer' { $found++ }
+        }
+    }
     $right = ''
     if ($State.Job) {
         $spin = '|/-\'[$State.Spinner % 4]
@@ -50,10 +59,9 @@ function Get-MMTuiFrame {
         if ($State.Progress) { $right += " $([int]$State.Progress.Percent)%" }
         $right += ' '
     }
-    # The share of modules on their latest version, of those the repository check found (newer
-    # than the repository counts as latest). Shown once the check is done, and only if it fits.
+    # The share of modules on their latest version, of those the repository check found. Shown
+    # once the check is done, and only if it fits.
     $latest = ''
-    $found = @($State.Rows | Where-Object { $_.Status -in 'UpToDate', 'LocalNewer', 'UpdateAvailable' }).Count
     if ($found -and -not $State.Job) { $latest = "  |  $([Math]::Floor(100 * ($found - $updates) / $found))% latest" }
 
     $title = @(

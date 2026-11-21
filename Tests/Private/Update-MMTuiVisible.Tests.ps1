@@ -24,6 +24,33 @@ Describe 'Update-MMTuiVisible' {
         }
     }
 
+    It 'With -IfChanged, works the rows out again only when what they depend on changed' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s
+            Update-MMTuiVisible $s
+            $first = $s.Visible
+            Update-MMTuiVisible $s -IfChanged
+            [object]::ReferenceEquals($s.Visible, $first) | Should -BeTrue    # nothing changed: kept
+            $s.Filter = 'gam'; Update-MMTuiVisible $s -IfChanged
+            $s.Visible.Name | Should -Be 'MMGamma'
+            $s.Filter = ''; Update-MMTuiVisible $s -IfChanged
+            $s.Visible.Count | Should -Be 4
+            # A status change (through Update-MMTuiStatus) is noticed, for the Updates view.
+            $s.View = [array]::IndexOf($s.Views, 'Updates'); Update-MMTuiVisible $s -IfChanged
+            $s.Visible.Count | Should -Be 0
+            $s.Gallery['mmalpha'] = [pscustomobject]@{ RequestedName = 'MMAlpha'; Version = '9.0.0'; ModuleVersion = [version]'9.0.0'; PrereleaseLabel = ''; Status = 'Found' }
+            Update-MMTuiStatus $s
+            Update-MMTuiVisible $s -IfChanged
+            $s.Visible.Name | Should -Be 'MMAlpha'
+            # So is a rescan.
+            $s.View = 0; Update-MMTuiVisible $s
+            $before = $s.Visible
+            Update-MMTuiRows $s; Update-MMTuiVisible $s -IfChanged
+            [object]::ReferenceEquals($s.Visible, $before) | Should -BeFalse
+        }
+    }
+
     Context 'Module families' {
 
         BeforeAll {

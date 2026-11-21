@@ -262,6 +262,73 @@ Describe 'The repository lookup script' {
             }
         }
 
+        It 'Finds which installed versions are unlisted, asking for them by exact (normalized) version' {
+            InModuleScope ModuleManager {
+                Mock Invoke-RestMethod { ([xml]$script:MMTestFeed).feed.entry }
+                Mock Invoke-RestMethod {
+                    ([xml]@'
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <entry><m:properties><d:Id>MMThing</d:Id><d:NormalizedVersion>1.0.0</d:NormalizedVersion><d:Published m:type="Edm.DateTime">1900-01-01T00:00:00</d:Published></m:properties></entry>
+  <entry><m:properties><d:Id>MMThing</d:Id><d:NormalizedVersion>2.0.0-beta1</d:NormalizedVersion><d:Published m:type="Edm.DateTime">2025-06-01T10:30:00</d:Published></m:properties></entry>
+  <entry><m:properties><d:Id>MMOther</d:Id><d:NormalizedVersion>3.0.0</d:NormalizedVersion><d:Published m:type="Edm.DateTime">2025-01-01T00:00:00</d:Published></m:properties></entry>
+</feed>
+'@).feed.entry
+                } -ParameterFilter { [uri]::UnescapeDataString($Uri) -match 'NormalizedVersion eq' }
+                $r = @(& $script:MMLookupScript -Names 'MMThing', 'MMOther' -Repository 'PSGallery' -Prerelease $true -Backend 'PowerShellGet' `
+                        -ApiUrl 'https://feed.invalid/api/v2' -InstalledVersions @{ MMThing = @('2.0.0-beta1', '1.0'); MMOther = @('3.0') })
+                $r[0].Status | Should -Be 'Found'
+                $r[0].UnlistedVersions | Should -Be @('1.0')      # as installed, not as the feed normalizes it
+                $r[1].UnlistedVersions.Count | Should -Be 0       # checked: none unlisted
+                ($null -ne $r[1].UnlistedVersions) | Should -BeTrue
+                Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter {
+                    $q = [uri]::UnescapeDataString($Uri)
+                    $q -match [regex]::Escape("(Id eq 'MMThing' and NormalizedVersion eq '1.0.0')") -and
+                    $q -match [regex]::Escape("(Id eq 'MMOther' and NormalizedVersion eq '3.0.0')")
+                }
+            }
+        }
+
+        It 'Asks about at most 20 versions per request, as the PowerShell Gallery refuses more' {
+            InModuleScope ModuleManager {
+                Mock Invoke-RestMethod { ([xml]$script:MMTestFeed).feed.entry }
+                Mock Invoke-RestMethod { } -ParameterFilter { [uri]::UnescapeDataString($Uri) -match 'NormalizedVersion eq' }
+                $versions = @(1..45 | ForEach-Object { "1.$_.0" })
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $true -Backend 'PowerShellGet' `
+                    -ApiUrl 'https://feed.invalid/api/v2' -InstalledVersions @{ MMThing = $versions }
+                $r.UnlistedVersions.Count | Should -Be 0
+                Should -Invoke Invoke-RestMethod -Times 3 -Exactly -ParameterFilter { [uri]::UnescapeDataString($Uri) -match 'NormalizedVersion eq' }
+                Should -Invoke Invoke-RestMethod -Times 0 -Exactly -ParameterFilter {
+                    ([regex]::Matches([uri]::UnescapeDataString($Uri), 'NormalizedVersion eq')).Count -gt 20
+                }
+            }
+        }
+
+        It "Leaves unlisted versions unknown when that request fails, and the rest of the lookup isn't affected" {
+            InModuleScope ModuleManager {
+                Mock Invoke-RestMethod { ([xml]$script:MMTestFeed).feed.entry }
+                Mock Invoke-RestMethod { throw 'The remote server returned an error: (414) Request-URI Too Long.' } -ParameterFilter { [uri]::UnescapeDataString($Uri) -match 'NormalizedVersion eq' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $true -Backend 'PowerShellGet' `
+                    -ApiUrl 'https://feed.invalid/api/v2' -InstalledVersions @{ MMThing = @('1.0') }
+                $r.Status | Should -Be 'Found'
+                $r.Version | Should -Be '2.0.0-beta1'
+                $r.UnlistedVersions | Should -Be $null
+            }
+        }
+
+        It 'Reports Unlisted from the version check, without asking for the installed version again' {
+            InModuleScope ModuleManager {
+                Mock Invoke-RestMethod { }
+                Mock Invoke-RestMethod {
+                    ([xml]'<feed xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"><entry><m:properties><d:Id>MMThing</d:Id><d:NormalizedVersion>1.1.0</d:NormalizedVersion><d:Published m:type="Edm.DateTime">1900-01-01T00:00:00</d:Published></m:properties></entry></feed>').feed.entry
+                } -ParameterFilter { [uri]::UnescapeDataString($Uri) -match 'NormalizedVersion eq' }
+                $r = & $script:MMLookupScript -Names 'MMThing' -Repository 'PSGallery' -Prerelease $false -Backend 'PowerShellGet' `
+                    -ApiUrl 'https://feed.invalid/api/v2' -Installed @{ MMThing = '1.1.0' } -InstalledVersions @{ MMThing = @('1.1.0') }
+                $r.Status | Should -Be 'Unlisted'
+                $r.UnlistedVersions | Should -Be @('1.1.0')
+                Should -Invoke Invoke-RestMethod -Times 0 -Exactly -ParameterFilter { $Uri -like '*Packages(Id=*' }
+            }
+        }
+
         It 'Falls back to the package manager when the feed <Problem>' -ForEach @(
             @{ Problem = 'cannot be reached'; Response = { throw 'The remote name could not be resolved' } }
             @{ Problem = 'returns something else, such as a proxy''s web page'; Response = { '<html>Sign in</html>' } }
