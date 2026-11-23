@@ -75,6 +75,7 @@ function Update-ManagedModule {
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType('ModuleManager.ModuleInfo')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'ShouldProcess is called by Test-MMShouldProcess, using the $PSCmdlet this cmdlet passes to it.')]
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]
