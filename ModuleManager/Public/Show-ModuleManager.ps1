@@ -66,6 +66,11 @@ function Show-ModuleManager {
         right-click, or L hide in its header, hides the pane. While modman has the mouse, select text
         in the terminal with Shift held down. -NoMouse leaves the mouse to the terminal.
 
+        Text pasted into the terminal is ignored (except into the filter), so a paste can't run
+        keys as commands. Some terminals paste on right-click instead of passing it on, such as
+        VS Code's on Windows: set terminal.integrated.rightClickBehavior to "default" (a menu)
+        or "nothing" in VS Code's settings to stop that.
+
         When you update, the confirmation offers y (update) or o (update, then remove the old
         versions of the modules that were updated, and of dependencies installed with them,
         keeping the newest), so you don't need to press O afterwards. As with O, old versions that
@@ -301,7 +306,11 @@ function Show-ModuleManager {
                 if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
 
                 $received = Read-MMTuiInput -State $state
-                if ($null -eq $received) { Start-Sleep -Milliseconds 30; continue }
+                if ($null -eq $received) {
+                    # Ignoring pasted text leaves nothing to handle, but a message to show.
+                    if ($state.Redraw) { $state.Redraw = $false; $dirty = $true; continue }
+                    Start-Sleep -Milliseconds 30; continue
+                }
                 if ($received -is [ConsoleKeyInfo]) { Invoke-MMTuiKey -State $state -Key $received }
                 else { Invoke-MMTuiMouse -State $state -Mouse $received }
                 Update-MMTuiVisible $state -IfChanged

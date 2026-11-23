@@ -60,6 +60,13 @@ function New-MMTuiState {
         # the last frame drew what (set by Get-MMTuiFrame).
         Mouse        = $null
         PendingKeys  = [System.Collections.Generic.Queue[object]]::new()
+        # Input read in a batch and found not to be pasted, still to be handled, and until when keys
+        # are taken as the rest of a paste (see Read-MMTuiInput). Redraw asks for the screen to be
+        # drawn again although no input is returned (to show that a paste was ignored).
+        InputQueue   = [System.Collections.Generic.Queue[object]]::new()
+        PasteUntil   = $null
+        PastedKeys   = 0
+        Redraw       = $false
         LastClick    = $null
         Layout       = @{}
     }

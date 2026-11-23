@@ -67,7 +67,7 @@ Describe 'ConvertTo-MMTuiKeyInfo' {
     }
 }
 
-Describe 'Read-MMTuiInput' {
+Describe 'Read-MMTuiNextInput' {
 
     It 'Returns keys read while looking for a mouse report first, in order' {
         InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
@@ -75,9 +75,78 @@ Describe 'Read-MMTuiInput' {
             $a = [ConsoleKeyInfo]::new('a', [ConsoleKey]::A, $false, $false, $false)
             $b = [ConsoleKeyInfo]::new('b', [ConsoleKey]::B, $false, $false, $false)
             $s.PendingKeys.Enqueue($a); $s.PendingKeys.Enqueue($b)
-            (Read-MMTuiInput $s).KeyChar | Should -Be 'a'
-            (Read-MMTuiInput $s).KeyChar | Should -Be 'b'
+            (Read-MMTuiNextInput $s).KeyChar | Should -Be 'a'
+            (Read-MMTuiNextInput $s).KeyChar | Should -Be 'b'
         }
+    }
+}
+
+Describe 'Read-MMTuiInput' {
+
+    BeforeAll {
+        # Raw input for Read-MMTuiNextInput to return: keys as characters (or ConsoleKey names, such
+        # as DownArrow), and $null between batches, as when nothing more is waiting.
+        function Set-RawInput([object[]]$Item) {
+            $s.TestRaw = [System.Collections.Generic.Queue[object]]::new()
+            foreach ($i in $Item) {
+                if ($i -is [string] -and $i.Length -gt 1) { $i = [ConsoleKeyInfo]::new([char]0, [ConsoleKey]$i, $false, $false, $false) }
+                elseif ($i -is [string] -and $i -eq "`r") { $i = [ConsoleKeyInfo]::new("`r", [ConsoleKey]::Enter, $false, $false, $false) }
+                elseif ($i -is [string]) { $i = [ConsoleKeyInfo]::new([char]$i, [ConsoleKey]::A, $false, $false, $false) }
+                $s.TestRaw.Enqueue($i)
+            }
+        }
+        # Everything Read-MMTuiInput returns until the raw input runs out (two $nulls in a row).
+        function Read-All($State) {
+            InModuleScope ModuleManager -Parameters @{ S = $State } {
+                $empty = 0
+                while ($empty -lt 2) {
+                    $r = Read-MMTuiInput $S
+                    if ($null -eq $r) { $empty++; continue }
+                    $empty = 0
+                    if ($r -is [ConsoleKeyInfo]) { if ($r.KeyChar -ne [char]0) { "$($r.KeyChar)" } else { "$($r.Key)" } } else { "mouse:$($r.Button)" }
+                }
+            }
+        }
+    }
+
+    BeforeEach {
+        Mock -ModuleName ModuleManager Read-MMTuiNextInput { if ($State.TestRaw.Count) { $State.TestRaw.Dequeue() } }
+        $s = InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } { New-MMTuiState -Options $Options }
+    }
+
+    It 'Passes on keys typed one at a time, a held-down key, and arrow keys that queued up' {
+        Set-RawInput 'x', $null, 'y', $null, 'j', 'j', 'j', $null, 'DownArrow', 'DownArrow', 'UpArrow', $null
+        Read-All $s | Should -Be @('x', 'y', 'j', 'j', 'j', 'DownArrow', 'DownArrow', 'UpArrow')
+        $s.Message | Should -Not -Match 'pasted'
+    }
+
+    It 'Ignores pasted text, and keys that follow it straight away, but not mouse events' {
+        $click = [pscustomobject]@{ PSTypeName = 'ModuleManager.TuiMouse'; Button = 'Right'; X = 1; Y = 1 }
+        Set-RawInput $click, 'x', 'y', "`r", $null, 'y', $null
+        Read-All $s | Should -Be @('mouse:Right')
+        $s.Message | Should -Match 'Ignored pasted text \(4 key'
+        $s.Redraw | Should -BeTrue
+
+        # Once the paste has finished, keys are handled again.
+        $s.PasteUntil = [datetime]::UtcNow.AddSeconds(-1)
+        Set-RawInput 'x', $null
+        Read-All $s | Should -Be @('x')
+    }
+
+    It 'Ignores more than one key at once while a confirmation is showing, even the same key' {
+        $s.Mode = 'confirm'
+        Set-RawInput 'y', 'y', $null
+        Read-All $s | Should -BeNullOrEmpty
+        $s.PasteUntil = $null
+        Set-RawInput 'y', $null
+        Read-All $s | Should -Be @('y')
+    }
+
+    It 'Keeps the characters of text pasted into the filter, but not Enter, Esc and the like' {
+        $s.Mode = 'filter'
+        Set-RawInput 'a', 'z', "`r", 'Escape', 'x', $null
+        Read-All $s | Should -Be @('a', 'z', 'x')
+        $s.Message | Should -Not -Match 'pasted'
     }
 }
 
