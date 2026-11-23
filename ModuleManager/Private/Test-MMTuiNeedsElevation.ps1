@@ -10,7 +10,8 @@ function Test-MMTuiNeedsElevation {
         are always to or from AllUsers).
     #>
     param([hashtable]$State, [object[]]$Installation, [switch]$Always)
-    if ($State.Remote -or -not (Test-MMIsWindows) -or (Test-MMIsAdmin)) { return $false }
+    # In WhatIf mode nothing changes, so nothing needs administrator rights.
+    if ($script:MMTuiWhatIf -or $State.Remote -or -not (Test-MMIsWindows) -or (Test-MMIsAdmin)) { return $false }
     if ($Always) { return $true }
     [bool]@($Installation | Where-Object { $_ -and $_.Scope -eq 'AllUsers' }).Count
 }

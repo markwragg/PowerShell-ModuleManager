@@ -22,6 +22,18 @@ function Invoke-MMTuiAction {
 
     if (Test-MMTuiBusy $State) { return }
 
+    # With Show-ModuleManager -Verbose, the action runs with verbose messages on, and they reach the
+    # output pane with the rest of its output, wherever it runs. With -WhatIf, it runs in WhatIf
+    # mode (see Test-MMShouldProcess), which is reset afterwards, as a remote computer keeps its
+    # copy of the module between operations. The action is passed as text, so it's wrapped as text.
+    if ($State.Options -and ($State.Options['Verbose'] -or $State.Options['WhatIf'])) {
+        $setup = ''
+        if ($State.Options['Verbose']) { $setup += "`$VerbosePreference = 'Continue'`n" }
+        if ($State.Options['WhatIf']) { $setup += "`$script:MMTuiWhatIf = `$true`n" }
+        $Action = [scriptblock]::Create("param(`$Data, `$Options)`n$setup" +
+            "try { & {`n$Action`n} `$Data `$Options }`nfinally { `$script:MMTuiWhatIf = `$false }")
+    }
+
     $State.Log.Clear()
     $State.Log.Add(@{ Text = "$Title"; Style = 'Cyan' })
     $task = @{

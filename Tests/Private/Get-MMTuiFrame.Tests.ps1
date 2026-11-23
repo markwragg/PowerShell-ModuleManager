@@ -32,6 +32,28 @@ Describe 'Get-MMTuiFrame' {
         }
     }
 
+    It 'Shows WHATIF in the title bar and the confirmation in WhatIf mode, and nothing needs elevation' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $o = $Options.Clone()
+            $o.WhatIf = $true
+            $s = New-MMTuiState -Options $o
+            Update-MMTuiRows $s; Update-MMTuiVisible $s
+            $plain = @((Get-MMTuiFrame $s 120 25) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' -split "`r`n")
+            $plain[0] | Should -Match '^ ModuleManager  WHATIF  \d+ modules'
+            $plain | ForEach-Object { $_.Length | Should -Be 120 }
+
+            Request-MMTuiConfirm $s 'Uninstall MMAlpha?' -Action {}
+            $s.Confirm.Prompt | Should -Be 'WhatIf (nothing will change): Uninstall MMAlpha?'
+
+            Mock Test-MMIsWindows { $true }
+            Mock Test-MMIsAdmin { $false }
+            Test-MMTuiNeedsElevation $s -Always | Should -BeTrue
+            $script:MMTuiWhatIf = $true
+            try { Test-MMTuiNeedsElevation $s -Always | Should -BeFalse }
+            finally { $script:MMTuiWhatIf = $false }
+        }
+    }
+
     It 'Fits the output pane into the frame (<Width>x<Height>, <Mode>, running: <Running>)' -ForEach @(
         @{ Width = 120; Height = 30; Mode = 'list'; Running = $true }
         @{ Width = 70; Height = 14; Mode = 'list'; Running = $false }

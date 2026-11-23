@@ -1,5 +1,11 @@
 # Change Log
 
+## !Deploy 0.11.0
+
+* [feature] `Show-ModuleManager` (`modman`) has a `-WhatIf` switch, which opens the terminal UI in WhatIf mode: **WHATIF** shows in the title bar and in each confirmation, and updates, uninstalls, moves and removing old versions run as usual but only say what they would change, as "What if:" lines in the output pane. Nothing runs as administrator, and loaded modules aren't unloaded. `-Confirm` (which comes with `-WhatIf`) has no effect, as the terminal UI always asks before changing anything, and it warns if you use it.
+* [feature] `Show-ModuleManager -Verbose` shows the verbose messages of updates, uninstalls and moves in the output pane as they run (for example, which dependencies an update installed, or why old versions were kept).
+* [fix] When the terminal UI updates several modules, each module's "Updated" line shows in the output pane as soon as it's updated, instead of all of them at the end. `Update-ManagedModule -PassThru` now outputs each module as soon as it's updated (with any dependencies installed with it), except with `-RemoveOldVersions`, where the output still comes at the end so it shows the versions left after the removal.
+
 ## [0.10.2] - 2026-11-23
 
 * [fix] A module version's install date (`InstalledDate`, and the Installed column in the terminal UI's details view) is now when that version was installed. For modules updated with `Update-Module`, it used to show when the first version of the module was installed, as PowerShellGet copies that date into each new version's record (it records when the new version was installed as `UpdatedDate`, which is now used when it's later).

@@ -9,6 +9,8 @@ function Request-MMTuiConfirm {
         scriptblocks are plain (not closures) so they keep access to the module's private functions.
     #>
     param([hashtable]$State, [string]$Prompt, [scriptblock]$Action, [object]$Data, [string]$Choices = 'y')
+    # Show-ModuleManager -WhatIf: answering yes only shows what would change.
+    if ($State.Options -and $State.Options['WhatIf']) { $Prompt = "WhatIf (nothing will change): $Prompt" }
     $State.Confirm = @{ Prompt = $Prompt; Action = $Action; Data = $Data; Choices = $Choices; ReturnMode = $State.Mode }
     $State.Mode = 'confirm'
 }

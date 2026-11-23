@@ -46,6 +46,20 @@ Describe 'Show-ModuleManager' {
         Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 1 -Exactly -ParameterFilter { ($Options.Name -join ',') -eq 'MMAlpha,MMGamma' }
     }
 
+    It 'Warns that -Confirm has no effect (<Case>), and passes -WhatIf and -Verbose to the UI' -ForEach @(
+        @{ Case = '-Confirm'; Confirm = $true }
+        @{ Case = '-Confirm:$false'; Confirm = $false }
+    ) {
+        Mock -ModuleName ModuleManager Test-MMInteractiveConsole { $true }
+        Mock -ModuleName ModuleManager New-MMTuiState { throw 'stop here' }
+        $err = $null
+        try { Show-ModuleManager -Confirm:$Confirm -WhatIf -Verbose -WarningVariable warnings -WarningAction SilentlyContinue 4>$null }
+        catch { $err = $_ }
+        $err | Should -Match 'stop here'
+        $warnings | Should -Match '-Confirm has no effect.*Update-ManagedModule or Uninstall-ManagedModule'
+        Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 1 -Exactly -ParameterFilter { $Options.WhatIf -and $Options.Verbose }
+    }
+
     It 'Warns and does not open when nothing is piped, and shows every module when nothing is given' {
         Mock -ModuleName ModuleManager Test-MMInteractiveConsole { $true }
         Mock -ModuleName ModuleManager New-MMTuiState { throw 'stop here' }
@@ -515,6 +529,18 @@ Describe 'Terminal UI actions' {
             Request-MMTuiMove $S
             $S.Mode | Should -Not -Be 'confirm'
             $S.Message | Should -Match 'needs root'
+
+            # In WhatIf mode nothing is moved, so it asks, on Windows without elevation too, and
+            # doesn't offer to run as administrator.
+            Mock Test-MMIsWindows { $true }
+            $script:MMTuiWhatIf = $true
+            try {
+                Request-MMTuiMove $S
+                $S.Mode | Should -Be 'confirm'
+                $S.Confirm.Prompt | Should -Not -Match 'administrator'
+            }
+            finally { $script:MMTuiWhatIf = $false; $S.Mode = 'list'; $S.Confirm = $null }
+            Mock Test-MMIsWindows { $false }
 
             Mock Test-MMIsAdmin { $true }
             $gamma = ($S.Rows | Where-Object Name -EQ 'MMGamma').Info.Installations[0]

@@ -88,6 +88,17 @@ function Show-ModuleManager {
         permission, and the action runs in a hidden elevated PowerShell process while the UI stays
         as it is. Choosing No at the Windows prompt changes nothing.
 
+        With -WhatIf, nothing is changed: WHATIF shows in the title bar, and updates, uninstalls,
+        moves and removing old versions run as usual but only say, in the output pane, what they
+        would change. Confirmations still ask first, and nothing runs as administrator.
+
+        The terminal UI always asks before changing anything, so -Confirm (or -Confirm:$false) has
+        no effect, and warns that it doesn't. To update or uninstall without prompts, use
+        Update-ManagedModule or Uninstall-ManagedModule with -Confirm:$false.
+
+        With -Verbose, operations write their verbose messages to the output pane as they run (for
+        example, which dependencies an update installed, or why old versions were kept).
+
         If the update check fails because PowerShellGet needs the NuGet package provider (Windows
         PowerShell's built-in PowerShellGet 1.0 does), you're offered to install it for the current
         user, after which the check runs again.
@@ -189,12 +200,19 @@ function Show-ModuleManager {
         Manages the modules on linux01, connecting over SSH.
 
     .EXAMPLE
+        modman -WhatIf
+
+        Opens the terminal UI in WhatIf mode, to see what updates and uninstalls would do without
+        changing anything.
+
+    .EXAMPLE
         modman -Edition Desktop
 
         From PowerShell 7, manages the modules Windows PowerShell 5.1 uses on this computer.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Local')]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Local')]
     [Alias('modman')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = '-WhatIf puts the terminal UI in WhatIf mode, where operations only say what they would change (see Test-MMShouldProcess).')]
     param(
         [Parameter(Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [SupportsWildcards()]
@@ -236,6 +254,17 @@ function Show-ModuleManager {
     begin { $names = [System.Collections.Generic.List[string]]::new() }
     process { foreach ($n in $Name) { if (-not $names.Contains($n)) { $names.Add($n) } } }
     end {
+        # -WhatIf is the UI's WhatIf mode, for the operations it runs (see Invoke-MMTuiAction).
+        # In this session it would stop the UI's own work (temporary files, connections), and
+        # -Confirm would ask about it, so neither applies here.
+        $whatIf = [bool]$WhatIfPreference
+        $WhatIfPreference = $false
+        if ($PSBoundParameters.ContainsKey('Confirm')) {
+            $ConfirmPreference = 'High'
+            Write-Warning ('Show-ModuleManager always asks before changing anything; -Confirm has no effect. To update or ' +
+                'uninstall without prompts, use Update-ManagedModule or Uninstall-ManagedModule with -Confirm:$false.')
+        }
+
         # Nothing piped (such as Get-ManagedModuleUpdate -Outdated with nothing outdated) shouldn't open
         # the UI on every module.
         if ($names.Count -eq 0) {
@@ -266,17 +295,26 @@ function Show-ModuleManager {
             IncludePrerelease = [bool]$IncludePrerelease
             Repository        = $Repository
             ThrottleLimit     = $ThrottleLimit
+            # With -Verbose, operations (updates, uninstalls, moves) show verbose messages in the
+            # output pane as they run (see Invoke-MMTuiAction).
+            Verbose           = $VerbosePreference -eq 'Continue'
+            WhatIf            = $whatIf
         }
         $state.Remote = $remote
 
         # Progress would be drawn over the terminal UI, and as only the lines that change are redrawn
         # (see Write-MMTuiFrame), it would stay there. This also applies to the commands this calls.
+        # So would verbose messages, which operations send to the output pane instead.
         $ProgressPreference = 'SilentlyContinue'
+        $VerbosePreference = 'SilentlyContinue'
 
         $originalEncoding = [Console]::OutputEncoding
         try {
             [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
             $script:MMTuiHyperlink = Test-MMTuiHyperlink
+            # In this session, WhatIf mode skips administrator rights and unloading modules (see
+            # Test-MMTuiNeedsElevation and Remove-MMSessionModule).
+            $script:MMTuiWhatIf = $whatIf
             Enter-MMTuiScreen
             # The first scan can take a few seconds (many modules, or a slow disk or connection), so
             # say what's happening rather than leaving the screen blank.
@@ -323,6 +361,7 @@ function Show-ModuleManager {
             Disable-MMTuiMouse $state.Mouse
             Exit-MMTuiScreen
             $script:MMTuiHyperlink = $false
+            $script:MMTuiWhatIf = $false
             [Console]::OutputEncoding = $originalEncoding
             Disconnect-MMRemote $remote
         }

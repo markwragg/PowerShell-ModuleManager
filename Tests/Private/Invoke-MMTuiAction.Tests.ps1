@@ -69,6 +69,53 @@ Describe 'Invoke-MMTuiAction and Receive-MMTuiTask' {
         }
     }
 
+    It 'Shows verbose messages in the output pane only when the UI was started with -Verbose: <Verbose>' -ForEach @(
+        @{ Verbose = $true }
+        @{ Verbose = $false }
+    ) {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions; Verbose = $Verbose } {
+            $o = $Options.Clone()
+            $o.Verbose = $Verbose
+            $s = New-MMTuiState -Options $o
+            Invoke-MMTuiAction $s 'Talking' -Data @{ Word = 'hello' } -Action {
+                param($Data, $Options)
+                Write-Verbose "said $($Data.Word)"
+                Write-Host 'done talking'
+            }
+            $deadline = [datetime]::UtcNow.AddSeconds(60)
+            while ($s.Task -and [datetime]::UtcNow -lt $deadline) { $null = Receive-MMTuiTask $s; Start-Sleep -Milliseconds 50 }
+
+            $text = @($s.Log | ForEach-Object { $_.Text })
+            $text | Should -Contain 'done talking'
+            if ($Verbose) { ($s.Log | Where-Object Text -EQ 'said hello').Style | Should -Be 'Dim' }
+            else { $text | Should -Not -Contain 'said hello' }
+        }
+    }
+
+    It 'In WhatIf mode, says what an operation would change in the output pane, and changes nothing' {
+        $base = Join-Path $script:UserRoot 'MMAlpha\1.0.0'
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions; Base = $base } {
+            $o = $Options.Clone()
+            $o.WhatIf = $true
+            $s = New-MMTuiState -Options $o
+            Invoke-MMTuiAction $s 'Uninstalling' -Data @{ Base = $Base } -Action {
+                param($Data)
+                Uninstall-ManagedModule -ModuleBase $Data.Base -Confirm:$false
+                Write-Host "Mode after: $script:MMTuiWhatIf"
+            }
+            $deadline = [datetime]::UtcNow.AddSeconds(60)
+            while ($s.Task -and [datetime]::UtcNow -lt $deadline) { $null = Receive-MMTuiTask $s; Start-Sleep -Milliseconds 50 }
+
+            $line = $s.Log | Where-Object Text -Like '*What if: Uninstall module version - MMAlpha 1.0.0*'
+            $line | Should -Not -BeNullOrEmpty
+            $line.Style | Should -Be 'Yellow'
+            # Still on while the action runs; only this session's copy of the flag matters here.
+            @($s.Log | ForEach-Object { $_.Text }) | Should -Contain 'Mode after: True'
+            $script:MMTuiWhatIf | Should -BeFalse
+        }
+        Test-Path -LiteralPath $base | Should -BeTrue
+    }
+
     It 'Reports an action that fails to start, and refuses to start a second one while busy' {
         InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
             $s = New-MMTuiState -Options $Options

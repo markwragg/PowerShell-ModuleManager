@@ -54,7 +54,9 @@ function Update-ManagedModule {
 
     .PARAMETER PassThru
         Output the inventory entry of each updated module. Modules installed as a dependency of
-        another update have an UpdatedAsDependencyOf property naming that module.
+        another update have an UpdatedAsDependencyOf property naming that module. Each module is
+        output as soon as it's updated, or, with -RemoveOldVersions, once the old versions have
+        been removed, so it shows the versions that are left.
 
     .EXAMPLE
         Update-ManagedModule Pester
@@ -125,6 +127,17 @@ function Update-ManagedModule {
         $done = 0
         $versions = $null
 
+        # With -PassThru, each module is output as soon as it's updated (with any dependencies
+        # installed with it), so callers can report progress as it happens. With -RemoveOldVersions,
+        # it's output at the end instead, so it shows the versions left after the removal.
+        $stream = $PassThru -and -not $RemoveOldVersions
+        $emit = {
+            param([string[]]$Names)
+            foreach ($m in (Get-ManagedModule -Name $Names)) {
+                $m | Add-Member -NotePropertyName UpdatedAsDependencyOf -NotePropertyValue $updated[$m.Name].DependencyOf -Force -PassThru
+            }
+        }
+
         try {
             foreach ($u in $pending) {
                 $latest = $u.LatestVersion
@@ -139,6 +152,7 @@ function Update-ManagedModule {
                         Write-Verbose "$($u.Name) $($now[0].Version) was already installed as a dependency of $by; skipping."
                         if (-not $updated.Contains($u.Name)) {
                             $updated[$u.Name] = [pscustomobject]@{ Name = $u.Name; Version = $now[0].Version; DependencyOf = $by }
+                            if ($stream) { & $emit $u.Name }
                         }
                         $done++
                         continue
@@ -150,7 +164,7 @@ function Update-ManagedModule {
                     $newest = $u.Installations[0].Scope
                     if ($newest -in 'CurrentUser', 'AllUsers') { $targetScope = $newest } else { $targetScope = 'CurrentUser' }
                 }
-                if ($targetScope -eq 'AllUsers' -and -not (Test-MMIsAdmin)) {
+                if ($targetScope -eq 'AllUsers' -and -not $script:MMTuiWhatIf -and -not (Test-MMIsAdmin)) {
                     Write-Error -Message "Updating $($u.Name) for all users requires an elevated session. Run as administrator or use -Scope CurrentUser." `
                         -Category PermissionDenied -TargetObject $u.Name -ErrorId 'ModuleManager.RequiresElevation'
                     continue
@@ -163,7 +177,7 @@ function Update-ManagedModule {
 
                 $isPre = $latest -match '-'
                 $target = "$($u.Name) $($u.InstalledVersion) -> $latest ($targetScope, from $($u.Repository))"
-                if (-not $PSCmdlet.ShouldProcess($target, 'Update module')) { continue }
+                if (-not (Test-MMShouldProcess $PSCmdlet $target 'Update module')) { continue }
 
                 $percent = [int](100 * $done / [Math]::Max($total, 1))
                 Write-Progress -Activity $activity -Status "$($done + 1) of $total`: $($u.Name) $($u.InstalledVersion) -> $latest" `
@@ -186,14 +200,18 @@ function Update-ManagedModule {
 
                 # Anything else whose newest version changed was installed as a dependency of this module.
                 $after = Get-MMNewestVersionMap
+                $installed = [System.Collections.Generic.List[string]]::new()
+                $installed.Add($u.Name)
                 foreach ($key in $after.Keys) {
                     $new = $after[$key]
                     if ($key -eq $u.Name.ToLowerInvariant() -or $updated.Contains($new.Name)) { continue }
                     if ($versions.ContainsKey($key) -and $versions[$key].Version -ge $new.Version) { continue }
                     $updated[$new.Name] = [pscustomobject]@{ Name = $new.Name; Version = [string]$new.Version; DependencyOf = $u.Name }
+                    $installed.Add($new.Name)
                     Write-Verbose "Installed $($new.Name) $($new.Version) as a dependency of $($u.Name)."
                 }
                 $versions = $after
+                if ($stream) { & $emit $installed.ToArray() }
 
                 if ($u.IsLoaded) {
                     Write-Warning "$($u.Name) is loaded in this session. Start a new session (or Remove-Module and Import-Module) to use $latest."
@@ -209,10 +227,6 @@ function Update-ManagedModule {
         }
         finally { Write-Progress -Activity $activity -Completed }
 
-        if ($PassThru -and $updated.Count) {
-            foreach ($m in (Get-ManagedModule -Name @($updated.Keys))) {
-                $m | Add-Member -NotePropertyName UpdatedAsDependencyOf -NotePropertyValue $updated[$m.Name].DependencyOf -Force -PassThru
-            }
-        }
+        if ($PassThru -and -not $stream -and $updated.Count) { & $emit @($updated.Keys) }
     }
 }

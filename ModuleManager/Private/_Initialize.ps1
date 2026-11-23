@@ -37,6 +37,10 @@ $script:MMLoadedModule = $null
 # Added to a terminal UI confirmation when the operation will run as administrator (see Start-MMTuiElevatedAction).
 $script:MMElevationNote = 'Runs as administrator: Windows asks first.'
 
+# Show-ModuleManager -WhatIf: set in the terminal UI's session, and in an operation's runspace while
+# it runs, so operations only say what they would change (see Test-MMShouldProcess).
+$script:MMTuiWhatIf = $false
+
 # Terminal UI operation output: ANSI colour codes (from Write-Host in PowerShell 7) and the colour
 # each maps to.
 $script:MMAnsiSequence = [regex]::new('\x1b\[[0-9;?]*[A-Za-z]')
@@ -355,6 +359,7 @@ $script:MMStyle = @{
     Magenta   = "$([char]27)[95m"
     Bold      = "$([char]27)[1m"
     Link      = "$([char]27)[4m$([char]27)[96m"
+    WhatIf    = "$([char]27)[1m$([char]27)[43m$([char]27)[30m"
 }
 
 # Whether the terminal UI writes web addresses as terminal hyperlinks (OSC 8). Set by Show-ModuleManager

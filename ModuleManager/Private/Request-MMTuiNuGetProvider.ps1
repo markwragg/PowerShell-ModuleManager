@@ -26,6 +26,7 @@ function Request-MMTuiNuGetProvider {
     Request-MMTuiConfirm $State $prompt -Data @{} -Action {
         param($State)
         Invoke-MMTuiAction $State 'Installing the NuGet provider' -Data @{} -Action {
+            if ($script:MMTuiWhatIf) { Write-MMTuiOutput '  What if: Install package provider - NuGet (CurrentUser)' 'Yellow'; return }
             $provider = Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force -ErrorAction Stop
             Write-MMTuiOutput "  Installed  NuGet provider $($provider.Version)" 'Green'
             Write-MMTuiOutput '  Checking for updates again...'

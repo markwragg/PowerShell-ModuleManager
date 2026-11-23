@@ -26,7 +26,7 @@ function Remove-MMInstallation {
                 'ModuleManager.SystemModule', 'PermissionDenied', $i))
         return $false
     }
-    if ($i.Scope -eq 'AllUsers' -and -not (Test-MMIsAdmin)) {
+    if ($i.Scope -eq 'AllUsers' -and -not $script:MMTuiWhatIf -and -not (Test-MMIsAdmin)) {
         $Cmdlet.WriteError([System.Management.Automation.ErrorRecord]::new(
                 [UnauthorizedAccessException]::new("$label is installed for all users ($($i.ModuleBase)). Run PowerShell as administrator to remove it."),
                 'ModuleManager.RequiresElevation', 'PermissionDenied', $i))
@@ -39,7 +39,7 @@ function Remove-MMInstallation {
         return $false
     }
 
-    if (-not $Cmdlet.ShouldProcess("$label ($($i.ModuleBase))", 'Uninstall module version')) { return $false }
+    if (-not (Test-MMShouldProcess $Cmdlet "$label ($($i.ModuleBase))" 'Uninstall module version')) { return $false }
 
     if ($i.IsLoaded) {
         $key = Get-MMPathKey $i.ModuleBase

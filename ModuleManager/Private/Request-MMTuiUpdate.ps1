@@ -49,18 +49,19 @@ function Request-MMTuiUpdate {
         if ($run.RemoveOld) { $title += ' and removing old versions' }
         Invoke-MMTuiAction $State $title -Data $run -Elevated:$elevated -Action {
             param($Data, $Options)
-            # Update-ManagedModule reports progress (shown above the output), and we print one
-            # line per module afterwards. Warnings (e.g. module is loaded) still show.
+            # Update-ManagedModule reports progress (shown above the output), and outputs each
+            # module as soon as it's updated, so we print its line then. Warnings (e.g. module is
+            # loaded) still show.
             $failed = @()
+            $asDependency = 0
             $updated = @(Update-ManagedModule -Name $Data.Names -Repository $Options.Repository `
                     -IncludePrerelease:$Options.IncludePrerelease -TrustRepository:$Data.Trust -Confirm:$false -PassThru `
-                    -ErrorAction SilentlyContinue -ErrorVariable failed)
-            $asDependency = 0
-            foreach ($m in $updated) {
-                $note = ''
-                if ($m.UpdatedAsDependencyOf) { $note = "  (dependency of $($m.UpdatedAsDependencyOf))"; $asDependency++ }
-                Write-MMTuiOutput "  Updated  $($m.Name) $($m.Version)$note" 'Green'
-            }
+                    -ErrorAction SilentlyContinue -ErrorVariable failed | ForEach-Object {
+                        $note = ''
+                        if ($_.UpdatedAsDependencyOf) { $note = "  (dependency of $($_.UpdatedAsDependencyOf))"; $asDependency++ }
+                        Write-MMTuiOutput "  Updated  $($_.Name) $($_.Version)$note" 'Green'
+                        $_
+                    })
             # -ErrorVariable also collects errors that were caught along the way (such as the
             # package manager's own error behind each 'Failed to update' error), so report the
             # module's own errors, or else each distinct message once.

@@ -33,9 +33,10 @@ function Request-MMTuiMove {
     $What = Format-MMTuiTarget $State $installs
 
     # On Windows the move runs as administrator if this session isn't. Remotely, the remote
-    # session's own rights apply, and the move reports it if they're not enough.
+    # session's own rights apply, and the move reports it if they're not enough. In WhatIf mode
+    # nothing is moved, so no rights are needed (and Test-MMTuiNeedsElevation says so).
     $elevate = Test-MMTuiNeedsElevation $State -Always
-    if (-not $State.Remote -and -not $elevate -and -not (Test-MMIsAdmin)) {
+    if (-not $script:MMTuiWhatIf -and -not $State.Remote -and -not $elevate -and -not (Test-MMIsAdmin)) {
         Set-MMTuiMessage $State "Moving modules to or from AllUsers needs root: start PowerShell with sudo." 'Yellow'
         return
     }

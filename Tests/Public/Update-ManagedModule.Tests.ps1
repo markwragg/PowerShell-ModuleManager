@@ -123,6 +123,16 @@ Describe 'Update-ManagedModule' {
             ($result | Where-Object Name -EQ 'MMAlpha').UpdatedAsDependencyOf | Should -BeNullOrEmpty
         }
 
+        It 'With -PassThru, outputs each module (and the dependencies installed with it) as soon as it is updated' {
+            $seen = [System.Collections.Generic.List[string]]::new()
+            Update-ManagedModule MMAlpha, MMRoll.Core -Confirm:$false -PassThru | ForEach-Object {
+                # By the time each one arrives, only the installs up to it have run.
+                $seen.Add("$($_.Name) after $($global:MMTestInstalls -join '+')")
+            }
+            $global:MMTestInstalls | Should -Be @('MMAlpha', 'MMRoll.Core')
+            $seen | Should -Be @('MMAlpha after MMAlpha', 'MMGamma after MMAlpha', 'MMRoll.Core after MMAlpha+MMRoll.Core')
+        }
+
         It 'Warns before updating when a loaded module is older than a new version needs' {
             Mock -ModuleName ModuleManager Get-Module {
                 [pscustomobject]@{ Name = 'MMRoll.Core'; Version = [version]'3.0.0'; PrivateData = $null; ModuleBase = 'C:\nowhere' }

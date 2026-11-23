@@ -71,6 +71,9 @@ function Get-MMTuiFrame {
         , @("  |  sort: $($State.Sorts[$State.Sort])", $null)
     )
     if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + $title[1..($title.Count - 1)] }
+    # Show-ModuleManager -WhatIf: operations only say what they would change.
+    $whatIf = $State.Options -and $State.Options['WhatIf']
+    if ($whatIf) { $title = @(, $title[0]) + @(, @(' WHATIF ', 'WhatIf')) + $title[1..($title.Count - 1)] }
     $selected = @()
     if ($selCount) { $selected += "$selCount module(s)" }
     if ($State.DSelected.Count) { $selected += "$($State.DSelected.Count) version(s)" }
@@ -78,7 +81,9 @@ function Get-MMTuiFrame {
     if ($State.Filter) { $title += , @("  |  filter: $($State.Filter)", $null) }
     $leftLen = 0; foreach ($t in $title) { $leftLen += ([string]$t[0]).Length }
     if ($latest -and $leftLen + $latest.Length + $right.Length -le $w) {
-        $at = if ($State.Remote) { 3 } else { 2 }
+        $at = 2
+        if ($State.Remote) { $at++ }
+        if ($whatIf) { $at++ }
         $title = $title[0..($at - 1)] + @(, @($latest, $null)) + $title[$at..($title.Count - 1)]
         $leftLen += $latest.Length
     }

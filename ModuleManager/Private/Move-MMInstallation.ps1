@@ -42,7 +42,7 @@ function Move-MMInstallation {
         Write-Verbose "$label is already installed for $toScope ($($i.ModuleBase))."
         return
     }
-    if (($i.Scope -eq 'AllUsers' -or $toScope -eq 'AllUsers') -and -not (Test-MMIsAdmin)) {
+    if (($i.Scope -eq 'AllUsers' -or $toScope -eq 'AllUsers') -and -not $script:MMTuiWhatIf -and -not (Test-MMIsAdmin)) {
         & $fail ([UnauthorizedAccessException]::new("Moving $label $(if ($i.Scope -eq 'AllUsers') { 'from' } else { 'to' }) the all users module folder needs an elevated session. Run PowerShell as administrator.")) 'RequiresElevation' 'PermissionDenied'
         return
     }
@@ -59,7 +59,7 @@ function Move-MMInstallation {
         return
     }
 
-    if (-not $Cmdlet.ShouldProcess("$label ($($i.ModuleBase))", "Move module version to $toScope ($destination)")) { return }
+    if (-not (Test-MMShouldProcess $Cmdlet "$label ($($i.ModuleBase))" "Move module version to $toScope ($destination)")) { return }
 
     if ($i.IsLoaded) {
         $key = Get-MMPathKey $i.ModuleBase
