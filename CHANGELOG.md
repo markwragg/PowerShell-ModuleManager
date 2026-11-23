@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.10.1] - 2026-11-23
 
 * [fix] The terminal UI ignores text pasted into the terminal, which it used to take as key presses, one command per character: a clipboard holding "xy" would uninstall the module under the cursor. That's easy to do by accident, as some terminals paste on right-click, such as VS Code's on Windows (set `terminal.integrated.rightClickBehavior` to `default` or `nothing` to stop it). Keys that arrive together are taken as pasted when they're different and include a character (holding a key down, or arrow keys queuing up during a redraw, still work), and a confirmation only takes a key that arrives on its own. Text pasted into the filter is kept, without Enter or Esc.
 
