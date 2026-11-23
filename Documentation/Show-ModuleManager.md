@@ -9,29 +9,29 @@ Opens an interactive terminal UI for browsing, updating and uninstalling modules
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
  [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>]
- [-ProgressAction <ActionPreference>] [<CommonParameters>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ComputerName
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
  [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -ComputerName <String>
- [-Credential <PSCredential>] [-ConfigurationName <String>] [-ProgressAction <ActionPreference>]
- [<CommonParameters>]
+ [-Credential <PSCredential>] [-ConfigurationName <String>] [-ProgressAction <ActionPreference>] [-WhatIf]
+ [-Confirm] [<CommonParameters>]
 ```
 
 ### Session
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
  [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Session <PSSession>
- [-ProgressAction <ActionPreference>] [<CommonParameters>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### Edition
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
  [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Edition <String>
- [-ProgressAction <ActionPreference>] [<CommonParameters>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -137,6 +137,19 @@ permission, and the action runs in a hidden elevated PowerShell process while th
 as it is.
 Choosing No at the Windows prompt changes nothing.
 
+With -WhatIf, nothing is changed: WHATIF shows in the title bar, and updates, uninstalls,
+moves and removing old versions run as usual but only say, in the output pane, what they
+would change.
+Confirmations still ask first, and nothing runs as administrator.
+
+The terminal UI always asks before changing anything, so -Confirm (or -Confirm:$false) has
+no effect, and warns that it doesn't.
+To update or uninstall without prompts, use
+Update-ManagedModule or Uninstall-ManagedModule with -Confirm:$false.
+
+With -Verbose, operations write their verbose messages to the output pane as they run (for
+example, which dependencies an update installed, or why old versions were kept).
+
 If the update check fails because PowerShellGet needs the NuGet package provider (Windows
 PowerShell's built-in PowerShellGet 1.0 does), you're offered to install it for the current
 user, after which the check runs again.
@@ -204,6 +217,14 @@ Show-ModuleManager -Session $s
 Manages the modules on linux01, connecting over SSH.
 
 ### EXAMPLE 7
+```
+modman -WhatIf
+```
+
+Opens the terminal UI in WhatIf mode, to see what updates and uninstalls would do without
+changing anything.
+
+### EXAMPLE 8
 ```
 modman -Edition Desktop
 ```
@@ -425,6 +446,37 @@ Parameter Sets: Edition
 Aliases:
 
 Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
+
+Required: False
 Position: Named
 Default value: None
 Accept pipeline input: False

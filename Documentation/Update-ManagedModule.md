@@ -168,6 +168,9 @@ Accept wildcard characters: False
 Output the inventory entry of each updated module.
 Modules installed as a dependency of
 another update have an UpdatedAsDependencyOf property naming that module.
+Each module is
+output as soon as it's updated, or, with -RemoveOldVersions, once the old versions have
+been removed, so it shows the versions that are left.
 
 ```yaml
 Type: SwitchParameter

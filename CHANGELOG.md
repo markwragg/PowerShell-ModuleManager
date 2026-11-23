@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.11.0
+## [0.11.0] - 2026-11-23
 
 * [feature] `Show-ModuleManager` (`modman`) has a `-WhatIf` switch, which opens the terminal UI in WhatIf mode: **WHATIF** shows in the title bar and in each confirmation, and updates, uninstalls, moves and removing old versions run as usual but only say what they would change, as "What if:" lines in the output pane. Nothing runs as administrator, and loaded modules aren't unloaded. `-Confirm` (which comes with `-WhatIf`) has no effect, as the terminal UI always asks before changing anything, and it warns if you use it.
 * [feature] `Show-ModuleManager -Verbose` shows the verbose messages of updates, uninstalls and moves in the output pane as they run (for example, which dependencies an update installed, or why old versions were kept).
