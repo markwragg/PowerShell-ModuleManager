@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.10.2] - 2026-11-23
 
 * [fix] A module version's install date (`InstalledDate`, and the Installed column in the terminal UI's details view) is now when that version was installed. For modules updated with `Update-Module`, it used to show when the first version of the module was installed, as PowerShellGet copies that date into each new version's record (it records when the new version was installed as `UpdatedDate`, which is now used when it's later).
 
