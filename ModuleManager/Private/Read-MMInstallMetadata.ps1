@@ -19,19 +19,24 @@ function Read-MMInstallMetadata {
         if ($project) { $meta.ProjectUri = [Net.WebUtility]::HtmlDecode($project) }
         $source = Get-MMXmlValue $text '<S N="RepositorySourceLocation">' '</S>'
         if ($source) { $meta.SourceLocation = [Net.WebUtility]::HtmlDecode($source) }
-        # Either <DT N="InstalledDate">...</DT> or <Obj N="InstalledDate" ...><DT>...</DT> (PowerShellGet)
-        $date = $null
-        $at = $text.IndexOf('N="InstalledDate"', [StringComparison]::Ordinal)
-        if ($at -ge 0) { $date = Get-MMXmlValue $text.Substring($at, [Math]::Min(400, $text.Length - $at)) '>' '<' }
-        if ($null -ne $date -and [string]::IsNullOrWhiteSpace($date)) {
-            $dt = $text.IndexOf('<DT>', $at, [StringComparison]::Ordinal)
-            if ($dt -ge 0 -and $dt - $at -lt 200) { $date = Get-MMXmlValue $text.Substring($dt) '<DT>' '</DT>' }
-        }
-        if ($date) {
-            $parsed = [datetime]::MinValue
-            if ([datetime]::TryParse($date, [Globalization.CultureInfo]::InvariantCulture,
-                    [Globalization.DateTimeStyles]::RoundtripKind, [ref]$parsed)) {
-                $meta.InstalledDate = $parsed
+        # Update-Module (PowerShellGet) copies InstalledDate from the version it replaced, so there it's
+        # when the module was first installed; UpdatedDate is when this version was. Use the later one.
+        foreach ($field in 'InstalledDate', 'UpdatedDate') {
+            # Either <DT N="...">...</DT> or <Obj N="..." ...><DT>...</DT> (PowerShellGet)
+            $date = $null
+            $at = $text.IndexOf("N=`"$field`"", [StringComparison]::Ordinal)
+            if ($at -ge 0) { $date = Get-MMXmlValue $text.Substring($at, [Math]::Min(400, $text.Length - $at)) '>' '<' }
+            if ($null -ne $date -and [string]::IsNullOrWhiteSpace($date)) {
+                $dt = $text.IndexOf('<DT>', $at, [StringComparison]::Ordinal)
+                if ($dt -ge 0 -and $dt - $at -lt 200) { $date = Get-MMXmlValue $text.Substring($dt) '<DT>' '</DT>' }
+            }
+            if ($date) {
+                $parsed = [datetime]::MinValue
+                if ([datetime]::TryParse($date, [Globalization.CultureInfo]::InvariantCulture,
+                        [Globalization.DateTimeStyles]::RoundtripKind, [ref]$parsed) -and
+                    ($null -eq $meta.InstalledDate -or $parsed -gt $meta.InstalledDate)) {
+                    $meta.InstalledDate = $parsed
+                }
             }
         }
         $meta.Dependencies = Read-MMXmlDependency -Text $text

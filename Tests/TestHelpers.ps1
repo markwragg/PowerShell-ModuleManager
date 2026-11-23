@@ -35,12 +35,13 @@ function New-FakeModule {
         -ProjectUri is written to PSGetModuleInfo.xml (with -Repository).
         -InstalledBy ('PSResourceGet' or 'PowerShellGet', with -Repository) writes the type name and
         InstalledLocation (the module root, or the version folder) that package manager writes.
+        -UpdatedDate (with -Repository) adds the UpdatedDate that Update-Module (PowerShellGet) writes.
     #>
     param(
         [string]$Root, [string]$Name, [string]$Version, [string]$Prerelease,
         [string[]]$RequiredModules, [string]$Repository, [switch]$Unversioned, [switch]$ObjDate,
         [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText, [string]$ProjectUri,
-        [ValidateSet('PSResourceGet', 'PowerShellGet')][string]$InstalledBy
+        [ValidateSet('PSResourceGet', 'PowerShellGet')][string]$InstalledBy, [string]$UpdatedDate
     )
     $dir = if ($Unversioned) { Join-Path $Root $Name } else { Join-Path (Join-Path $Root $Name) $Version }
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -65,6 +66,7 @@ function New-FakeModule {
             "<Obj N=`"InstalledDate`" RefId=`"1`">`n      <DT>2025-01-02T03:04:05.0000000+00:00</DT>`n    </Obj>"
         }
         else { '<DT N="InstalledDate">2025-01-02T03:04:05.0000000+00:00</DT>' }
+        if ($UpdatedDate) { $date += "`n    <Obj N=`"UpdatedDate`" RefId=`"2`">`n      <DT>$UpdatedDate</DT>`n    </Obj>" }
         $project = ''
         if ($ProjectUri) { $project = "<URI N=`"ProjectUri`">$ProjectUri</URI>" }
         $installer = ''

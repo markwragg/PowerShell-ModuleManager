@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy
+
+* [fix] A module version's install date (`InstalledDate`, and the Installed column in the terminal UI's details view) is now when that version was installed. For modules updated with `Update-Module`, it used to show when the first version of the module was installed, as PowerShellGet copies that date into each new version's record (it records when the new version was installed as `UpdatedDate`, which is now used when it's later).
+
 ## [0.10.1] - 2026-11-23
 
 * [fix] The terminal UI ignores text pasted into the terminal, which it used to take as key presses, one command per character: a clipboard holding "xy" would uninstall the module under the cursor. That's easy to do by accident, as some terminals paste on right-click, such as VS Code's on Windows (set `terminal.integrated.rightClickBehavior` to `default` or `nothing` to stop it). Keys that arrive together are taken as pasted when they're different and include a character (holding a key down, or arrow keys queuing up during a redraw, still work), and a confirmation only takes a key that arrives on its own. Text pasted into the filter is kept, without Enter or Esc.

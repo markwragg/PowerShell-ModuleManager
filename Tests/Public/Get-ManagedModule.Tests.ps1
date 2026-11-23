@@ -56,6 +56,18 @@ Describe 'Get-ManagedModule' {
         $i.InstalledDate.ToUniversalTime().Year | Should -Be 2025
     }
 
+    It 'Uses UpdatedDate as the install date when it is later (Update-Module keeps the first InstalledDate)' -ForEach @(
+        @{ Updated = '2026-03-04T05:06:07.0000000+00:00'; Expected = '2026-03-04' }
+        @{ Updated = '2024-03-04T05:06:07.0000000+00:00'; Expected = '2025-01-02' }
+    ) {
+        New-FakeModule $UserRoot 'MMUpdated' '1.0' -Repository PSGallery -ObjDate -UpdatedDate $Updated | Out-Null
+        try {
+            $i = Get-ManagedModule MMUpdated -AllVersions
+            $i.InstalledDate.ToUniversalTime().ToString('yyyy-MM-dd') | Should -Be $Expected
+        }
+        finally { Reset-FakeModules }
+    }
+
     It 'Reads RequiredModules' {
         (Get-ManagedModule MMDependent).Installations[0].RequiredModules | Should -Be @('MMGamma')
     }
