@@ -397,9 +397,12 @@ Accept wildcard characters: False
 ```
 
 ### -Sort
-The order the UI opens in: Name (the default), Status, Versions or Scope.
-Press S to
-change it.
+The order the UI opens in: Name (the default), Status, Versions, Scope or Reclaimable.
+Press S
+to change it.
+Reclaimable (the space removing old versions would free, most first) only applies
+in the Multiple versions view, when the screen is at least 100 characters wide; otherwise
+it's Name.
 
 ```yaml
 Type: String

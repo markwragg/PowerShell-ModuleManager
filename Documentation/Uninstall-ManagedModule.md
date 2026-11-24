@@ -52,6 +52,13 @@ Prompts for confirmation for each version by default.
 Use -Confirm:$false to skip
 prompts, or -WhatIf to preview.
 
+Each version's size is shown in its confirmation prompt (and -WhatIf line).
+When it's done,
+it says how many versions it removed and how much disk space that freed, or with -WhatIf,
+how much it would free.
+This is an information message, so -InformationAction
+SilentlyContinue (or 6\>$null) hides it without hiding warnings.
+
 ## EXAMPLES
 
 ### EXAMPLE 1
@@ -88,6 +95,13 @@ Uninstall-ManagedModule Pester -OldVersions -Keep 2 -Confirm:$false
 ```
 
 Keeps the two newest versions of Pester and removes the rest, without prompting.
+
+### EXAMPLE 6
+```
+Uninstall-ManagedModule -OldVersions -Confirm:$false -PassThru | Measure-Object SizeMB -Sum
+```
+
+Removes the old versions of every module, and totals the space freed from the versions output.
 
 ## PARAMETERS
 
@@ -220,7 +234,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
-Output an object for each version that was removed.
+Output an object for each version that was removed, with its size in MB (SizeMB).
 
 ```yaml
 Type: SwitchParameter
