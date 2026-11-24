@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy 0.12.0
+## [0.12.0] - 2026-11-24
 
 * [feature] `Show-ModuleManager` (`modman`) has `-View` and `-Sort` parameters, which open the terminal UI with that view (`All`, `Updates`, `MultipleVersions` or `Loaded`) and sort (`Name`, `Status`, `Versions` or `Scope`) already set, as if you'd pressed V or S. For example, `modman -View Updates -Sort Scope`. `-NoGroup` (or `-Ungroup`) opens it with module families ungrouped, as if you'd pressed G.
 * [feature] In the terminal UI, the filter (/) matches only module names when it starts with `n:`, or only descriptions with `d:`. Without a prefix it still matches either, so a short filter such as `ps` can list modules whose descriptions contain it.

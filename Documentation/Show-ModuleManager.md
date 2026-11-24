@@ -8,30 +8,32 @@ Opens an interactive terminal UI for browsing, updating and uninstalling modules
 ### Local (Default)
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>]
- [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-NoGroup] [-View <String>] [-Sort <String>]
+ [-ThrottleLimit <Int32>] [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### ComputerName
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -ComputerName <String>
- [-Credential <PSCredential>] [-ConfigurationName <String>] [-ProgressAction <ActionPreference>] [-WhatIf]
- [-Confirm] [<CommonParameters>]
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-NoGroup] [-View <String>] [-Sort <String>]
+ [-ThrottleLimit <Int32>] -ComputerName <String> [-Credential <PSCredential>] [-ConfigurationName <String>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### Session
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Session <PSSession>
- [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-NoGroup] [-View <String>] [-Sort <String>]
+ [-ThrottleLimit <Int32>] -Session <PSSession> [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ### Edition
 ```
 Show-ModuleManager [[-Name] <String[]>] [-Scope <String[]>] [-IncludeSystem] [-IncludePrerelease]
- [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-ThrottleLimit <Int32>] -Edition <String>
- [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
+ [-Repository <String>] [-NoUpdateCheck] [-NoMouse] [-NoGroup] [-View <String>] [-Sort <String>]
+ [-ThrottleLimit <Int32>] -Edition <String> [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -60,9 +62,16 @@ Answer o
                                  scope: CurrentUser or AllUsers
   L                            Show or hide the output pane
   \[ and \]                        Scroll the output pane back and forward
-  /                              Filter by name or description
+  /                              Filter by name or description.
+Start the filter with n:
+                                 to match only names, or d: only descriptions
   V                              Cycle view: All, Updates, Multiple versions, Loaded
-  S                              Cycle sort: Name, Status, Versions, Scope
+  S                              Cycle sort: Name, Status, Versions, Scope (an expanded
+                                 family's members are sorted under it)
+  C                              Cycle scope: All, AllUsers, CurrentUser, System, Other
+                                 (skipping scopes with no modules).
+Shows the modules
+                                 with a version in that scope
   G                              Turn grouping of module families on or off
   R                              Rescan and re-check repositories
   Esc                            Close the output pane, then clear selection, then filter
@@ -101,7 +110,7 @@ Mouse: click a module to move to it, and double-click it (or click Enter in the 
 its versions and paths; right-click goes back.
 Click the \[ \] box to select it, a family's arrow
 to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
-or view: or sort: in the title bar to cycle them.
+or view:, sort: or scope: in the title bar to cycle them.
 Click a key in the help bar to press it, and
 y or N to answer a confirmation.
 The wheel scrolls the list, the details and the output pane;
@@ -169,6 +178,7 @@ Module families: a module that depends on two or more installed modules named af
 collapsed row, with the number of family members and how many have updates.
 U, X, O
 and Space on a collapsed family act on the whole family; expand it to act on one member.
+G, or -NoGroup, lists every module separately.
 A view or filter shows the matching members under their family.
 
 ## EXAMPLES
@@ -218,13 +228,21 @@ Manages the modules on linux01, connecting over SSH.
 
 ### EXAMPLE 7
 ```
+modman -View Updates -Sort Scope
+```
+
+Opens the terminal UI showing only the modules with updates (once the update check has
+found them), sorted by scope.
+
+### EXAMPLE 8
+```
 modman -WhatIf
 ```
 
 Opens the terminal UI in WhatIf mode, to see what updates and uninstalls would do without
 changing anything.
 
-### EXAMPLE 8
+### EXAMPLE 9
 ```
 modman -Edition Desktop
 ```
@@ -339,6 +357,58 @@ Aliases:
 Required: False
 Position: Named
 Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -NoGroup
+Open the UI with module families ungrouped, listing every module separately.
+Press G to
+group them.
+-Ungroup also works.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: Ungroup
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -View
+The view the UI opens in: All (the default), Updates, MultipleVersions or Loaded.
+Press V
+to change it.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: All
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Sort
+The order the UI opens in: Name (the default), Status, Versions or Scope.
+Press S to
+change it.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: Name
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
