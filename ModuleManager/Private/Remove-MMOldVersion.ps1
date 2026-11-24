@@ -17,6 +17,7 @@ function Remove-MMOldVersion {
         [int]$Keep = 1,
         [string[]]$Scope,
         [switch]$Force,
+        [hashtable]$Tally,
         [Parameter(Mandatory)]
         [System.Management.Automation.PSCmdlet]$Cmdlet
     )
@@ -66,6 +67,6 @@ function Remove-MMOldVersion {
 
     foreach ($i in $candidates) {
         if ($required.ContainsKey((Get-MMPathKey $i.ModuleBase))) { continue }
-        if (Remove-MMInstallation -Installation $i -Cmdlet $Cmdlet -Force:$Force) { $i }
+        if (Remove-MMInstallation -Installation $i -Cmdlet $Cmdlet -Force:$Force -Tally $Tally) { $i }
     }
 }

@@ -1,5 +1,9 @@
 # Change Log
 
+## !Deploy 0.13.0
+
+* [feature] `Uninstall-ManagedModule` shows how much disk space it frees. Each version's size is in its confirmation prompt and `-WhatIf` line (`MMThing 1.0.0, 14.1 MB (path)`), and it ends with a summary such as `Removed 12 versions, freeing 1.25 GB.`, or with `-WhatIf`, `What if: Removing 12 versions would free 1.25 GB.` That makes `Uninstall-ManagedModule -OldVersions -WhatIf` a quick way to see how much space old versions take up. The summary is an information message, so `-InformationAction SilentlyContinue` hides it. With `-PassThru`, each removed version has its size in a `SizeMB` property. The same summary shows in the terminal UI's output pane after removing old versions (O) or uninstalling (X), and after `Update-ManagedModule -RemoveOldVersions`.
+
 ## [0.12.0] - 2026-11-24
 
 * [feature] `Show-ModuleManager` (`modman`) has `-View` and `-Sort` parameters, which open the terminal UI with that view (`All`, `Updates`, `MultipleVersions` or `Loaded`) and sort (`Name`, `Status`, `Versions` or `Scope`) already set, as if you'd pressed V or S. For example, `modman -View Updates -Sort Scope`. `-NoGroup` (or `-Ungroup`) opens it with module families ungrouped, as if you'd pressed G.

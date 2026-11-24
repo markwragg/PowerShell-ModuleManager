@@ -106,7 +106,7 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 | `Get-ManagedModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated), `VersionUnlisted` (the newest installed version was withdrawn and there's no newer one; checked for NuGet v2 feeds such as the PowerShell Gallery) or `Error`. |
 | `Get-ManagedModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
-| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). With `-OldVersions`, keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
+| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). With `-OldVersions`, keeps the newest `-Keep` versions of each module and removes the rest. Shows each version's size, and ends by saying how much disk space it freed (or would free, with `-WhatIf`). Supports `-WhatIf` and `-Confirm`. |
 | `Move-ManagedModule` | Moves modules or specific versions between the `CurrentUser` and `AllUsers` scopes (`-Destination AllUsers`), updating their install record so PowerShellGet and PSResourceGet still recognise them. Needs an elevated session. Supports `-WhatIf` and `-Confirm`. |
 | `Show-ModuleManager` | The terminal UI. |
 

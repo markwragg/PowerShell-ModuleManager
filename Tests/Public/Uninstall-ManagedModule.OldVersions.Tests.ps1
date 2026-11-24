@@ -43,6 +43,57 @@ Describe 'Uninstall-ManagedModule -OldVersions' {
         (Get-ManagedModule MMAlpha).Versions | Should -Be @('2.0.0-beta1', '1.1.0')
     }
 
+    Context 'Space freed' {
+
+        BeforeEach {
+            $script:OldBases = @(
+                Join-Path (Join-Path $script:UserRoot 'MMAlpha') '1.1.0'
+                Join-Path (Join-Path $script:UserRoot 'MMAlpha') '1.0.0'
+                Join-Path (Join-Path $script:OtherRoot 'MMAlpha') '0.9'
+            )
+            $script:OldBytes = 0L
+            foreach ($b in $script:OldBases) { $script:OldBytes += (Get-ChildItem $b -Recurse -File | Measure-Object Length -Sum).Sum }
+            $script:OldSize = InModuleScope ModuleManager -Parameters @{ Bytes = $script:OldBytes } { Format-MMSize $Bytes }
+        }
+
+        It 'Says how many versions it removed and how much space that freed' {
+            $info = @(Uninstall-ManagedModule -OldVersions MMAlpha -Confirm:$false 6>&1)
+            $info | Should -HaveCount 1
+            "$($info[0])" | Should -Be "Removed 3 versions, freeing $script:OldSize."
+        }
+
+        It 'Gives each removed version its size with -PassThru' {
+            $removed = @(Uninstall-ManagedModule -OldVersions MMAlpha -Confirm:$false -PassThru -InformationAction SilentlyContinue)
+            $removed | Should -HaveCount 3
+            $removed | ForEach-Object { $_.SizeMB | Should -BeOfType [double] }
+        }
+
+        It 'Says how much space it would free with -WhatIf, removing nothing' {
+            $info = @(Uninstall-ManagedModule -OldVersions MMAlpha -WhatIf 6>&1)
+            "$($info[-1])" | Should -Be "What if: Removing 3 versions would free $script:OldSize."
+            $script:OldBases | ForEach-Object { Test-Path $_ | Should -BeTrue }
+        }
+
+        It 'Shows the message by default, and honours -InformationAction' {
+            # Redirecting stream 6 collects information records whatever the action, so check what's asked for.
+            Mock -ModuleName ModuleManager Write-Information { }
+            Uninstall-ManagedModule -OldVersions MMAlpha -WhatIf
+            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PSBoundParameters['InformationAction'] -eq 'Continue' }
+            Uninstall-ManagedModule -OldVersions MMAlpha -Confirm:$false -InformationAction SilentlyContinue
+            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PSBoundParameters['InformationAction'] -eq 'SilentlyContinue' }
+            (Get-ManagedModule MMAlpha).Versions | Should -Be @('2.0.0-beta1')
+        }
+
+        It 'Says nothing when there is nothing to remove' {
+            @(Uninstall-ManagedModule -OldVersions MMGamma -Confirm:$false 6>&1) | Should -HaveCount 0
+        }
+
+        It 'Also reports the space freed by uninstalling named modules, for one version' {
+            $info = @(Uninstall-ManagedModule MMGamma -Confirm:$false 6>&1)
+            "$($info[0])" | Should -BeLike 'Removed 1 version, freeing *.'
+        }
+    }
+
     Context 'Version-aware dependencies' {
 
         BeforeEach { Add-FakeFamily }
