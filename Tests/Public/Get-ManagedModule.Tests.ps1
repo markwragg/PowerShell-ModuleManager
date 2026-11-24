@@ -112,4 +112,69 @@ RequiredModules = @(@{ ModuleName = 'MMBeta'; RequiredVersion = '0.5.0' })
             $m.Installations[0].RequiredModules | Should -Be @('MMBeta')
         }
     }
+
+    Context 'Size and reclaimable space' {
+
+        BeforeAll {
+            function Add-Blob([string]$Root, [string]$Name, [string]$Version, [int]$KB) {
+                $path = Join-Path (Join-Path (Join-Path $Root $Name) $Version) 'blob.bin'
+                [IO.File]::WriteAllBytes($path, [byte[]]::new($KB * 1KB))
+            }
+        }
+
+        BeforeEach {
+            Reset-FakeModules
+            Add-FakeFamily
+            # Temp folders may not be classified as CurrentUser on every OS; make removals allowed.
+            Mock -ModuleName ModuleManager Get-MMScope { 'CurrentUser' }
+            Add-Blob $script:UserRoot 'MMAlpha' '2.0.0' 2048       # newest (2.0.0-beta1): kept
+            Add-Blob $script:UserRoot 'MMAlpha' '1.0.0' 1024
+            Add-Blob $script:OtherRoot 'MMAlpha' '0.9' 512
+            Add-Blob $script:UserRoot 'MMRoll' '1.0.0' 1024        # old, and nothing needs it
+            Add-Blob $script:UserRoot 'MMRoll.Core' '1.0.0' 1024   # old, but MMRoll 1.0.0 pins it
+            Add-Blob $script:UserRoot 'MMRoll.Core' '2.0.0' 1024   # old, but MMRoll 2.0.0 pins it
+        }
+
+        AfterAll { Reset-FakeModules }
+
+        It 'Adds the size of every version, and what removing the old ones would free' {
+            $alpha = Get-ManagedModule MMAlpha -IncludeSize
+            $alpha.SizeMB | Should -Be 3.5
+            $alpha.ReclaimableMB | Should -Be 1.5
+            $alpha.PSObject.TypeNames[0] | Should -Be 'ModuleManager.ModuleInfo.Size'
+        }
+
+        It 'Leaves out old versions that modules staying installed depend on' {
+            # MMRoll isn't asked for, so both its versions stay, and their pins hold MMRoll.Core's old versions back.
+            $core = Get-ManagedModule MMRoll.Core -IncludeSize
+            $core.SizeMB | Should -Be 2.0
+            $core.ReclaimableMB | Should -Be 0
+        }
+
+        It 'Counts a family together, as removing its old versions would' {
+            # Removing MMRoll 1.0.0 frees the MMRoll.Core 1.0.0 it pins; MMRoll 2.0.0 still pins MMRoll.Core 2.0.0.
+            $m = @(Get-ManagedModule MMRoll, MMRoll.Core -IncludeSize)
+            ($m | Where-Object Name -EQ 'MMRoll').ReclaimableMB | Should -Be 1.0
+            ($m | Where-Object Name -EQ 'MMRoll.Core').ReclaimableMB | Should -Be 1.0
+        }
+
+        It 'Matches what Uninstall-ManagedModule -OldVersions frees' {
+            $expected = (Get-ManagedModule -IncludeSize | Measure-Object ReclaimableMB -Sum).Sum
+            $removed = @(Uninstall-ManagedModule -OldVersions -Confirm:$false -PassThru -InformationAction SilentlyContinue)
+            ($removed | Measure-Object SizeMB -Sum).Sum | Should -Be $expected
+            $expected | Should -Be 3.5
+        }
+
+        It 'Adds each version''s size with -AllVersions' {
+            $sizes = @(Get-ManagedModule MMAlpha -AllVersions -IncludeSize | ForEach-Object { $_.SizeMB })
+            $sizes | Should -Be @(2.0, 0.0, 1.0, 0.5)
+        }
+
+        It 'Adds no size properties without -IncludeSize' {
+            $alpha = Get-ManagedModule MMAlpha
+            $alpha.PSObject.Properties['SizeMB'] | Should -BeNullOrEmpty
+            $alpha.PSObject.Properties['ReclaimableMB'] | Should -BeNullOrEmpty
+            $alpha.PSObject.TypeNames | Should -Not -Contain 'ModuleManager.ModuleInfo.Size'
+        }
+    }
 }

@@ -23,50 +23,32 @@ function Remove-MMOldVersion {
     )
 
     $all = @(Get-MMInstalledVersion -IncludeSystem)
-    $modules = @(Group-MMInstallation -Installation @($all | Where-Object { Test-MMNameMatch $_.Name $Name }))
+    $old = Get-MMOldVersion -Installation $all -Name $Name -Keep $Keep -Scope $Scope -Force:$Force
 
-    $candidates = [System.Collections.Generic.List[object]]::new()
-    foreach ($m in $modules) {
-        if ($m.VersionCount -le $Keep) { continue }
-        foreach ($i in @($m.Installations | Select-Object -Skip $Keep)) {
-            if ($Scope -and $Scope -notcontains $i.Scope) { continue }
-            if ($i.Scope -eq 'System') {
-                Write-Verbose "Skipping $($i.Name) $($i.Version): ships with PowerShell or Windows."
-                continue
-            }
-            if ($i.IsLoaded -and -not $Force) {
-                Write-Warning "Skipping $($i.Name) $($i.Version): it is loaded in this session. Use -Force to remove it anyway."
-                continue
-            }
-            $candidates.Add($i)
-        }
+    foreach ($i in $old.System) { Write-Verbose "Skipping $($i.Name) $($i.Version): ships with PowerShell or Windows." }
+    foreach ($i in $old.Loaded) {
+        Write-Warning "Skipping $($i.Name) $($i.Version): it is loaded in this session. Use -Force to remove it anyway."
     }
-    if (-not $candidates.Count) { return }
 
-    # Keep old versions that other installed modules still depend on, such as the exact
-    # Az.* versions each older Az rollup pins. One summary warning; details with -Verbose.
-    $required = @{}
-    if (-not $Force) {
-        $kept = @(Get-MMRequiredInstallation -Removing $candidates.ToArray() -AllInstallation $all)
+    # One summary warning for the versions kept because other installed modules depend on them;
+    # details with -Verbose.
+    $kept = @($old.Required)
+    if ($kept.Count) {
         $dependents = [System.Collections.Generic.List[string]]::new()
         foreach ($k in $kept) {
-            $required[(Get-MMPathKey $k.Installation.ModuleBase)] = $true
             Write-Verbose "Keeping $($k.Installation.Name) $($k.Installation.Version): required by $($k.RequiredBy -join '; ')."
             foreach ($r in $k.RequiredBy) {
                 $who = ($r -split ' needs ')[0]
                 if (-not $dependents.Contains($who)) { $dependents.Add($who) }
             }
         }
-        if ($kept.Count) {
-            $what = "$($kept[0].Installation.Name) $($kept[0].Installation.Version)"
-            if ($kept.Count -gt 1) { $what = "$($kept.Count) old versions" }
-            Write-Warning ("Keeping $what because other installed modules depend on them: $(Format-MMRequiredBy $dependents.ToArray() -Limit 4). " +
-                'Remove those first, use -Verbose for details, or use -Force to remove them anyway.')
-        }
+        $what = "$($kept[0].Installation.Name) $($kept[0].Installation.Version)"
+        if ($kept.Count -gt 1) { $what = "$($kept.Count) old versions" }
+        Write-Warning ("Keeping $what because other installed modules depend on them: $(Format-MMRequiredBy $dependents.ToArray() -Limit 4). " +
+            'Remove those first, use -Verbose for details, or use -Force to remove them anyway.')
     }
 
-    foreach ($i in $candidates) {
-        if ($required.ContainsKey((Get-MMPathKey $i.ModuleBase))) { continue }
+    foreach ($i in $old.Removable) {
         if (Remove-MMInstallation -Installation $i -Cmdlet $Cmdlet -Force:$Force -Tally $Tally) { $i }
     }
 }

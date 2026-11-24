@@ -102,7 +102,7 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 
 | Cmdlet | Synopsis |
 | --- | --- |
-| `Get-ManagedModule` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. |
+| `Get-ManagedModule` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. `-IncludeSize` adds each module's size on disk and how much removing its old versions would free (`ReclaimableMB`). |
 | `Get-ManagedModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated), `VersionUnlisted` (the newest installed version was withdrawn and there's no newer one; checked for NuGet v2 feeds such as the PowerShell Gallery) or `Error`. |
 | `Get-ManagedModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
@@ -119,6 +119,9 @@ Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -Wha
 ```
 ```powershell
 Get-ManagedModule -MultipleVersions | Sort-Object VersionCount -Descending
+```
+```powershell
+Get-ManagedModule -MultipleVersions -IncludeSize | Sort-Object ReclaimableMB -Descending
 ```
 ```powershell
 Get-ManagedModuleLocation -Summary -IncludeSize

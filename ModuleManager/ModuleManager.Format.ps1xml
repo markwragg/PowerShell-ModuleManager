@@ -34,6 +34,37 @@
     </View>
 
     <View>
+      <Name>ModuleManager.ModuleInfo.Size</Name>
+      <ViewSelectedBy>
+        <TypeName>ModuleManager.ModuleInfo.Size</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Name</Label><Width>36</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Version</Label><Width>16</Width></TableColumnHeader>
+          <TableColumnHeader><Label>#</Label><Width>3</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Scope</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>SizeMB</Label><Width>9</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>ReclaimableMB</Label><Width>13</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Path</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Version</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>VersionCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Scope</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:N1}' -f $_.SizeMB</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.ReclaimableMB) { '{0:N1}' -f $_.ReclaimableMB } else { '' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Path</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
       <Name>ModuleManager.ModuleUpdate</Name>
       <ViewSelectedBy>
         <TypeName>ModuleManager.ModuleUpdate</TypeName>
