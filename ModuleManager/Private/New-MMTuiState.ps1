@@ -38,6 +38,10 @@ function New-MMTuiState {
         # Update-MMTuiDetailSize), and each version's dependencies (see Get-MMTuiDependencyInfo).
         # Both are cleared when the modules are rescanned.
         Sizes        = @{}
+        # Multiple versions view: the old versions removing old versions would remove, by folder, and
+        # whether all their sizes are known (see Update-MMTuiReclaim). Cleared when rescanned.
+        Reclaim      = $null
+        ReclaimDone  = $false
         DepIndex     = $null
         DepInfo      = @{}
         Task         = $null

@@ -180,7 +180,7 @@ The update check runs in the background, so you can use the list while it fills 
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |
 | / | Filter by name or description. Start with `n:` to match only names, or `d:` only descriptions | |
-| V | Cycle the view: All, Updates, Multiple versions, Loaded (or start with `-View`) | |
+| V | Cycle the view: All, Updates, Multiple versions, Loaded (or start with `-View`). In a wide terminal, the Multiple versions view has a **Frees** column: how much removing each module's old versions would free | |
 | S | Cycle the sort: Name, Status, Versions, Scope (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
 | C | Cycle the scope: All, AllUsers, CurrentUser, System, Other (skipping scopes with no modules). Shows only the modules with a version in that scope, so with the Updates view, `scope: CurrentUser` lists the updates that don't need administrator rights | |
 | G | Turn grouping of module families on or off | |

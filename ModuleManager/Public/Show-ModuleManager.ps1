@@ -374,6 +374,7 @@ function Show-ModuleManager {
                 if ($state.Job -and (Receive-MMTuiLookup $state)) { Update-MMTuiVisible $state; $dirty = $true }
                 if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
                 if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
+                if (Update-MMTuiReclaim $state) { $dirty = $true }
                 if ($state.Job -or $state.Task) {
                     if (([datetime]::UtcNow - $lastSpin).TotalMilliseconds -ge 150) {
                         $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true

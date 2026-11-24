@@ -2,13 +2,21 @@ function Add-MMTuiListLines {
     <#
     .SYNOPSIS
         Draws the module list: the column headers and one row per visible module.
+
+    .DESCRIPTION
+        In the Multiple versions view, a wide enough list also has a Frees column: how much removing
+        the module's old versions would free (for a collapsed family, its members' too), as
+        Update-MMTuiReclaim works it out. It shows ... until the sizes are known, and nothing when
+        none of the old versions would be removed (they're loaded, or other modules need them).
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The noun describes a set of lines/rows (or metadata, which has no singular form).')]
     param([hashtable]$State, $Lines, [int]$Width, [int]$ListHeight)
 
     $wide = $Width -ge 100
-    $cols = [ordered]@{ Sel = 4; Name = 0; Installed = 16; Latest = 16; Count = 0; Scope = 0; Status = 17 }
+    $cols = [ordered]@{ Sel = 4; Name = 0; Installed = 16; Latest = 16; Count = 0; Frees = 0; Scope = 0; Status = 17 }
     if ($wide) { $cols.Count = 5; $cols.Scope = 13 }
+    $showFrees = $wide -and $State.Views[$State.View] -eq 'Multiple versions'
+    if ($showFrees) { $cols.Frees = 11 }   # sizes such as "1023.9 MB", and two spaces
     $fixed = 0; foreach ($k in $cols.Keys) { $fixed += $cols[$k] }
     $cols.Name = [Math]::Max(12, $Width - $fixed - 1)
 
@@ -20,6 +28,7 @@ function Add-MMTuiListLines {
     )
     if ($wide) {
         $header += , @(((Format-MMCell '#' ($cols.Count - 1) -Right) + ' '), 'Header')
+        if ($showFrees) { $header += , @(((Format-MMCell 'Frees' ($cols.Frees - 2) -Right) + '  '), 'Header') }
         $header += , @((Format-MMCell 'Scope' $cols.Scope), 'Header')
     }
     $header += , @((Format-MMCell 'Status' $cols.Status), 'Header')
@@ -108,13 +117,30 @@ function Add-MMTuiListLines {
 
         # The cells, padded here rather than with Format-MMCell, as calling a function for each of
         # them every frame is slow; only text too long for its column goes through it, to be cut.
-        $cells = [string[]]@(" $mark", $nameText, $info.Version, $row.Latest, $info.VersionCount, $info.Scope, $statusInfo[0])
-        $cellWidths = $cols.Sel, $cols.Name, $cols.Installed, $cols.Latest, ($cols.Count - 1), $cols.Scope, $cols.Status
+        $frees = ''; $freesStyle = $null
+        if ($showFrees -and $null -ne $State.Reclaim) {
+            # The old versions of this module (or its collapsed family) that removing old versions would remove.
+            $bytes = 0L; $known = $true; $any = $false
+            foreach ($member in (Get-MMTuiFamily $State $row)) {
+                foreach ($inst in @($member.Info.Installations)) {
+                    if (-not $State.Reclaim.ContainsKey($inst.ModuleBase)) { continue }
+                    $any = $true
+                    if (-not $State.Sizes.ContainsKey($inst.ModuleBase)) { $known = $false; break }
+                    $bytes += [long]$State.Sizes[$inst.ModuleBase]
+                }
+                if (-not $known) { break }
+            }
+            if (-not $known) { $frees = '...'; $freesStyle = 'Dim' }
+            elseif ($any) { $frees = Format-MMSize $bytes }
+        }
+        elseif ($showFrees) { $frees = '...'; $freesStyle = 'Dim' }
+        $cells = [string[]]@(" $mark", $nameText, $info.Version, $row.Latest, $info.VersionCount, $frees, $info.Scope, $statusInfo[0])
+        $cellWidths = $cols.Sel, $cols.Name, $cols.Installed, $cols.Latest, ($cols.Count - 1), ($cols.Frees - 2), $cols.Scope, $cols.Status
         for ($c = 0; $c -lt $cells.Count; $c++) {
             $cw = $cellWidths[$c]
             if ($cw -le 0) { $cells[$c] = '' }
             elseif ($cells[$c].Length -gt $cw) { $cells[$c] = Format-MMCell $cells[$c] $cw }
-            elseif ($c -eq 4) { $cells[$c] = $cells[$c].PadLeft($cw) }   # the version count is right-aligned
+            elseif ($c -eq 4 -or $c -eq 5) { $cells[$c] = $cells[$c].PadLeft($cw) }   # the version count and size are right-aligned
             else { $cells[$c] = $cells[$c].PadRight($cw) }
         }
         $segs = @(
@@ -127,9 +153,10 @@ function Add-MMTuiListLines {
             $countStyle = $null
             if ($info.VersionCount -gt 1) { $countStyle = 'Magenta' }
             $segs += , @(($cells[4] + ' '), $countStyle)
-            $segs += , @($cells[5], $null)
+            if ($showFrees) { $segs += , @(($cells[5] + '  '), $freesStyle) }
+            $segs += , @($cells[6], $null)
         }
-        $segs += , @($cells[6], $statusInfo[1])
+        $segs += , @($cells[7], $statusInfo[1])
         $base = ''
         if ($isCursor) { $base = 'Cursor' }
         $Lines.Add((Format-MMTuiLine $segs $Width $base))
