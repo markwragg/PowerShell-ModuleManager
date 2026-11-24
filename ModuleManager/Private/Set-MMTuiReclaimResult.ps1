@@ -1,7 +1,7 @@
 function Set-MMTuiReclaimResult {
     <#
     .SYNOPSIS
-        Keeps the old versions that removing old versions would remove, and their sizes, for the Reclaim column.
+        Keeps the old versions that removing old versions would remove, and their sizes, for the Reclaimable column.
 
     .DESCRIPTION
         -Found is what Update-MMTuiReclaimable worked out: one object per folder, with Name, Path

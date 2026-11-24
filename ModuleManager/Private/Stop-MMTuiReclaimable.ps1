@@ -1,7 +1,7 @@
 function Stop-MMTuiReclaimable {
     <#
     .SYNOPSIS
-        Stops working out the Reclaim column, if it's still being worked out, and forgets it.
+        Stops working out the Reclaimable column, if it's still being worked out, and forgets it.
 
     .DESCRIPTION
         Used when the modules are rescanned (the old versions may have changed) and when the

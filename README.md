@@ -181,8 +181,8 @@ The update check runs in the background, so you can use the list while it fills 
 | [ ] | Scroll the output pane back and forward | Same |
 | / | Filter by name or description. Start with `n:` to match only names, or `d:` only descriptions | |
 | V | Cycle the view: All, Updates, Multiple versions, Loaded (or start with `-View`) | |
-|   | In the Multiple versions view (100 or more columns wide), the **Reclaim** column shows how much space removing each module's old versions (O) would free, leaving out loaded versions and ones other modules depend on. It shows `...` while it's worked out. Click its heading, or press S, to sort by it, most first | |
-| S | Cycle the sort: Name, Status, Versions, Scope, and in the Multiple versions view Reclaim (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
+|   | In the Multiple versions view (100 or more columns wide), the **Reclaimable** column shows how much space removing each module's old versions (O) would free, leaving out loaded versions and ones other modules depend on. It shows `...` while it's worked out. Click its heading, or press S, to sort by it, most first | |
+| S | Cycle the sort: Name, Status, Versions, Scope, and in the Multiple versions view Reclaimable (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
 | C | Cycle the scope: All, AllUsers, CurrentUser, System, Other (skipping scopes with no modules). Shows only the modules with a version in that scope, so with the Updates view, `scope: CurrentUser` lists the updates that don't need administrator rights | |
 | G | Turn grouping of module families on or off (the help bar says `ungroup` or `group`) | |
 | R | Rescan and re-check the repositories | |

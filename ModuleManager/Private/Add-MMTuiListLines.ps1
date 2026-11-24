@@ -4,7 +4,7 @@ function Add-MMTuiListLines {
         Draws the module list: the column headers and one row per visible module.
 
     .DESCRIPTION
-        When the screen is wide enough, the Multiple versions view has a Reclaim column: the space
+        When the screen is wide enough, the Multiple versions view has a Reclaimable column: the space
         removing each module's old versions (O) would free (see Update-MMTuiReclaimable).
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'The noun describes a set of lines/rows (or metadata, which has no singular form).')]
@@ -14,7 +14,7 @@ function Add-MMTuiListLines {
     $reclaim = Test-MMTuiReclaimShown $State $Width
     $cols = [ordered]@{ Sel = 4; Name = 0; Installed = 16; Latest = 16; Count = 0; Scope = 0; Reclaim = 0; Status = 17 }
     if ($wide) { $cols.Count = 5; $cols.Scope = 13 }
-    if ($reclaim) { $cols.Reclaim = 11 }
+    if ($reclaim) { $cols.Reclaim = 13 }
     $fixed = 0; foreach ($k in $cols.Keys) { $fixed += $cols[$k] }
     $cols.Name = [Math]::Max(12, $Width - $fixed - 1)
 
@@ -28,13 +28,13 @@ function Add-MMTuiListLines {
         $header += , @(((Format-MMCell '#' ($cols.Count - 1) -Right) + ' '), 'Header')
         $header += , @((Format-MMCell 'Scope' $cols.Scope), 'Header')
     }
-    if ($reclaim) { $header += , @(((Format-MMCell 'Reclaim' ($cols.Reclaim - 2) -Right) + '  '), 'Header') }
+    if ($reclaim) { $header += , @(((Format-MMCell 'Reclaimable' ($cols.Reclaim - 2) -Right) + '  '), 'Header') }
     $header += , @((Format-MMCell 'Status' $cols.Status), 'Header')
 
     # For the mouse (see Invoke-MMTuiMouse): the headers of the columns the list can be sorted by,
     # the rows, and the [ ] box.
     $layout = $State.Layout
-    $sortBy = @{ Name = 'Name'; Count = 'Versions'; Scope = 'Scope'; Reclaim = 'Reclaim'; Status = 'Status' }
+    $sortBy = @{ Name = 'Name'; Count = 'Versions'; Scope = 'Scope'; Reclaim = 'Reclaimable'; Status = 'Status' }
     $layout.SortColumns = [System.Collections.Generic.List[object]]::new()
     $x = 0
     foreach ($col in $cols.Keys) {
@@ -123,7 +123,7 @@ function Add-MMTuiListLines {
             $cw = $cellWidths[$c]
             if ($cw -le 0) { $cells[$c] = '' }
             elseif ($cells[$c].Length -gt $cw) { $cells[$c] = Format-MMCell $cells[$c] $cw }
-            elseif ($c -eq 4 -or $c -eq 7) { $cells[$c] = $cells[$c].PadLeft($cw) }   # the version count and reclaim are right-aligned
+            elseif ($c -eq 4 -or $c -eq 7) { $cells[$c] = $cells[$c].PadLeft($cw) }   # the version count and reclaimable space are right-aligned
             else { $cells[$c] = $cells[$c].PadRight($cw) }
         }
         $segs = @(

@@ -154,8 +154,8 @@ function Show-ModuleManager {
         to change it.
 
     .PARAMETER Sort
-        The order the UI opens in: Name (the default), Status, Versions, Scope or Reclaim. Press S
-        to change it. Reclaim (the space removing old versions would free, most first) only applies
+        The order the UI opens in: Name (the default), Status, Versions, Scope or Reclaimable. Press S
+        to change it. Reclaimable (the space removing old versions would free, most first) only applies
         in the Multiple versions view, when the screen is at least 100 characters wide; otherwise
         it's Name.
 
@@ -263,7 +263,7 @@ function Show-ModuleManager {
         [ValidateSet('All', 'Updates', 'MultipleVersions', 'Loaded')]
         [string]$View = 'All',
 
-        [ValidateSet('Name', 'Status', 'Versions', 'Scope', 'Reclaim')]
+        [ValidateSet('Name', 'Status', 'Versions', 'Scope', 'Reclaimable')]
         [string]$Sort = 'Name',
 
         [ValidateRange(1, 64)]
@@ -377,7 +377,7 @@ function Show-ModuleManager {
                 if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
                 if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
                 if ($state.Mode -eq 'list' -and (Update-MMTuiReclaimable $state)) {
-                    # Sorted by Reclaim, the list is sorted again once it's all worked out.
+                    # Sorted by Reclaimable, the list is sorted again once it's all worked out.
                     Update-MMTuiVisible $state -IfChanged
                     $dirty = $true
                 }
@@ -389,8 +389,8 @@ function Show-ModuleManager {
                 $size = Get-MMConsoleSize
                 if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) {
                     $dirty = $true
-                    # Narrowing the screen can hide the Reclaim column, which then can't be the sort.
-                    if ($state.Sorts[$state.Sort] -eq 'Reclaim' -and -not (Test-MMTuiReclaimShown $state $size.Width)) { $state.Sort = 0; Update-MMTuiVisible $state }
+                    # Narrowing the screen can hide the Reclaimable column, which then can't be the sort.
+                    if ($state.Sorts[$state.Sort] -eq 'Reclaimable' -and -not (Test-MMTuiReclaimShown $state $size.Width)) { $state.Sort = 0; Update-MMTuiVisible $state }
                 }
                 if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
 

@@ -1,7 +1,7 @@
 function Get-MMTuiReclaimText {
     <#
     .SYNOPSIS
-        The Reclaim cell for a row: the space removing its old versions would free (with its family's, when collapsed).
+        The Reclaimable cell for a row: the space removing its old versions would free (with its family's, when collapsed).
 
     .DESCRIPTION
         '...' while it's still being worked out, and blank when there's nothing to remove.

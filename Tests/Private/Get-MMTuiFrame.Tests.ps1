@@ -254,14 +254,14 @@ Describe 'Get-MMTuiFrame' {
             & $help | Should -Match 'G group'
         }
     }
-    Context 'Reclaim column' {
+    Context 'Reclaimable column' {
 
         BeforeAll {
             InModuleScope ModuleManager {
                 function script:Wait-Reclaim([hashtable]$State) {
                     $deadline = [datetime]::UtcNow.AddSeconds(60)
                     while (-not ($State.Reclaim -and $State.Reclaim.Done)) {
-                        if ([datetime]::UtcNow -gt $deadline) { throw 'The Reclaim column was never worked out.' }
+                        if ([datetime]::UtcNow -gt $deadline) { throw 'The Reclaimable column was never worked out.' }
                         $null = Update-MMTuiReclaimable $State
                         Start-Sleep -Milliseconds 20
                     }
@@ -284,7 +284,7 @@ Describe 'Get-MMTuiFrame' {
                 $s.View = 2
                 Update-MMTuiVisible $s
                 $plain = @((Get-MMTuiFrame $s 120 25) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' -split "`r`n")
-                ($plain | Where-Object { $_ -match '^\s+Name\b' }) | Should -Match 'Reclaim'
+                ($plain | Where-Object { $_ -match '^\s+Name\b' }) | Should -Match 'Reclaimable'
                 ($plain | Where-Object { $_ -match 'MMAlpha' }) | Should -Match '\.\.\.'
 
                 # Worked out in the background: nothing until it's done.
@@ -334,14 +334,14 @@ Describe 'Get-MMTuiFrame' {
                 Update-MMTuiRows $s; Update-MMTuiVisible $s
                 Update-MMTuiReclaimable $s | Should -BeFalse
                 $s.Reclaim | Should -BeNullOrEmpty
-                (Get-MMTuiFrame $s 120 25) | Should -Not -Match 'Reclaim'
+                (Get-MMTuiFrame $s 120 25) | Should -Not -Match 'Reclaimable'
                 $s.View = 2
                 Update-MMTuiVisible $s
-                (Get-MMTuiFrame $s 90 25) | Should -Not -Match 'Reclaim'
+                (Get-MMTuiFrame $s 90 25) | Should -Not -Match 'Reclaimable'
             }
         }
 
-        It 'Sorts by Reclaim, most first, from S or its heading, only while the column shows' {
+        It 'Sorts by Reclaimable, most first, from S or its heading, only while the column shows' {
             InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
                 function Press($c) { Invoke-MMTuiKey -State $s -Key ([ConsoleKeyInfo]::new($c, [ConsoleKey]::S, $false, $false, $false)); Update-MMTuiVisible $s -IfChanged }
                 $s = New-MMTuiState -Options $Options
@@ -350,19 +350,19 @@ Describe 'Get-MMTuiFrame' {
                 $null = Get-MMTuiFrame $s 120 25
                 Update-MMTuiVisible $s
 
-                # The All view has no Reclaim column, so S goes round without it.
+                # The All view has no Reclaimable column, so S goes round without it.
                 $seen = foreach ($n in 1..$s.Sorts.Count) { Press 's'; $s.Sorts[$s.Sort] }
-                $seen | Should -Not -Contain 'Reclaim'
+                $seen | Should -Not -Contain 'Reclaimable'
 
                 # In the Multiple versions view, S gets to it, and so does a click on its heading.
                 $s.View = 2; $s.Sort = 0
                 Update-MMTuiVisible $s
                 $seen = foreach ($n in 1..$s.Sorts.Count) { Press 's'; $s.Sorts[$s.Sort] }
-                $seen | Should -Contain 'Reclaim'
+                $seen | Should -Contain 'Reclaimable'
                 $s.Sort = 0
                 $header = ((((Get-MMTuiFrame $s 120 25) -split "`r`n")[1]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '')
-                Invoke-MMTuiMouse $s ([pscustomobject]@{ Button = 'Left'; X = $header.IndexOf('Reclaim') + 1; Y = 1 })
-                $s.Sorts[$s.Sort] | Should -Be 'Reclaim'
+                Invoke-MMTuiMouse $s ([pscustomobject]@{ Button = 'Left'; X = $header.IndexOf('Reclaimable') + 1; Y = 1 })
+                $s.Sorts[$s.Sort] | Should -Be 'Reclaimable'
 
                 # Modules still being worked out go last; once it's all known, most first.
                 Update-MMTuiVisible $s
@@ -376,7 +376,7 @@ Describe 'Get-MMTuiFrame' {
                 $s.View = 0
                 Update-MMTuiVisible $s -IfChanged
                 $s.Sorts[$s.Sort] | Should -Be 'Name'
-                $s.View = 2; $s.Sort = [array]::IndexOf($s.Sorts, 'Reclaim')
+                $s.View = 2; $s.Sort = [array]::IndexOf($s.Sorts, 'Reclaimable')
                 $null = Get-MMTuiFrame $s 90 25
                 Update-MMTuiVisible $s -IfChanged
                 $s.Sorts[$s.Sort] | Should -Be 'Name'

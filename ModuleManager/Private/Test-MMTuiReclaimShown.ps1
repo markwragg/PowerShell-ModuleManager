@@ -1,7 +1,7 @@
 function Test-MMTuiReclaimShown {
     <#
     .SYNOPSIS
-        Whether the module list has its Reclaim column: in the Multiple versions view, on a screen at least 100 wide.
+        Whether the module list has its Reclaimable column: in the Multiple versions view, on a screen at least 100 wide.
 
     .DESCRIPTION
         Only then can the list be sorted by it (S skips it otherwise, and Update-MMTuiVisible goes
