@@ -14,7 +14,7 @@ function Add-MMTuiListLines {
     $reclaim = Test-MMTuiReclaimShown $State $Width
     $cols = [ordered]@{ Sel = 4; Name = 0; Installed = 16; Latest = 16; Count = 0; Scope = 0; Reclaim = 0; Status = 17 }
     if ($wide) { $cols.Count = 5; $cols.Scope = 13 }
-    if ($reclaim) { $cols.Reclaim = 10 }
+    if ($reclaim) { $cols.Reclaim = 11 }
     $fixed = 0; foreach ($k in $cols.Keys) { $fixed += $cols[$k] }
     $cols.Name = [Math]::Max(12, $Width - $fixed - 1)
 
@@ -28,7 +28,7 @@ function Add-MMTuiListLines {
         $header += , @(((Format-MMCell '#' ($cols.Count - 1) -Right) + ' '), 'Header')
         $header += , @((Format-MMCell 'Scope' $cols.Scope), 'Header')
     }
-    if ($reclaim) { $header += , @(((Format-MMCell 'Reclaim' ($cols.Reclaim - 1) -Right) + ' '), 'Header') }
+    if ($reclaim) { $header += , @(((Format-MMCell 'Reclaim' ($cols.Reclaim - 2) -Right) + '  '), 'Header') }
     $header += , @((Format-MMCell 'Status' $cols.Status), 'Header')
 
     # For the mouse (see Invoke-MMTuiMouse): the headers of the columns the list can be sorted by,
@@ -118,7 +118,7 @@ function Add-MMTuiListLines {
         $reclaimText = ''
         if ($reclaim) { $reclaimText = Get-MMTuiReclaimText $State $row }
         $cells = [string[]]@(" $mark", $nameText, $info.Version, $row.Latest, $info.VersionCount, $info.Scope, $statusInfo[0], $reclaimText)
-        $cellWidths = $cols.Sel, $cols.Name, $cols.Installed, $cols.Latest, ($cols.Count - 1), $cols.Scope, $cols.Status, ($cols.Reclaim - 1)
+        $cellWidths = $cols.Sel, $cols.Name, $cols.Installed, $cols.Latest, ($cols.Count - 1), $cols.Scope, $cols.Status, ($cols.Reclaim - 2)
         for ($c = 0; $c -lt $cells.Count; $c++) {
             $cw = $cellWidths[$c]
             if ($cw -le 0) { $cells[$c] = '' }
@@ -141,7 +141,7 @@ function Add-MMTuiListLines {
         if ($reclaim) {
             $reclaimStyle = $null
             if ($reclaimText -eq '...') { $reclaimStyle = 'Dim' }
-            $segs += , @(($cells[7] + ' '), $reclaimStyle)
+            $segs += , @(($cells[7] + '  '), $reclaimStyle)
         }
         $segs += , @($cells[6], $statusInfo[1])
         $base = ''
