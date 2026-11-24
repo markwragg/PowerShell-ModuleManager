@@ -118,7 +118,11 @@ function Invoke-MMTuiKey {
         'j' { Set-MMTuiCursor $State ($State.Cursor + 1) }
         '/' { $State.Mode = 'filter' }
         'v' { $State.View = ($State.View + 1) % $State.Views.Count; $State.Top = 0 }
-        's' { $State.Sort = ($State.Sort + 1) % $State.Sorts.Count }
+        's' {
+            # Reclaim only while its column shows (see Test-MMTuiReclaimShown).
+            $State.Sort = ($State.Sort + 1) % $State.Sorts.Count
+            if ($State.Sorts[$State.Sort] -eq 'Reclaim' -and -not (Test-MMTuiReclaimShown $State)) { $State.Sort = ($State.Sort + 1) % $State.Sorts.Count }
+        }
         'c' {
             # The next scope that has modules (System only does with -IncludeSystem), then All.
             $present = @($State.Rows | ForEach-Object { $_.Info.Scope -split ', ' })
