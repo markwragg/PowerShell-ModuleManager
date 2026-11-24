@@ -26,9 +26,14 @@ function Show-ModuleManager {
                                          scope: CurrentUser or AllUsers
           L                            Show or hide the output pane
           [ and ]                        Scroll the output pane back and forward
-          /                              Filter by name or description
+          /                              Filter by name or description. Start the filter with n:
+                                         to match only names, or d: only descriptions
           V                              Cycle view: All, Updates, Multiple versions, Loaded
-          S                              Cycle sort: Name, Status, Versions, Scope
+          S                              Cycle sort: Name, Status, Versions, Scope (an expanded
+                                         family's members are sorted under it)
+          C                              Cycle scope: All, AllUsers, CurrentUser, System, Other
+                                         (skipping scopes with no modules). Shows the modules
+                                         with a version in that scope
           G                              Turn grouping of module families on or off
           R                              Rescan and re-check repositories
           Esc                            Close the output pane, then clear selection, then filter
@@ -61,7 +66,7 @@ function Show-ModuleManager {
         Mouse: click a module to move to it, and double-click it (or click Enter in the help bar) for
         its versions and paths; right-click goes back. Click the [ ] box to select it, a family's arrow
         to expand or collapse the family, and a column header (Name, #, Scope, Status) to sort by it,
-        or view: or sort: in the title bar to cycle them. Click a key in the help bar to press it, and
+        or view:, sort: or scope: in the title bar to cycle them. Click a key in the help bar to press it, and
         y or N to answer a confirmation. The wheel scrolls the list, the details and the output pane;
         right-click, or L hide in its header, hides the pane. While modman has the mouse, select text
         in the terminal with Shift held down. -NoMouse leaves the mouse to the terminal.
@@ -114,6 +119,7 @@ function Show-ModuleManager {
         (Az and the Az.* modules, or Microsoft.Graph and Microsoft.Graph.*) is shown as one
         collapsed row, with the number of family members and how many have updates. U, X, O
         and Space on a collapsed family act on the whole family; expand it to act on one member.
+        G, or -NoGroup, lists every module separately.
         A view or filter shows the matching members under their family.
 
     .PARAMETER Name
@@ -138,6 +144,18 @@ function Show-ModuleManager {
 
     .PARAMETER NoMouse
         Don't use the mouse: leave it to the terminal, for selecting and copying text as usual.
+
+    .PARAMETER NoGroup
+        Open the UI with module families ungrouped, listing every module separately. Press G to
+        group them. -Ungroup also works.
+
+    .PARAMETER View
+        The view the UI opens in: All (the default), Updates, MultipleVersions or Loaded. Press V
+        to change it.
+
+    .PARAMETER Sort
+        The order the UI opens in: Name (the default), Status, Versions or Scope. Press S to
+        change it.
 
     .PARAMETER ThrottleLimit
         The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
@@ -200,6 +218,12 @@ function Show-ModuleManager {
         Manages the modules on linux01, connecting over SSH.
 
     .EXAMPLE
+        modman -View Updates -Sort Scope
+
+        Opens the terminal UI showing only the modules with updates (once the update check has
+        found them), sorted by scope.
+
+    .EXAMPLE
         modman -WhatIf
 
         Opens the terminal UI in WhatIf mode, to see what updates and uninstalls would do without
@@ -230,6 +254,15 @@ function Show-ModuleManager {
         [switch]$NoUpdateCheck,
 
         [switch]$NoMouse,
+
+        [Alias('Ungroup')]
+        [switch]$NoGroup,
+
+        [ValidateSet('All', 'Updates', 'MultipleVersions', 'Loaded')]
+        [string]$View = 'All',
+
+        [ValidateSet('Name', 'Status', 'Versions', 'Scope')]
+        [string]$Sort = 'Name',
 
         [ValidateRange(1, 64)]
         [int]$ThrottleLimit = 16,
@@ -301,6 +334,13 @@ function Show-ModuleManager {
             WhatIf            = $whatIf
         }
         $state.Remote = $remote
+        # -View and -Sort open the UI as if V and S had been pressed. ValidateSet accepts any case,
+        # so match with -eq, which ignores it (IndexOf wouldn't). View names are matched without
+        # spaces, so MultipleVersions is the Multiple versions view.
+        $state.View = @(0..($state.Views.Count - 1)).Where({ ($state.Views[$_] -replace ' ') -eq $View })[0]
+        $state.Sort = @(0..($state.Sorts.Count - 1)).Where({ $state.Sorts[$_] -eq $Sort })[0]
+        # -NoGroup opens the UI as if G had been pressed.
+        $state.Group = -not $NoGroup
 
         # Progress would be drawn over the terminal UI, and as only the lines that change are redrawn
         # (see Write-MMTuiFrame), it would stay there. This also applies to the commands this calls.

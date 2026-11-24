@@ -70,6 +70,46 @@ Describe 'Show-ModuleManager' {
         Should -Invoke -ModuleName ModuleManager New-MMTuiState -Times 1 -Exactly -ParameterFilter { ($Options.Name -join ',') -eq '*' }
     }
 
+    It 'Opens with grouping on, or off with -NoGroup (<Case>)' -ForEach @(
+        @{ Case = 'default'; Params = @{}; Group = $true }
+        @{ Case = '-NoGroup'; Params = @{ NoGroup = $true }; Group = $false }
+        @{ Case = '-Ungroup alias'; Params = @{ Ungroup = $true }; Group = $false }
+    ) {
+        InModuleScope ModuleManager -Parameters @{ Params = $Params; Group = $Group } {
+            $script:captured = $null
+            Mock Test-MMInteractiveConsole { $true }
+            Mock Enter-MMTuiScreen { }
+            Mock Exit-MMTuiScreen { }
+            Mock Disable-MMTuiMouse { }
+            # The first frame (while scanning) shows the state Show-ModuleManager set up.
+            Mock Write-MMTuiFrame { $script:captured = $State.Group; throw 'stop here' }
+            { Show-ModuleManager @Params -NoMouse } | Should -Throw 'stop here'
+            $script:captured | Should -Be $Group
+        }
+    }
+
+    It 'Opens with the view and sort given (-View <View> -Sort <Sort>)' -ForEach @(
+        @{ View = 'MultipleVersions'; Sort = 'Scope'; Shown = 'Multiple versions' }
+        @{ View = 'loaded'; Sort = 'versions'; Shown = 'Loaded' }
+    ) {
+        InModuleScope ModuleManager -Parameters $_ {
+            $script:written = [System.Collections.Generic.List[string]]::new()
+            Mock Test-MMInteractiveConsole { $true }
+            Mock Write-MMConsole { $script:written.Add($Text) }
+            Mock Get-MMConsoleSize { @{ Width = 100; Height = 20 } }
+            Mock Read-MMTuiInput { [ConsoleKeyInfo]::new('q', [ConsoleKey]::Q, $false, $false, $false) }
+            Mock Enable-MMTuiMouse { $null }
+            Mock Disable-MMTuiMouse { }
+            Mock Write-Progress { }
+
+            Show-ModuleManager -NoUpdateCheck -View $View -Sort $Sort
+
+            $plain = ($script:written -join '') -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+            $plain | Should -Match "view: $Shown"
+            $plain | Should -Match "sort: $Sort"
+        }
+    }
+
     It 'Draws the screen, handles keys and restores the console on exit (<Case>)' -ForEach @(
         @{ Case = 'checking repositories'; NoUpdateCheck = $false }
         @{ Case = 'with -NoUpdateCheck'; NoUpdateCheck = $true }

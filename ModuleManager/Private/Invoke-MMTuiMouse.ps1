@@ -14,7 +14,8 @@ function Invoke-MMTuiMouse {
           The [ ] box of a row       Selects or deselects it, as Space does (without moving down).
           A family's expand glyph    Expands or collapses the family.
           A column header            Sorts the list by that column.
-          view: or sort: (title)     Cycles the view or sort, as V and S do (in the list).
+          view:, sort: or scope:     Cycles the view, sort or scope, as V, S and C do (in the list).
+          (title)
           A key in the help bar      Presses that key.
           A web page (details)       Opens it in the browser, as P does for the project page.
           An answer in [y/N]         Gives that answer. While a confirmation is shown, other clicks

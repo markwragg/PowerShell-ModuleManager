@@ -69,6 +69,7 @@ function Get-MMTuiFrame {
         , @(" $total modules  |  $updates updates", $null)
         , @("  |  view: $($State.Views[$State.View])", $null)
         , @("  |  sort: $($State.Sorts[$State.Sort])", $null)
+        , @("  |  scope: $($State.Scopes[$State.InScope])", $null)
     )
     if ($State.Remote) { $title = @(, $title[0]) + @(, @("on $($State.Remote.Name) ", 'TitleBold')) + $title[1..($title.Count - 1)] }
     # Show-ModuleManager -WhatIf: operations only say what they would change.
@@ -89,7 +90,7 @@ function Get-MMTuiFrame {
     }
     $pad = $w - $leftLen - $right.Length
     if ($right -and $pad -gt 0) { $title += , @(((' ' * $pad) + $right), $null) }
-    # Clicking view: or sort: cycles it, as V and S do.
+    # Clicking view:, sort: or scope: cycles it, as V, S and C do.
     $layout.TitleY = $lines.Count
     $x = 0
     foreach ($t in $title) {
@@ -97,6 +98,7 @@ function Get-MMTuiFrame {
         $key = $null
         if ($text -match '^  \|  view: ') { $key = ConvertTo-MMTuiKeyInfo 'V' }
         elseif ($text -match '^  \|  sort: ') { $key = ConvertTo-MMTuiKeyInfo 'S' }
+        elseif ($text -match '^  \|  scope: ') { $key = ConvertTo-MMTuiKeyInfo 'C' }
         if ($key) { $layout.Title.Add(@{ Start = $x + 5; End = $x + $text.Length; Key = $key }) }
         $x += $text.Length
     }
@@ -151,7 +153,7 @@ function Get-MMTuiFrame {
         if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
         $selectAll = if ($State.Views[$State.View] -eq 'Multiple versions') { 'select old' } else { 'select updates' }
         $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', $selectAll, 'Enter', 'details', 'U', $update, 'X', $uninstall,
-            'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
+            'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'C', 'scope', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
     $x = 0

@@ -114,7 +114,8 @@ Describe 'Get-MMTuiFrame' {
                 ($s.Rows | Where-Object Name -EQ 'MMAlpha').Info.IsLoaded = $true
                 Update-MMTuiVisible $s
                 $s.Job = [pscustomobject]@{ Done = 3; Total = 9 }
-                $plain = (Get-MMTuiFrame $s 110 20) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
+                # Wide enough for the title bar and the repository check on its right.
+                $plain = (Get-MMTuiFrame $s 120 20) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
                 $plain | Should -Match 'MMRoll \(\+2\)'
                 $plain | Should -Match '2 updates'
                 $plain | Should -Match 'Checking repositories 3/9'

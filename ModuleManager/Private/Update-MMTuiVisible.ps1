@@ -18,13 +18,21 @@ function Update-MMTuiVisible {
     param([hashtable]$State, [switch]$IfChanged)
 
     # The filter goes last, as it can contain any character.
-    $key = "$($State.View)|$($State.Sort)|$($State.Group)|$($State.StatusVersion)|$([string]::Join('/', [string[]]@($State.Expanded.Keys)))|$($State.Filter)"
+    $key = "$($State.View)|$($State.Sort)|$($State.InScope)|$($State.Group)|$($State.StatusVersion)|$([string]::Join('/', [string[]]@($State.Expanded.Keys)))|$($State.Filter)"
     $last = $State.VisibleKey
     if ($IfChanged -and $last -and [object]::ReferenceEquals($last.Rows, $State.Rows) -and $last.Key -ceq $key) { return }
     $State.VisibleKey = @{ Rows = $State.Rows; Key = $key }
 
     $view = $State.Views[$State.View]
+    $scope = $State.Scopes[$State.InScope]
     $f = $State.Filter
+    # n: matches only names and d: only descriptions; without a prefix the filter matches either.
+    $inName = $inDescription = $true
+    if ($f -match '^(?<p>[nd]):') {
+        $inName = $Matches.p -eq 'n'
+        $inDescription = -not $inName
+        $f = $f.Substring(2)
+    }
     $match = {
         param($r)
         switch ($view) {
@@ -32,10 +40,13 @@ function Update-MMTuiVisible {
             'Multiple versions' { if ($r.Info.VersionCount -le 1) { return $false } }
             'Loaded' { if (-not $r.Info.IsLoaded) { return $false } }
         }
-        if ($f -and -not ($r.Name -like "*$f*" -or $r.Info.Description -like "*$f*")) { return $false }
+        # A module is in a scope when any of its versions is (its Scope lists them, such as
+        # 'CurrentUser, AllUsers').
+        if ($scope -ne 'All' -and $scope -notin @($r.Info.Scope -split ', ')) { return $false }
+        if ($f -and -not (($inName -and $r.Name -like "*$f*") -or ($inDescription -and $r.Info.Description -like "*$f*"))) { return $false }
         $true
     }
-    $narrowed = ($view -ne 'All') -or [bool]$f
+    $narrowed = ($view -ne 'All') -or ($scope -ne 'All') -or [bool]$f
 
     foreach ($r in $State.Rows) { $r.Indent = 0; $r.Last = $false; $r.Open = $false }
 
@@ -58,7 +69,8 @@ function Update-MMTuiVisible {
         $shownChildren[$r.Name] = $kids
     }
 
-    # Sort the top level; a family sorts by its most urgent status.
+    # Sort the top level, and the members shown under each family; a family sorts by its most
+    # urgent status (a member has no children, so it sorts by its own).
     $statusKey = {
         $s = $script:MMStatusSortOrder[$_.Status]
         if ($grouped) {
@@ -66,18 +78,22 @@ function Update-MMTuiVisible {
         }
         $s
     }
-    $rows = $top.ToArray()
-    switch ($State.Sorts[$State.Sort]) {
-        'Status' { $rows = @($rows | Sort-Object $statusKey, Name) }
-        'Versions' { $rows = @($rows | Sort-Object @{ Expression = { $_.Info.VersionCount }; Descending = $true }, @{ Expression = 'Name'; Descending = $false }) }
-        'Scope' { $rows = @($rows | Sort-Object { $_.Info.Scope }, Name) }
-        default { $rows = @($rows | Sort-Object Name) }
+    $sortName = $State.Sorts[$State.Sort]
+    $sortRows = {
+        param($in)
+        switch ($sortName) {
+            'Status' { @($in | Sort-Object $statusKey, Name) }
+            'Versions' { @($in | Sort-Object @{ Expression = { $_.Info.VersionCount }; Descending = $true }, @{ Expression = 'Name'; Descending = $false }) }
+            'Scope' { @($in | Sort-Object { $_.Info.Scope }, Name) }
+            default { @($in | Sort-Object Name) }
+        }
     }
+    $rows = & $sortRows $top.ToArray()
 
     $visible = [System.Collections.Generic.List[object]]::new()
     foreach ($r in $rows) {
         $visible.Add($r)
-        $kids = @($shownChildren[$r.Name])
+        $kids = @(& $sortRows @($shownChildren[$r.Name]))
         for ($i = 0; $i -lt $kids.Count; $i++) {
             $kids[$i].Indent = 1
             $kids[$i].Last = ($i -eq $kids.Count - 1)

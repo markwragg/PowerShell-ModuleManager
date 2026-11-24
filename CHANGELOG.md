@@ -1,5 +1,12 @@
 # Change Log
 
+## !Deploy 0.12.0
+
+* [feature] `Show-ModuleManager` (`modman`) has `-View` and `-Sort` parameters, which open the terminal UI with that view (`All`, `Updates`, `MultipleVersions` or `Loaded`) and sort (`Name`, `Status`, `Versions` or `Scope`) already set, as if you'd pressed V or S. For example, `modman -View Updates -Sort Scope`. `-NoGroup` (or `-Ungroup`) opens it with module families ungrouped, as if you'd pressed G.
+* [feature] In the terminal UI, the filter (/) matches only module names when it starts with `n:`, or only descriptions with `d:`. Without a prefix it still matches either, so a short filter such as `ps` can list modules whose descriptions contain it.
+* [feature] The terminal UI's title bar shows a scope (`scope: All` to start with). Press C, or click it, to show only the modules with a version in AllUsers, CurrentUser, System or Other, skipping scopes with no modules. It works with the view and the filter: for example, the Updates view with `scope: CurrentUser` lists the updates that don't need administrator rights.
+* [fix] In the terminal UI, the members of an expanded module family (such as the `Az.*` modules under `Az`) are sorted by the current sort, under their family. They used to stay in name order whatever the sort was.
+
 ## [0.11.0] - 2026-11-23
 
 * [feature] `Show-ModuleManager` (`modman`) has a `-WhatIf` switch, which opens the terminal UI in WhatIf mode: **WHATIF** shows in the title bar and in each confirmation, and updates, uninstalls, moves and removing old versions run as usual but only say what they would change, as "What if:" lines in the output pane. Nothing runs as administrator, and loaded modules aren't unloaded. `-Confirm` (which comes with `-WhatIf`) has no effect, as the terminal UI always asks before changing anything, and it warns if you use it.

@@ -255,7 +255,7 @@ Describe 'Invoke-MMTuiMouse' {
         }
     }
 
-    It 'Puts view: and sort: in the right place with a remote name and the % latest (<Case>)' -ForEach @(
+    It 'Puts view:, sort: and scope: in the right place with a remote name and the % latest (<Case>)' -ForEach @(
         @{ Case = 'remote'; Remote = $true }
         @{ Case = 'local'; Remote = $false }
     ) {
@@ -266,9 +266,13 @@ Describe 'Invoke-MMTuiMouse' {
             $plain = (((Get-MMTuiFrame $s 200 25) -split "`r`n")[0]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", ''
             $plain | Should -Match 'latest'
             foreach ($hit in $s.Layout.Title) {
-                $plain.Substring($hit.Start, 5) | Should -BeIn @('view:', 'sort:')
+                $plain.Substring($hit.Start) | Should -Match '^(view|sort|scope):'
             }
-            $s.Layout.Title.Count | Should -Be 2
+            $s.Layout.Title.Count | Should -Be 3
+            # Clicking scope: cycles it, as C does.
+            $scope = $s.Layout.Title | Where-Object { $plain.Substring($_.Start) -match '^scope:' }
+            Invoke-MMTuiMouse $s ([pscustomobject]@{ Button = 'Left'; X = $scope.Start + 1; Y = 0 })
+            $s.InScope | Should -Not -Be 0
         }
     }
 

@@ -59,6 +59,14 @@ Pipe modules to it to open it on just those, such as the ones with updates:
 Get-ManagedModuleUpdate -Outdated | modman
 ```
 
+Or open it with a view and sort already set (the same as pressing **V** and **S**):
+
+```powershell
+modman -View Updates -Sort Scope     # views: All, Updates, MultipleVersions, Loaded
+                                     # sorts: Name, Status, Versions, Scope
+modman -NoGroup                      # list module families' members separately, as G does
+```
+
 See where modules are installed:
 
 ```powershell
@@ -168,9 +176,10 @@ The update check runs in the background, so you can use the list while it fills 
 | P | | Open the module's project page (or its PowerShell Gallery page) in the browser |
 | L | Show or hide the output pane | Same |
 | [ ] | Scroll the output pane back and forward | Same |
-| / | Filter by name or description | |
-| V | Cycle the view: All, Updates, Multiple versions, Loaded | |
-| S | Cycle the sort: Name, Status, Versions, Scope | |
+| / | Filter by name or description. Start with `n:` to match only names, or `d:` only descriptions | |
+| V | Cycle the view: All, Updates, Multiple versions, Loaded (or start with `-View`) | |
+| S | Cycle the sort: Name, Status, Versions, Scope (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
+| C | Cycle the scope: All, AllUsers, CurrentUser, System, Other (skipping scopes with no modules). Shows only the modules with a version in that scope, so with the Updates view, `scope: CurrentUser` lists the updates that don't need administrator rights | |
 | G | Turn grouping of module families on or off | |
 | R | Rescan and re-check the repositories | |
 | Esc | Close the output pane, then clear the selection, then the filter | Back to the list |
@@ -184,7 +193,7 @@ module, unless you use `-IncludeSystem`) shows as not found.
 
 You can also use the mouse. Click a module to move to it, and double-click it for its versions and paths
 (right-click to go back). Click its `[ ]` box to select it, a family's arrow to expand or collapse the family, and
-a column header (Name, #, Scope, Status) to sort by that column, or `view:` or `sort:` in the title bar to cycle
+a column header (Name, #, Scope, Status) to sort by that column, or `view:`, `sort:` or `scope:` in the title bar to cycle
 them. Clicking a key in the help bar presses it, and a confirmation is answered by clicking **y** or **N** (other
 clicks are ignored while it's shown). The wheel scrolls the list, the details view, and the output pane when the
 pointer is over it. Right-click hides the output pane (or click `L hide` in its header, and `[` or `]` to scroll
@@ -313,7 +322,7 @@ every `Az.*` module, and the `Az.*` modules need a minimum version of `Az.Accoun
   session to use the updates.
 - **Families in the UI.** `modman` shows a module and the `<Name>.*` modules it depends on as one collapsed row,
   such as `► Az (+92)` with the number of updates in the family. Space, U, X and O on a collapsed family act on
-  all of it. Right expands it, Left collapses it, and G turns grouping off.
+  all of it. Right expands it, Left collapses it, and G turns grouping off (or start with `-NoGroup`).
 
 ## Building and testing
 

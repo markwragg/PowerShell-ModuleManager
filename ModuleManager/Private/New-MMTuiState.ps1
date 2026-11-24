@@ -22,6 +22,9 @@ function New-MMTuiState {
         View         = 0
         Sorts        = @('Name', 'Status', 'Versions', 'Scope')
         Sort         = 0
+        # Shows only the modules with a version in this scope (C cycles it; see Update-MMTuiVisible).
+        Scopes       = @('All', 'AllUsers', 'CurrentUser', 'System', 'Other')
+        InScope      = 0
         Group        = $true
         Expanded     = @{}
         Message      = ''

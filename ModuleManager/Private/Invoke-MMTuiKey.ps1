@@ -119,6 +119,18 @@ function Invoke-MMTuiKey {
         '/' { $State.Mode = 'filter' }
         'v' { $State.View = ($State.View + 1) % $State.Views.Count; $State.Top = 0 }
         's' { $State.Sort = ($State.Sort + 1) % $State.Sorts.Count }
+        'c' {
+            # The next scope that has modules (System only does with -IncludeSystem), then All.
+            $present = @($State.Rows | ForEach-Object { $_.Info.Scope -split ', ' })
+            $n = $State.Scopes.Count
+            $next = 0
+            for ($i = 1; $i -lt $n; $i++) {
+                $candidate = ($State.InScope + $i) % $n
+                if ($candidate -eq 0 -or $State.Scopes[$candidate] -in $present) { $next = $candidate; break }
+            }
+            $State.InScope = $next
+            $State.Top = 0
+        }
         'g' {
             $State.Group = -not $State.Group
             $State.Top = 0
