@@ -35,6 +35,7 @@ function Update-MMTuiRows {
     Set-MMTuiFamily -Rows $State.Rows
     # Sizes and dependencies are worked out again, for what's installed now.
     $State.Sizes = @{}
+    Stop-MMTuiReclaimable $State
     $State.DepIndex = $null
     $State.DepInfo = @{}
 

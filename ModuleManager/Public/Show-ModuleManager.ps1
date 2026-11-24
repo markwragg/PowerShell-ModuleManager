@@ -154,8 +154,10 @@ function Show-ModuleManager {
         to change it.
 
     .PARAMETER Sort
-        The order the UI opens in: Name (the default), Status, Versions or Scope. Press S to
-        change it.
+        The order the UI opens in: Name (the default), Status, Versions, Scope or Reclaimable. Press S
+        to change it. Reclaimable (the space removing old versions would free, most first) only applies
+        in the Multiple versions view, when the screen is at least 100 characters wide; otherwise
+        it's Name.
 
     .PARAMETER ThrottleLimit
         The maximum number of concurrent repository queries. Queries made with PowerShellGet's own commands (for a repository that isn't a NuGet v2 feed, or a feed that can't be reached) still run one at a time.
@@ -261,7 +263,7 @@ function Show-ModuleManager {
         [ValidateSet('All', 'Updates', 'MultipleVersions', 'Loaded')]
         [string]$View = 'All',
 
-        [ValidateSet('Name', 'Status', 'Versions', 'Scope')]
+        [ValidateSet('Name', 'Status', 'Versions', 'Scope', 'Reclaimable')]
         [string]$Sort = 'Name',
 
         [ValidateRange(1, 64)]
@@ -374,13 +376,22 @@ function Show-ModuleManager {
                 if ($state.Job -and (Receive-MMTuiLookup $state)) { Update-MMTuiVisible $state; $dirty = $true }
                 if ($state.Task -and (Receive-MMTuiTask $state)) { $dirty = $true }
                 if ($state.Detail -and $state.Mode -ne 'list' -and (Update-MMTuiDetailSize $state)) { $dirty = $true }
+                if ($state.Mode -eq 'list' -and (Update-MMTuiReclaimable $state)) {
+                    # Sorted by Reclaimable, the list is sorted again once it's all worked out.
+                    Update-MMTuiVisible $state -IfChanged
+                    $dirty = $true
+                }
                 if ($state.Job -or $state.Task) {
                     if (([datetime]::UtcNow - $lastSpin).TotalMilliseconds -ge 150) {
                         $state.Spinner++; $lastSpin = [datetime]::UtcNow; $dirty = $true
                     }
                 }
                 $size = Get-MMConsoleSize
-                if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) { $dirty = $true }
+                if ($size.Width -ne $state.Width -or $size.Height -ne $state.Height) {
+                    $dirty = $true
+                    # Narrowing the screen can hide the Reclaimable column, which then can't be the sort.
+                    if ($state.Sorts[$state.Sort] -eq 'Reclaimable' -and -not (Test-MMTuiReclaimShown $state $size.Width)) { $state.Sort = 0; Update-MMTuiVisible $state }
+                }
                 if ($dirty) { Write-MMTuiFrame $state; $dirty = $false }
 
                 $received = Read-MMTuiInput -State $state
@@ -398,6 +409,7 @@ function Show-ModuleManager {
         finally {
             Stop-MMTuiTask $state -Closing
             Stop-MMTuiLookup $state -Closing
+            Stop-MMTuiReclaimable $state
             Disable-MMTuiMouse $state.Mouse
             Exit-MMTuiScreen
             $script:MMTuiHyperlink = $false

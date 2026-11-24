@@ -20,7 +20,7 @@ function New-MMTuiState {
         Filter       = ''
         Views        = @('All', 'Updates', 'Multiple versions', 'Loaded')
         View         = 0
-        Sorts        = @('Name', 'Status', 'Versions', 'Scope')
+        Sorts        = @('Name', 'Status', 'Versions', 'Scope', 'Reclaimable')
         Sort         = 0
         # Shows only the modules with a version in this scope (C cycles it; see Update-MMTuiVisible).
         Scopes       = @('All', 'AllUsers', 'CurrentUser', 'System', 'Other')
@@ -38,6 +38,9 @@ function New-MMTuiState {
         # Update-MMTuiDetailSize), and each version's dependencies (see Get-MMTuiDependencyInfo).
         # Both are cleared when the modules are rescanned.
         Sizes        = @{}
+        # Multiple versions view: the old versions removing them (O) would remove, by module (see
+        # Update-MMTuiReclaimable). Cleared when the modules are rescanned.
+        Reclaim      = $null
         DepIndex     = $null
         DepInfo      = @{}
         Task         = $null

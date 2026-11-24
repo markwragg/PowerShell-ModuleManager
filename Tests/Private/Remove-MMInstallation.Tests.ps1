@@ -73,11 +73,57 @@ Describe 'Remove-MMInstallation' {
         }
     }
 
-    It 'Does nothing with -WhatIf' {
+    It 'Does nothing with -WhatIf, but counts what it would free' {
         InModuleScope ModuleManager {
+            function script:Invoke-TestTally {
+                [CmdletBinding(SupportsShouldProcess)]
+                param($Installation, [hashtable]$Tally)
+                Remove-MMInstallation -Installation $Installation -Cmdlet $PSCmdlet -Tally $Tally
+            }
             $i = Get-TestInstallation 'MMGamma' '3.0.0'
-            Invoke-TestRemoval -Installation $i -WhatIf | Should -BeFalse
+            $bytes = (Get-ChildItem $i.ModuleBase -Recurse -File | Measure-Object Length -Sum).Sum
+            $tally = @{}
+            Invoke-TestTally -Installation $i -Tally $tally -WhatIf | Should -BeFalse
             Test-Path $i.ModuleBase | Should -BeTrue
+            $tally.WhatIf | Should -Be 1
+            $tally.WhatIfBytes | Should -Be $bytes
+            $tally['Removed'] | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'Counts what it removes, and adds the size to the installation' {
+        InModuleScope ModuleManager {
+            function script:Invoke-TestTally {
+                [CmdletBinding(SupportsShouldProcess)]
+                param($Installation, [hashtable]$Tally)
+                Remove-MMInstallation -Installation $Installation -Cmdlet $PSCmdlet -Tally $Tally
+            }
+            $i = Get-TestInstallation 'MMGamma' '3.0.0'
+            $bytes = (Get-ChildItem $i.ModuleBase -Recurse -File | Measure-Object Length -Sum).Sum
+            $tally = @{ Removed = 1; Bytes = 100L }
+            $out = @(Invoke-TestTally -Installation $i -Tally $tally -Confirm:$false -Verbose 4>&1)
+            $out | Should -Contain $true
+            $verbose = @($out | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] -and "$_" -like 'Removed *' })
+            $verbose | Should -HaveCount 1
+            "$($verbose[0])" | Should -BeLike "Removed MMGamma 3.0.0, $(Format-MMSize $bytes) from *"
+            $tally.Removed | Should -Be 2
+            $tally.Bytes | Should -Be (100 + $bytes)
+            $i.SizeMB | Should -Be ([Math]::Round($bytes / 1MB, 1))
+            Test-Path $i.ModuleBase | Should -BeFalse
+        }
+    }
+
+    It 'Does not count a version it does not remove' {
+        InModuleScope ModuleManager {
+            function script:Invoke-TestTally {
+                [CmdletBinding(SupportsShouldProcess)]
+                param($Installation, [hashtable]$Tally)
+                Remove-MMInstallation -Installation $Installation -Cmdlet $PSCmdlet -Tally $Tally
+            }
+            Mock Remove-Item { throw 'file is locked' } -ParameterFilter { $Recurse }
+            $tally = @{}
+            Invoke-TestTally -Installation (Get-TestInstallation 'MMGamma' '3.0.0') -Tally $tally -Confirm:$false -ErrorAction SilentlyContinue | Should -BeFalse
+            $tally.Count | Should -Be 0
         }
     }
 }

@@ -11,14 +11,22 @@ function Update-MMTuiVisible {
 
         With -IfChanged it does nothing when none of what it works from has changed since it last
         ran: the rows, their statuses (see Update-MMTuiStatus), the view, sort, grouping, expanded
-        families and filter. That's most key presses (moving the cursor, selecting), and sorting
+        families, filter, whether the Reclaimable column shows and whether it's worked out. That's most key presses (moving the cursor, selecting), and sorting
         takes a while with many modules.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Changes only the in-memory state of the terminal UI or an in-memory object, not system state.')]
     param([hashtable]$State, [switch]$IfChanged)
 
-    # The filter goes last, as it can contain any character.
-    $key = "$($State.View)|$($State.Sort)|$($State.InScope)|$($State.Group)|$($State.StatusVersion)|$([string]::Join('/', [string[]]@($State.Expanded.Keys)))|$($State.Filter)"
+    # Reclaimable is only a sort while its column is showing (see Test-MMTuiReclaimShown); otherwise
+    # it's back to Name.
+    $reclaimShown = Test-MMTuiReclaimShown $State
+    if ($State.Sorts[$State.Sort] -eq 'Reclaimable' -and -not $reclaimShown) { $State.Sort = 0 }
+    $reclaimDone = $false
+    if ($State.Reclaim) { $reclaimDone = $State.Reclaim.Done }
+
+    # The filter goes last, as it can contain any character. Sorting by Reclaimable is done again
+    # once it's all worked out.
+    $key = "$($State.View)|$($State.Sort)|$reclaimShown|$reclaimDone|$($State.InScope)|$($State.Group)|$($State.StatusVersion)|$([string]::Join('/', [string[]]@($State.Expanded.Keys)))|$($State.Filter)"
     $last = $State.VisibleKey
     if ($IfChanged -and $last -and [object]::ReferenceEquals($last.Rows, $State.Rows) -and $last.Key -ceq $key) { return }
     $State.VisibleKey = @{ Rows = $State.Rows; Key = $key }
@@ -85,6 +93,11 @@ function Update-MMTuiVisible {
             'Status' { @($in | Sort-Object $statusKey, Name) }
             'Versions' { @($in | Sort-Object @{ Expression = { $_.Info.VersionCount }; Descending = $true }, @{ Expression = 'Name'; Descending = $false }) }
             'Scope' { @($in | Sort-Object { $_.Info.Scope }, Name) }
+            # Most first; modules still being worked out last.
+            'Reclaimable' {
+                @($in | Sort-Object @{ Expression = { $b = Get-MMTuiReclaimSize $State $_; if ($null -eq $b) { -2L } else { $b } }; Descending = $true },
+                    @{ Expression = 'Name'; Descending = $false })
+            }
             default { @($in | Sort-Object Name) }
         }
     }

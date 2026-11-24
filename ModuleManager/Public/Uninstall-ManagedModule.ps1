@@ -27,6 +27,11 @@ function Uninstall-ManagedModule {
         Prompts for confirmation for each version by default. Use -Confirm:$false to skip
         prompts, or -WhatIf to preview.
 
+        Each version's size is shown in its confirmation prompt (and -WhatIf line). When it's done,
+        it says how many versions it removed and how much disk space that freed, or with -WhatIf,
+        how much it would free. This is an information message, so -InformationAction
+        SilentlyContinue (or 6>$null) hides it without hiding warnings.
+
     .PARAMETER Name
         The module name(s) to uninstall. Wildcards are supported. All versions are removed
         unless -Version or -OldVersions is given. With -OldVersions it defaults to all modules,
@@ -53,7 +58,7 @@ function Uninstall-ManagedModule {
         Remove modules even if they are loaded, or required by other installed modules.
 
     .PARAMETER PassThru
-        Output an object for each version that was removed.
+        Output an object for each version that was removed, with its size in MB (SizeMB).
 
     .EXAMPLE
         Uninstall-ManagedModule OldModule
@@ -79,6 +84,11 @@ function Uninstall-ManagedModule {
         Uninstall-ManagedModule Pester -OldVersions -Keep 2 -Confirm:$false
 
         Keeps the two newest versions of Pester and removes the rest, without prompting.
+
+    .EXAMPLE
+        Uninstall-ManagedModule -OldVersions -Confirm:$false -PassThru | Measure-Object SizeMB -Sum
+
+        Removes the old versions of every module, and totals the space freed from the versions output.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByModuleBase')]
     [OutputType('ModuleManager.InstalledVersion')]
@@ -118,6 +128,7 @@ function Uninstall-ManagedModule {
         if (-not $OldVersions) { $all = @(Get-MMInstalledVersion -IncludeSystem) }
         $targets = [System.Collections.Generic.List[object]]::new()
         $seen = @{}
+        $tally = @{ Removed = 0; Bytes = 0L; WhatIf = 0; WhatIfBytes = 0L }
     }
     process {
         # The old versions are worked out once every name is in.
@@ -154,8 +165,9 @@ function Uninstall-ManagedModule {
     end {
         if ($OldVersions) {
             if ($names.Count -eq 0) { $names.Add('*') }
-            $removed = Remove-MMOldVersion -Name $names.ToArray() -Keep $Keep -Scope $Scope -Force:$Force -Cmdlet $PSCmdlet
+            $removed = Remove-MMOldVersion -Name $names.ToArray() -Keep $Keep -Scope $Scope -Force:$Force -Tally $tally -Cmdlet $PSCmdlet
             if ($PassThru) { $removed }
+            Write-MMRemovalSummary -Tally $tally -Cmdlet $PSCmdlet
             return
         }
         if (-not $targets.Count) { return }
@@ -174,7 +186,8 @@ function Uninstall-ManagedModule {
 
         foreach ($t in $targets) {
             if ($blocked.ContainsKey((Get-MMPathKey $t.ModuleBase))) { continue }
-            if ((Remove-MMInstallation -Installation $t -Cmdlet $PSCmdlet -Force:$Force) -and $PassThru) { $t }
+            if ((Remove-MMInstallation -Installation $t -Cmdlet $PSCmdlet -Force:$Force -Tally $tally) -and $PassThru) { $t }
         }
+        Write-MMRemovalSummary -Tally $tally -Cmdlet $PSCmdlet
     }
 }

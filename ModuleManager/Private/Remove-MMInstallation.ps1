@@ -7,6 +7,11 @@ function Remove-MMInstallation {
         Removes a single installed module version folder after safety checks.
         ShouldProcess is evaluated against the calling public cmdlet so -WhatIf/-Confirm work.
         Returns $true if the version was removed.
+
+        The version's size is measured first and shown in the confirmation prompt (and -WhatIf
+        line), and added to the installation object as SizeMB. With -Tally, the number and total
+        size of the versions removed (Removed, Bytes), or that -WhatIf says would be (WhatIf,
+        WhatIfBytes), are added to that hashtable, so the caller can say how much space was freed.
     #>
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Confirmation is delegated: the calling cmdlet''s $PSCmdlet is passed in and its ShouldProcess is used.')]
@@ -14,7 +19,8 @@ function Remove-MMInstallation {
     param(
         [Parameter(Mandatory)][object]$Installation,
         [Parameter(Mandatory)][System.Management.Automation.PSCmdlet]$Cmdlet,
-        [switch]$Force
+        [switch]$Force,
+        [hashtable]$Tally
     )
 
     $i = $Installation
@@ -39,7 +45,22 @@ function Remove-MMInstallation {
         return $false
     }
 
-    if (-not (Test-MMShouldProcess $Cmdlet "$label ($($i.ModuleBase))" 'Uninstall module version')) { return $false }
+    $bytes = Get-MMFolderSize $i.ModuleBase
+    $sizeText = ''
+    if ($null -ne $bytes) {
+        $sizeText = ", $(Format-MMSize $bytes)"
+        $i | Add-Member -NotePropertyName SizeMB -NotePropertyValue ([Math]::Round($bytes / 1MB, 1)) -Force
+    }
+    else { $bytes = 0L }
+
+    if (-not (Test-MMShouldProcess $Cmdlet "$label$sizeText ($($i.ModuleBase))" 'Uninstall module version')) {
+        # $WhatIfPreference is the calling cmdlet's, as this runs in its scope.
+        if ($Tally -and ($script:MMTuiWhatIf -or $WhatIfPreference)) {
+            $Tally['WhatIf'] = [int]$Tally['WhatIf'] + 1
+            $Tally['WhatIfBytes'] = [long]$Tally['WhatIfBytes'] + $bytes
+        }
+        return $false
+    }
 
     if ($i.IsLoaded) {
         $key = Get-MMPathKey $i.ModuleBase
@@ -64,6 +85,10 @@ function Remove-MMInstallation {
         if ($isEmpty) { Remove-Item -LiteralPath $parent -Force -ErrorAction SilentlyContinue }
     }
 
-    Write-Verbose "Removed $label from $($i.ModuleBase)"
+    if ($Tally) {
+        $Tally['Removed'] = [int]$Tally['Removed'] + 1
+        $Tally['Bytes'] = [long]$Tally['Bytes'] + $bytes
+    }
+    Write-Verbose "Removed $label$sizeText from $($i.ModuleBase)"
     $true
 }

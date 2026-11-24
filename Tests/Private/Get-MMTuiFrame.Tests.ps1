@@ -244,6 +244,163 @@ Describe 'Get-MMTuiFrame' {
             HelpBar | Should -Match ' X uninstall  M move scope  O remove old '
         }
     }
+    It 'Says on the help bar whether G will group or ungroup' {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+            $s = New-MMTuiState -Options $Options
+            Update-MMTuiRows $s; Update-MMTuiVisible $s
+            $help = { @((Get-MMTuiFrame $s 250 25) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' -split "`r`n")[-1] }
+            & $help | Should -Match 'G ungroup'
+            $s.Group = $false
+            & $help | Should -Match 'G group'
+        }
+    }
+    Context 'Reclaimable column' {
+
+        BeforeAll {
+            InModuleScope ModuleManager {
+                function script:Wait-Reclaim([hashtable]$State) {
+                    $deadline = [datetime]::UtcNow.AddSeconds(60)
+                    while (-not ($State.Reclaim -and $State.Reclaim.Done)) {
+                        if ([datetime]::UtcNow -gt $deadline) { throw 'The Reclaimable column was never worked out.' }
+                        $null = Update-MMTuiReclaimable $State
+                        Start-Sleep -Milliseconds 20
+                    }
+                }
+            }
+        }
+
+        BeforeEach {
+            Reset-FakeModules
+            Add-FakeFamily
+        }
+
+        AfterAll { Reset-FakeModules }
+
+        It 'Shows in the Multiple versions view what removing old versions would free, once it is worked out' {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                $s.Group = $false
+                $s.View = 2
+                Update-MMTuiVisible $s
+                $plain = @((Get-MMTuiFrame $s 120 25) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' -split "`r`n")
+                ($plain | Where-Object { $_ -match '^\s+Name\b' }) | Should -Match 'Reclaimable'
+                ($plain | Where-Object { $_ -match 'MMAlpha' }) | Should -Match '\.\.\.'
+
+                # Worked out in the background: nothing until it's done.
+                Update-MMTuiReclaimable $s | Should -BeFalse
+                $s.Reclaim.Done | Should -BeFalse
+                Get-MMTuiReclaimText $s ($s.Rows | Where-Object Name -EQ 'MMAlpha') | Should -Be '...'
+                Wait-Reclaim $s
+                Update-MMTuiReclaimable $s | Should -BeFalse
+
+                $alpha = $s.Rows | Where-Object Name -EQ 'MMAlpha'
+                $bytes = 0L; foreach ($i in @($alpha.Info.Installations | Select-Object -Skip 1)) { $bytes += Get-MMFolderSize $i.ModuleBase }
+                Get-MMTuiReclaimText $s $alpha | Should -Be (Format-MMSize $bytes)
+                $plain = @((Get-MMTuiFrame $s 120 25) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '' -split "`r`n")
+                $plain | ForEach-Object { $_.Length | Should -Be 120 }
+                ($plain | Where-Object { $_ -match 'MMAlpha' }) | Should -Match ([regex]::Escape((Format-MMSize $bytes)) + '\s+\S')
+
+                # Removing the old versions of the family frees MMRoll.Core 1.0.0, but MMRoll 2.0.0 still pins 2.0.0.
+                $core = $s.Rows | Where-Object Name -EQ 'MMRoll.Core'
+                $coreOld = @($core.Info.Installations | Where-Object Version -EQ '1.0.0')[0]
+                Get-MMTuiReclaimText $s $core | Should -Be (Format-MMSize (Get-MMFolderSize $coreOld.ModuleBase))
+                # A module with only one version frees nothing.
+                Get-MMTuiReclaimText $s ($s.Rows | Where-Object Name -EQ 'MMGamma') | Should -Be ''
+            }
+        }
+
+        It 'Adds up a collapsed family' {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                $s.View = 2
+                Update-MMTuiVisible $s
+                Wait-Reclaim $s
+                $roll = $s.Rows | Where-Object Name -EQ 'MMRoll'
+                $roll.Children.Count | Should -BeGreaterThan 0
+                # Expanded, each row shows its own; collapsed, the family's row adds them up.
+                Get-MMTuiReclaimText $s $roll | Should -Be (Format-MMSize $s.Sizes[$s.Reclaim.ByName['mmroll'][0]])
+                $roll.Open = $false
+                $total = 0L
+                foreach ($b in @($s.Reclaim.ByName['mmroll']) + @($s.Reclaim.ByName['mmroll.core'])) { $total += $s.Sizes[$b] }
+                Get-MMTuiReclaimText $s $roll | Should -Be (Format-MMSize $total)
+            }
+        }
+
+        It 'Is left out of the other views, and of narrow screens' {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s; Update-MMTuiVisible $s
+                Update-MMTuiReclaimable $s | Should -BeFalse
+                $s.Reclaim | Should -BeNullOrEmpty
+                (Get-MMTuiFrame $s 120 25) | Should -Not -Match 'Reclaimable'
+                $s.View = 2
+                Update-MMTuiVisible $s
+                (Get-MMTuiFrame $s 90 25) | Should -Not -Match 'Reclaimable'
+            }
+        }
+
+        It 'Sorts by Reclaimable, most first, from S or its heading, only while the column shows' {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                function Press($c) { Invoke-MMTuiKey -State $s -Key ([ConsoleKeyInfo]::new($c, [ConsoleKey]::S, $false, $false, $false)); Update-MMTuiVisible $s -IfChanged }
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                $s.Group = $false
+                $null = Get-MMTuiFrame $s 120 25
+                Update-MMTuiVisible $s
+
+                # The All view has no Reclaimable column, so S goes round without it.
+                $seen = foreach ($n in 1..$s.Sorts.Count) { Press 's'; $s.Sorts[$s.Sort] }
+                $seen | Should -Not -Contain 'Reclaimable'
+
+                # In the Multiple versions view, S gets to it, and so does a click on its heading.
+                $s.View = 2; $s.Sort = 0
+                Update-MMTuiVisible $s
+                $seen = foreach ($n in 1..$s.Sorts.Count) { Press 's'; $s.Sorts[$s.Sort] }
+                $seen | Should -Contain 'Reclaimable'
+                $s.Sort = 0
+                $header = ((((Get-MMTuiFrame $s 120 25) -split "`r`n")[1]) -replace "$([char]27)\[[0-9;?]*[a-zA-Z]", '')
+                Invoke-MMTuiMouse $s ([pscustomobject]@{ Button = 'Left'; X = $header.IndexOf('Reclaimable') + 1; Y = 1 })
+                $s.Sorts[$s.Sort] | Should -Be 'Reclaimable'
+
+                # Modules still being worked out go last; once it's all known, most first.
+                Update-MMTuiVisible $s
+                Wait-Reclaim $s
+                Update-MMTuiVisible $s -IfChanged
+                $bytes = @($s.Visible | ForEach-Object { Get-MMTuiReclaimSize $s $_ })
+                $bytes | Should -Be @($bytes | Sort-Object -Descending)
+                $s.Visible[0].Name | Should -Be 'MMAlpha'
+
+                # Leaving the view, or a screen too narrow for the column, goes back to Name.
+                $s.View = 0
+                Update-MMTuiVisible $s -IfChanged
+                $s.Sorts[$s.Sort] | Should -Be 'Name'
+                $s.View = 2; $s.Sort = [array]::IndexOf($s.Sorts, 'Reclaimable')
+                $null = Get-MMTuiFrame $s 90 25
+                Update-MMTuiVisible $s -IfChanged
+                $s.Sorts[$s.Sort] | Should -Be 'Name'
+            }
+        }
+        It 'Is worked out again after a rescan' {
+            InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+                $s = New-MMTuiState -Options $Options
+                Update-MMTuiRows $s
+                $s.View = 2
+                Wait-Reclaim $s
+                Update-MMTuiRows $s
+                $s.Reclaim | Should -BeNullOrEmpty
+
+                # A rescan while it's still being worked out stops it.
+                $null = Update-MMTuiReclaimable $s
+                $ps = $s.Reclaim.PowerShell
+                $ps | Should -Not -BeNullOrEmpty
+                Update-MMTuiRows $s
+                $s.Reclaim | Should -BeNullOrEmpty
+                $ps.InvocationStateInfo.State | Should -BeIn 'Stopped', 'Completed', 'Failed'
+            }
+        }
+    }
 }
 
 Describe 'Write-MMTuiFrame' {

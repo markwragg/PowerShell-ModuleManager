@@ -152,8 +152,10 @@ function Get-MMTuiFrame {
         if ($selCount) { $update = 'update selected'; $removeOld = 'remove old from selected' }
         if ($selCount -or $State.DSelected.Count) { $uninstall = 'uninstall selected'; $move = 'move selected' }
         $selectAll = if ($State.Views[$State.View] -eq 'Multiple versions') { 'select old' } else { 'select updates' }
+        # G says what pressing it does.
+        $group = if ($State.Group) { 'ungroup' } else { 'group' }
         $keys = @('Up/Dn', 'move', 'Space', 'select', 'A', $selectAll, 'Enter', 'details', 'U', $update, 'X', $uninstall,
-            'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'C', 'scope', 'G', 'group', 'R', 'refresh', 'Q', 'quit')
+            'M', $move, 'O', $removeOld, 'L', 'output', '/', 'filter', 'V', 'view', 'S', 'sort', 'C', 'scope', 'G', $group, 'R', 'refresh', 'Q', 'quit')
     }
     $help = @()
     $x = 0

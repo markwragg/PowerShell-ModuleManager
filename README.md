@@ -102,11 +102,11 @@ Az.Accounts                          5.4.0            5.5.5            UpdateAva
 
 | Cmdlet | Synopsis |
 | --- | --- |
-| `Get-ManagedModule` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. |
+| `Get-ManagedModule` | One row per installed module: newest version, number of versions, scope, repository, path. `-AllVersions` lists each version; `-MultipleVersions` shows only modules with more than one version. `-IncludeSize` adds each module's size on disk and how much removing its old versions would free (`ReclaimableMB`). |
 | `Get-ManagedModuleUpdate` | Compares the newest installed version with the latest in the module's repository. Status is `UpdateAvailable`, `UpToDate`, `LocalNewer`, `NotInRepository`, `Unlisted` (withdrawn by its publisher, usually because it's deprecated), `VersionUnlisted` (the newest installed version was withdrawn and there's no newer one; checked for NuGet v2 feeds such as the PowerShell Gallery) or `Error`. |
 | `Get-ManagedModuleLocation` | Where every version is installed. `-Summary` gives counts per `PSModulePath` entry; `-IncludeSize` adds disk usage. |
 | `Update-ManagedModule` | Installs the latest version into the same scope as the existing one, showing a progress bar. `-RemoveOldVersions` removes the old versions afterwards. Supports `-WhatIf`. |
-| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). With `-OldVersions`, keeps the newest `-Keep` versions of each module and removes the rest. Supports `-WhatIf` and `-Confirm`. |
+| `Uninstall-ManagedModule` | Removes modules or specific versions (`-Version 4.*`). With `-OldVersions`, keeps the newest `-Keep` versions of each module and removes the rest. Shows each version's size, and ends by saying how much disk space it freed (or would free, with `-WhatIf`). Supports `-WhatIf` and `-Confirm`. |
 | `Move-ManagedModule` | Moves modules or specific versions between the `CurrentUser` and `AllUsers` scopes (`-Destination AllUsers`), updating their install record so PowerShellGet and PSResourceGet still recognise them. Needs an elevated session. Supports `-WhatIf` and `-Confirm`. |
 | `Show-ModuleManager` | The terminal UI. |
 
@@ -119,6 +119,9 @@ Get-ManagedModuleUpdate -Outdated | Update-ManagedModule -RemoveOldVersions -Wha
 ```
 ```powershell
 Get-ManagedModule -MultipleVersions | Sort-Object VersionCount -Descending
+```
+```powershell
+Get-ManagedModule -MultipleVersions -IncludeSize | Sort-Object ReclaimableMB -Descending
 ```
 ```powershell
 Get-ManagedModuleLocation -Summary -IncludeSize
@@ -178,9 +181,10 @@ The update check runs in the background, so you can use the list while it fills 
 | [ ] | Scroll the output pane back and forward | Same |
 | / | Filter by name or description. Start with `n:` to match only names, or `d:` only descriptions | |
 | V | Cycle the view: All, Updates, Multiple versions, Loaded (or start with `-View`) | |
-| S | Cycle the sort: Name, Status, Versions, Scope (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
+|   | In the Multiple versions view (100 or more columns wide), the **Reclaimable** column shows how much space removing each module's old versions (O) would free, leaving out loaded versions and ones other modules depend on. It shows `...` while it's worked out. Click its heading, or press S, to sort by it, most first | |
+| S | Cycle the sort: Name, Status, Versions, Scope, and in the Multiple versions view Reclaimable (or start with `-Sort`). Members of an expanded family are sorted the same way, under their family | |
 | C | Cycle the scope: All, AllUsers, CurrentUser, System, Other (skipping scopes with no modules). Shows only the modules with a version in that scope, so with the Updates view, `scope: CurrentUser` lists the updates that don't need administrator rights | |
-| G | Turn grouping of module families on or off | |
+| G | Turn grouping of module families on or off (the help bar says `ungroup` or `group`) | |
 | R | Rescan and re-check the repositories | |
 | Esc | Close the output pane, then clear the selection, then the filter | Back to the list |
 | Q | Quit (Ctrl+C while an operation is running stops it first) | Back to the list |
