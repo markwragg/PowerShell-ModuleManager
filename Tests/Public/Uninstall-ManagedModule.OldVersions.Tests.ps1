@@ -78,9 +78,9 @@ Describe 'Uninstall-ManagedModule -OldVersions' {
             # Redirecting stream 6 collects information records whatever the action, so check what's asked for.
             Mock -ModuleName ModuleManager Write-Information { }
             Uninstall-ManagedModule -OldVersions MMAlpha -WhatIf
-            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PSBoundParameters['InformationAction'] -eq 'Continue' }
+            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PesterBoundParameters['InformationAction'] -eq 'Continue' }
             Uninstall-ManagedModule -OldVersions MMAlpha -Confirm:$false -InformationAction SilentlyContinue
-            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PSBoundParameters['InformationAction'] -eq 'SilentlyContinue' }
+            Should -Invoke -ModuleName ModuleManager Write-Information -Times 1 -Exactly -ParameterFilter { $PesterBoundParameters['InformationAction'] -eq 'SilentlyContinue' }
             (Get-ManagedModule MMAlpha).Versions | Should -Be @('2.0.0-beta1')
         }
 
@@ -89,7 +89,7 @@ Describe 'Uninstall-ManagedModule -OldVersions' {
         }
 
         It 'Also reports the space freed by uninstalling named modules, for one version' {
-            $info = @(Uninstall-ManagedModule MMGamma -Confirm:$false 6>&1)
+            $info = @(Uninstall-ManagedModule MMDependent -Confirm:$false 6>&1)
             "$($info[0])" | Should -BeLike 'Removed 1 version, freeing *.'
         }
     }

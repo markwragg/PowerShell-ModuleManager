@@ -21,8 +21,8 @@ function Write-MMRemovalSummary {
 
     $messages = @()
     foreach ($kind in @(
-            @{ Count = $Tally.Removed; Bytes = $Tally.Bytes; Format = 'Removed {0}, freeing {1}.' }
-            @{ Count = $Tally.WhatIf; Bytes = $Tally.WhatIfBytes; Format = 'What if: Removing {0} would free {1}.' }
+            @{ Count = $Tally['Removed']; Bytes = $Tally['Bytes']; Format = 'Removed {0}, freeing {1}.' }
+            @{ Count = $Tally['WhatIf']; Bytes = $Tally['WhatIfBytes']; Format = 'What if: Removing {0} would free {1}.' }
         )) {
         if (-not $kind.Count) { continue }
         $versions = "$($kind.Count) versions"

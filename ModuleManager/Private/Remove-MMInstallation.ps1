@@ -56,8 +56,8 @@ function Remove-MMInstallation {
     if (-not (Test-MMShouldProcess $Cmdlet "$label$sizeText ($($i.ModuleBase))" 'Uninstall module version')) {
         # $WhatIfPreference is the calling cmdlet's, as this runs in its scope.
         if ($Tally -and ($script:MMTuiWhatIf -or $WhatIfPreference)) {
-            $Tally.WhatIf = [int]$Tally.WhatIf + 1
-            $Tally.WhatIfBytes = [long]$Tally.WhatIfBytes + $bytes
+            $Tally['WhatIf'] = [int]$Tally['WhatIf'] + 1
+            $Tally['WhatIfBytes'] = [long]$Tally['WhatIfBytes'] + $bytes
         }
         return $false
     }
@@ -86,8 +86,8 @@ function Remove-MMInstallation {
     }
 
     if ($Tally) {
-        $Tally.Removed = [int]$Tally.Removed + 1
-        $Tally.Bytes = [long]$Tally.Bytes + $bytes
+        $Tally['Removed'] = [int]$Tally['Removed'] + 1
+        $Tally['Bytes'] = [long]$Tally['Bytes'] + $bytes
     }
     Write-Verbose "Removed $label$sizeText from $($i.ModuleBase)"
     $true

@@ -87,7 +87,7 @@ Describe 'Remove-MMInstallation' {
             Test-Path $i.ModuleBase | Should -BeTrue
             $tally.WhatIf | Should -Be 1
             $tally.WhatIfBytes | Should -Be $bytes
-            $tally.Removed | Should -BeNullOrEmpty
+            $tally['Removed'] | Should -BeNullOrEmpty
         }
     }
 
