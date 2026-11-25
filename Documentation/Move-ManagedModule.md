@@ -83,6 +83,14 @@ Wildcards are supported.
 All versions are moved unless
 -Version is given.
 
+Different modules can share a name (see Get-ManagedModule).
+A name (not a wildcard
+pattern) that matches versions of more than one of them is an error, and nothing of
+that name is moved: use -Scope or -Version to choose, or pipe the versions to move from
+Get-ManagedModule -AllVersions.
+Versions that ship with PowerShell or Windows don't
+count, as they're never moved.
+
 ```yaml
 Type: String[]
 Parameter Sets: ByName

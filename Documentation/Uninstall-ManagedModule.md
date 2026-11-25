@@ -113,6 +113,14 @@ unless -Version or -OldVersions is given.
 With -OldVersions it defaults to all modules,
 and accepts names from the pipeline.
 
+Different modules can share a name (see Get-ManagedModule).
+Without -OldVersions, a name
+(not a wildcard pattern) that matches versions of more than one of them is an error,
+and nothing of that name is removed: use -Scope or -Version to choose, or pipe the
+versions to remove from Get-ManagedModule -AllVersions.
+Versions that ship with
+PowerShell or Windows don't count, as they're never removed.
+
 ```yaml
 Type: String[]
 Parameter Sets: OldVersions

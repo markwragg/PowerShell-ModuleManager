@@ -93,7 +93,7 @@ Describe 'Group-MMInstallation' {
         @{ Case = 'the publisher changed the GUID'; Second = 'bbbbbbbb-0000-0000-0000-000000000000' }
         @{ Case = 'no GUID'; Second = $null }
     ) {
-        $m = @(InModuleScope ModuleManager -Parameters @{ I = @((Get-FakeInstall '2.0' $B 'PSGallery'), (Get-FakeInstall '1.0' $A 'PSGallery')) } { Group-MMInstallation -Installation $I })
+        $m = @(InModuleScope ModuleManager -Parameters @{ I = @((Get-FakeInstall '2.0' $Second 'PSGallery'), (Get-FakeInstall '1.0' $A 'PSGallery')) } { Group-MMInstallation -Installation $I })
         $m.Count | Should -Be 1
         $m[0].VersionCount | Should -Be 2
         $m[0].Key | Should -Be 'mmx'
@@ -116,5 +116,53 @@ Describe 'Group-MMInstallation' {
         $m[0].Key | Should -Be 'mmx'
         @($m[0].Versions) | Should -Be @('3.0', '0.1')
         $m[1].Key | Should -Be "mmx|$A"
+    }
+
+    It "Doesn't count versions that ship with PowerShell or Windows when checking whether a name is ambiguous" {
+        $installs = @((Get-FakeInstall '1.0.5' $A 'PSGallery'), (Get-FakeInstall '2.0' $B $null 'System'))
+        $r = InModuleScope ModuleManager -Parameters @{ I = $installs } {
+            Select-MMUnambiguousMatch -Matched $I -All $I -Name 'MMX' -Action 'remove'
+        }
+        $r.Messages | Should -BeNullOrEmpty
+        @($r.Matched).Count | Should -Be 2
+    }
+}
+
+# Last, as it removes modules from the fake tree.
+Describe 'Acting on a name that means more than one module' {
+
+    It 'Uninstall-ManagedModule says which modules the name could mean, and removes none of them' {
+        $e = $null
+        Uninstall-ManagedModule MMSame -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable e
+        @($e).Count | Should -Be 1
+        $e[0].FullyQualifiedErrorId | Should -BeLike 'ModuleManager.AmbiguousName*'
+        $e[0].Exception.Message | Should -BeLike "'MMSame' matches 2 different modules with that name: MMSame 1.0.5, 1.0.4 (*, from PSGallery) and MMSame 2.0.0 (*, copied in by hand). Use -Scope or -Version to choose, or pipe the versions to remove from Get-ManagedModule MMSame -AllVersions."
+        @(Get-ManagedModule MMSame -AllVersions).Count | Should -Be 3
+    }
+
+    It 'Move-ManagedModule says so too, and moves none of them' {
+        $e = $null
+        Move-ManagedModule MMSame -Destination AllUsers -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable e
+        @($e).Count | Should -Be 1
+        $e[0].FullyQualifiedErrorId | Should -BeLike 'ModuleManager.AmbiguousName*'
+        $e[0].Exception.Message | Should -BeLike '*pipe the versions to move from*'
+    }
+
+    It "Isn't an error for a wildcard pattern" {
+        $e = $null
+        Uninstall-ManagedModule MMSam* -WhatIf -ErrorAction SilentlyContinue -ErrorVariable e
+        $e | Should -BeNullOrEmpty
+    }
+
+    It 'Acts on the versions chosen with -Version, or piped in' {
+        Uninstall-ManagedModule MMSame -Version 1.0.4 -Confirm:$false
+        @(Get-ManagedModule MMSame -AllVersions | ForEach-Object Version) | Should -Be @('1.0.5', '2.0.0')
+
+        Get-ManagedModule MMSame -AllVersions | Where-Object Repository | Uninstall-ManagedModule -Confirm:$false
+        @(Get-ManagedModule MMSame -AllVersions | ForEach-Object Version) | Should -Be @('2.0.0')
+
+        # With one module of the name left, the name isn't ambiguous.
+        Uninstall-ManagedModule MMSame -Confirm:$false
+        Get-ManagedModule MMSame | Should -BeNullOrEmpty
     }
 }

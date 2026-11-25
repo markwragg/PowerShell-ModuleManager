@@ -37,6 +37,12 @@ function Uninstall-ManagedModule {
         unless -Version or -OldVersions is given. With -OldVersions it defaults to all modules,
         and accepts names from the pipeline.
 
+        Different modules can share a name (see Get-ManagedModule). Without -OldVersions, a name
+        (not a wildcard pattern) that matches versions of more than one of them is an error,
+        and nothing of that name is removed: use -Scope or -Version to choose, or pipe the
+        versions to remove from Get-ManagedModule -AllVersions. Versions that ship with
+        PowerShell or Windows don't count, as they're never removed.
+
     .PARAMETER Version
         Only remove these versions (for example '1.2.0' or '2.0.0-beta1'). Wildcards are supported.
 
@@ -145,6 +151,12 @@ function Uninstall-ManagedModule {
                 Write-Error -Message "No installed module matches '$($Name -join ', ')'$(if ($Version) { " version '$($Version -join ', ')'" })." `
                     -Category ObjectNotFound -TargetObject $Name -ErrorId 'ModuleManager.NotFound'
             }
+            # A name that means more than one module (see Select-MMUnambiguousMatch) is left out.
+            $unambiguous = Select-MMUnambiguousMatch -Matched $matched -All $all -Name $Name -Action 'remove'
+            foreach ($message in $unambiguous.Messages) {
+                Write-Error -Message $message -Category InvalidArgument -TargetObject $Name -ErrorId 'ModuleManager.AmbiguousName'
+            }
+            $matched = @($unambiguous.Matched)
         }
         else {
             foreach ($path in $ModuleBase) {

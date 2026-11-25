@@ -35,6 +35,12 @@ function Move-ManagedModule {
         The module name(s) to move. Wildcards are supported. All versions are moved unless
         -Version is given.
 
+        Different modules can share a name (see Get-ManagedModule). A name (not a wildcard
+        pattern) that matches versions of more than one of them is an error, and nothing of
+        that name is moved: use -Scope or -Version to choose, or pipe the versions to move from
+        Get-ManagedModule -AllVersions. Versions that ship with PowerShell or Windows don't
+        count, as they're never moved.
+
     .PARAMETER Version
         Only move these versions (for example '1.2.0' or '2.0.0-beta1'). Wildcards are supported.
 
@@ -115,6 +121,12 @@ function Move-ManagedModule {
                 Write-Error -Message "No installed module matches '$($Name -join ', ')'$(if ($Version) { " version '$($Version -join ', ')'" })." `
                     -Category ObjectNotFound -TargetObject $Name -ErrorId 'ModuleManager.NotFound'
             }
+            # A name that means more than one module (see Select-MMUnambiguousMatch) is left out.
+            $unambiguous = Select-MMUnambiguousMatch -Matched $matched -All $all -Name $Name -Action 'move'
+            foreach ($message in $unambiguous.Messages) {
+                Write-Error -Message $message -Category InvalidArgument -TargetObject $Name -ErrorId 'ModuleManager.AmbiguousName'
+            }
+            $matched = @($unambiguous.Matched)
         }
         else {
             foreach ($path in $ModuleBase) {
