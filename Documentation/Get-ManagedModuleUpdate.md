@@ -25,10 +25,12 @@ Status values:
   UpdateAvailable  A newer version exists in the repository.
   UpToDate         The newest installed version matches the repository.
   LocalNewer       The installed version is newer than the repository version.
-  NotInRepository  The module was not found in the repository. This includes a
+  NotInRepository  The module was not found in the repository.
+This includes a
                    repository module of the same name with a different GUID, which
                    is another publisher's module (such as a community module named
-                   after one that ships with Windows). The GUIDs aren't checked for
+                   after one that ships with Windows).
+The GUIDs aren't checked for
                    PSResourceGet's lookups, which don't report them.
   Unlisted         The module is in the repository but its publisher has unlisted it
                    (usually because it is deprecated), so it can't be updated.
