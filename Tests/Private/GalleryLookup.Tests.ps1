@@ -197,11 +197,13 @@ Describe 'The repository lookup script' {
     <d:Id>MMThing</d:Id><d:Version>2.0.0-beta1</d:Version>
     <d:Published m:type="Edm.DateTime">2025-06-01T10:30:00.123</d:Published>
     <d:Dependencies>MMCore:[1.5.0, ):|MMAny::|</d:Dependencies>
+    <d:GUID>b06963f5-6381-4324-9743-7a831548a71a</d:GUID>
   </m:properties></entry>
   <entry><m:properties>
     <d:Id>MMOther</d:Id><d:Version>3</d:Version>
     <d:Published m:type="Edm.DateTime">2025-01-01T00:00:00</d:Published>
     <d:Dependencies></d:Dependencies>
+    <d:GUID m:null="true" />
   </m:properties></entry>
 </feed>
 '@
@@ -228,16 +230,19 @@ Describe 'The repository lookup script' {
                 $r[0].PublishedDate | Should -Be ([datetime]'2025-06-01T10:30:00.123')
                 $r[0].Dependencies | Should -Be @('MMCore|[1.5.0, )', 'MMAny|')
                 $r[0].Prerelease | Should -Be $Prerelease
+                $r[0].Guid | Should -Be 'b06963f5-6381-4324-9743-7a831548a71a'
 
                 $r[1].Version | Should -Be '3.0'
                 $r[1].Dependencies.Count | Should -Be 0
+                $r[1].Guid | Should -BeNullOrEmpty
+                $r[2].Guid | Should -BeNullOrEmpty
                 $r[2].Status | Should -Be 'NotFound'
                 $r[2].Error | Should -BeNullOrEmpty
 
                 Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter {
                     $q = [uri]::UnescapeDataString($Uri)
                     $q.StartsWith('https://feed.invalid/api/v2/Packages()?$filter=' + $Filter) -and
-                    $q -match "\(Id eq 'mmthing' or Id eq 'MMOther' or Id eq 'MMMissing'\)"
+                    $q -match "\(Id eq 'mmthing' or Id eq 'MMOther' or Id eq 'MMMissing'\)" -and $q -match '\$select=[^&]*\bGUID\b'
                 }
                 Should -Invoke Find-Module -Times 0 -Exactly
             }

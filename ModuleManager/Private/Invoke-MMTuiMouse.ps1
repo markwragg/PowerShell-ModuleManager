@@ -141,10 +141,10 @@ function Invoke-MMTuiMouse {
 
     $now = [datetime]::UtcNow
     $last = $State.LastClick
-    if ($last -and $last.Name -eq $row.Name -and ($now - $last.Time).TotalMilliseconds -le 500) {
+    if ($last -and $last.Name -eq $row.Key -and ($now - $last.Time).TotalMilliseconds -le 500) {
         $State.LastClick = $null
         Invoke-MMTuiKey -State $State -Key (ConvertTo-MMTuiKeyInfo 'Enter')
         return
     }
-    $State.LastClick = @{ Name = $row.Name; Time = $now }
+    $State.LastClick = @{ Name = $row.Key; Time = $now }
 }

@@ -80,10 +80,10 @@ function Invoke-MMTuiKey {
             $row = $State.Visible[$State.Cursor]
             $parent = $null
             if ($row.Children.Count) { $parent = $row }
-            elseif ($row.Indent -and $row.Parent) { $parent = $State.Rows | Where-Object Name -EQ $row.Parent | Select-Object -First 1 }
+            elseif ($row.Indent -and $row.Parent) { $parent = $State.Rows | Where-Object Key -EQ $row.Parent.ToLowerInvariant() | Select-Object -First 1 }
             if ($parent) {
                 $null = $State.Expanded.Remove($parent.Name.ToLowerInvariant())
-                $State.CurrentName = $parent.Name
+                $State.CurrentName = $parent.Key
             }
             return
         }
@@ -144,7 +144,7 @@ function Invoke-MMTuiKey {
         'a' {
             # Includes members of collapsed families that are in view.
             $inView = [ordered]@{}
-            foreach ($r in $State.Visible) { foreach ($m in (Get-MMTuiFamily $State $r)) { $inView[$m.Name] = $m } }
+            foreach ($r in $State.Visible) { foreach ($m in (Get-MMTuiFamily $State $r)) { $inView[$m.Key] = $m } }
             # In the Multiple versions view it selects the modules with old versions, for O;
             # in the other views, the modules with updates, for U.
             if ($State.Views[$State.View] -eq 'Multiple versions') {

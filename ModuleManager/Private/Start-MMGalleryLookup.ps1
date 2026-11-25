@@ -21,6 +21,16 @@ function Start-MMGalleryLookup {
         [switch]$Refresh
     )
 
+    # Different modules of the same name (see Group-MMInstallation) share a lookup: the first
+    # request is kept, which is the main module's.
+    $seen = @{}
+    $Request = @(foreach ($r in $Request) {
+            $k = Get-MMCacheKey $r.Name $r.Repository $r.Prerelease
+            if ($seen.ContainsKey($k)) { continue }
+            $seen[$k] = $true
+            $r
+        })
+
     $job = [pscustomobject]@{
         Tasks   = [System.Collections.Generic.List[object]]::new()
         Results = [System.Collections.Generic.List[object]]::new()

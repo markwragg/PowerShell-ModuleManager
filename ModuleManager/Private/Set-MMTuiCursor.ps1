@@ -8,5 +8,5 @@ function Set-MMTuiCursor {
     $count = $State.Visible.Count
     if ($count -eq 0) { $State.Cursor = 0; $State.CurrentName = $null; return }
     $State.Cursor = [Math]::Max(0, [Math]::Min($Index, $count - 1))
-    $State.CurrentName = $State.Visible[$State.Cursor].Name
+    $State.CurrentName = $State.Visible[$State.Cursor].Key
 }

@@ -5,7 +5,10 @@ function Sync-MMTuiDetail {
     #>
     param([hashtable]$State)
     if (-not $State.Detail) { return }
-    $fresh = $State.Rows | Where-Object Name -EQ $State.Detail.Name | Select-Object -First 1
+    # By Key, as different modules can share a name (see Group-MMInstallation).
+    $key = $State.Detail.Name.ToLowerInvariant()
+    if ($State.Detail.PSObject.Properties['Key'] -and $State.Detail.Key) { $key = $State.Detail.Key }
+    $fresh = $State.Rows | Where-Object Key -EQ $key | Select-Object -First 1
     if ($fresh) {
         $State.Detail = $fresh
         $State.DCursor = [Math]::Min($State.DCursor, [Math]::Max(0, $fresh.Info.VersionCount - 1))

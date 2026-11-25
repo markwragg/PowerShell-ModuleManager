@@ -8,7 +8,7 @@ function Update-MMTuiRows {
     param([hashtable]$State)
     $o = $State.Options
     $selected = @{}
-    foreach ($r in $State.Rows) { if ($r.Selected) { $selected[$r.Name] = $true } }
+    foreach ($r in $State.Rows) { if ($r.Selected) { $selected[$r.Key] = $true } }
 
     if ($State.Remote) {
         $modules = @(Invoke-MMRemote -Remote $State.Remote -ArgumentList $o.Name, $o.Scope, $o.IncludeSystem -ScriptBlock {
@@ -18,13 +18,17 @@ function Update-MMTuiRows {
     }
     else { $modules = @(Group-MMInstallation -Installation @(Get-MMInstalledVersion -Name $o.Name -Scope $o.Scope -IncludeSystem:$o.IncludeSystem)) }
     $State.Rows = @(foreach ($m in $modules) {
+            # Unique, unlike Name: different modules can share a name (see Group-MMInstallation).
+            $key = $m.Name.ToLowerInvariant()
+            if ($m.PSObject.Properties['Key'] -and $m.Key) { $key = $m.Key }
             [pscustomobject]@{
                 Name     = $m.Name
+                Key      = $key
                 Info     = $m
                 Result   = $null
                 Status   = 'Unknown'
                 Latest   = ''
-                Selected = $selected.ContainsKey($m.Name)
+                Selected = $selected.ContainsKey($key)
                 Parent   = $null
                 Children = @()
                 Indent   = 0

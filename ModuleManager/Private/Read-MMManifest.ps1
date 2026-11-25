@@ -6,11 +6,12 @@ function Read-MMManifest {
     .DESCRIPTION
         Lightweight manifest reader. Avoids Import-PowerShellDataFile so that scanning
         hundreds of modules stays fast; only reads the fields we display.
-        Without -Full only Prerelease (needed to order versions) is read.
+        Without -Full only Prerelease (needed to order versions) and GUID (needed to tell
+        modules of the same name apart) are read.
     #>
     param([string]$Path, [switch]$Full)
 
-    $result = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; RequiredModules = @(); Dependencies = @() }
+    $result = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; Guid = $null; RequiredModules = @(); Dependencies = @() }
     $text = $null
     try { $text = [IO.File]::ReadAllText($Path) } catch { return $result }
 
@@ -19,6 +20,19 @@ function Read-MMManifest {
     if ($text.IndexOf('Prerelease', [StringComparison]::OrdinalIgnoreCase) -ge 0) { $pre = Get-MMManifestString $text 'Prerelease' }
     if ($pre) { $pre = $pre.Trim().TrimStart('-') }
     if ($pre) { $result.Prerelease = $pre }
+
+    # The module's identity, to tell apart different modules of the same name (see
+    # Group-MMInstallation). Only taken from the start of a line: a GUID inside a one-line
+    # RequiredModules entry is the dependency's. Left out when unsure, as a missing GUID is
+    # treated as a match.
+    $guidWin = Find-MMManifestKey $text 'GUID' -Window 200
+    if ($guidWin) {
+        $at = $text.IndexOf($guidWin, [StringComparison]::Ordinal)
+        $lineStart = $text.LastIndexOf("`n", [Math]::Max(0, $at - 1)) + 1
+        if ($at -ge 0 -and [string]::IsNullOrWhiteSpace($text.Substring($lineStart, $at - $lineStart))) {
+            $result.Guid = Get-MMManifestString $guidWin 'GUID'
+        }
+    }
     if (-not $Full) { return $result }
 
     $result.ModuleVersion = Get-MMManifestString $text 'ModuleVersion'

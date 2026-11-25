@@ -38,6 +38,8 @@ function Receive-MMGalleryLookup {
                 })
             $unlistedVersions = $null
             if ($o.PSObject.Properties['UnlistedVersions'] -and $null -ne $o.UnlistedVersions) { $unlistedVersions = [string[]]@($o.UnlistedVersions) }
+            $guid = $null
+            if ($o.PSObject.Properties['Guid'] -and $o.Guid) { $guid = [string]$o.Guid }
             $result = [pscustomobject]@{
                 RequestedName   = [string]$o.RequestedName
                 Name            = [string]$o.Name
@@ -49,6 +51,8 @@ function Receive-MMGalleryLookup {
                 PrereleaseLabel = $o.PrereleaseLabel
                 PublishedDate   = $o.PublishedDate
                 Dependencies    = $deps
+                # The repository module's GUID; $null when the lookup didn't report it.
+                Guid            = $guid
                 Error           = $o.Error
                 # Installed versions the publisher has unlisted; $null when that wasn't checked.
                 UnlistedVersions = $unlistedVersions

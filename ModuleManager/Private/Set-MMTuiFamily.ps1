@@ -16,9 +16,11 @@ function Set-MMTuiFamily {
     foreach ($r in $Rows) {
         $r.Parent = $null
         $r.Children = @()
-        $byName[$r.Name.ToLowerInvariant()] = $r
+        # Only the main module of a name (see Group-MMInstallation) is in a family.
+        if ($r.Key -eq $r.Name.ToLowerInvariant()) { $byName[$r.Key] = $r }
     }
     foreach ($p in $Rows) {
+        if ($p.Key -ne $p.Name.ToLowerInvariant()) { continue }
         $prefix = $p.Name.ToLowerInvariant() + '.'
         $children = [System.Collections.Generic.List[object]]::new()
         foreach ($d in @($p.Info.Dependencies)) {

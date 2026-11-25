@@ -15,7 +15,11 @@ function Get-MMTuiReclaimSize {
     foreach ($member in (Get-MMTuiFamily $State $Row)) {
         $bases = $reclaim.ByName[$member.Name.ToLowerInvariant()]
         if (-not $bases) { continue }
+        # Only this module's: different modules can share a name (see Group-MMInstallation).
+        $own = @{}
+        foreach ($i in @($member.Info.Installations)) { $own[[string]$i.ModuleBase] = $true }
         foreach ($b in $bases) {
+            if (-not $own.ContainsKey([string]$b)) { continue }
             if (-not $State.Sizes.ContainsKey($b)) { return $null }
             $total += [long]$State.Sizes[$b]
             $any = $true

@@ -103,7 +103,11 @@ function Update-ManagedModule {
         foreach ($u in $updates) {
             switch ($u.Status) {
                 'UpdateAvailable' { $pending.Add($u) }
-                'NotInRepository' { Write-Verbose "$($u.Name) was not found in $($u.Repository); skipping." }
+                'NotInRepository' {
+                    # Says why when the repository's module of that name is a different one (see Get-MMDifferentModuleNote).
+                    if ([string]$u.Error -like '*is a different module with the same name*') { Write-Verbose "$($u.Error) Skipping." }
+                    else { Write-Verbose "$($u.Name) was not found in $($u.Repository); skipping." }
+                }
                 'Unlisted' { Write-Verbose "$($u.Name) has been unlisted from $($u.Repository); skipping." }
                 'VersionUnlisted' { Write-Verbose "$($u.Name) $($u.InstalledVersion) has been unlisted from $($u.Repository), and there's no newer version; skipping." }
                 'Error' { Write-Warning "Could not check $($u.Name) in $($u.Repository): $($u.Error)" }

@@ -21,6 +21,13 @@ Get-Module -ListAvailable.
 Modules that ship with PowerShell or Windows (scope 'System') are hidden unless
 -IncludeSystem or -Scope System is used.
 
+Different modules can share a name, such as a module that ships with Windows and a
+community module of the same name from the PowerShell Gallery.
+They're told apart by
+their GUIDs and listed separately, so a name can appear more than once; Key is unique.
+Versions installed from a repository are one module whatever their GUIDs, as some
+publishers change a module's GUID between versions.
+
 With -IncludeSize, each module also has its size on disk (SizeMB, all its versions) and
 the space removing its old versions would free (ReclaimableMB): the versions
 Uninstall-ManagedModule -OldVersions would remove, so not the newest, versions that ship

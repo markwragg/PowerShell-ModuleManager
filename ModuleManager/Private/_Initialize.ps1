@@ -97,7 +97,7 @@ $script:MMLookupScript = {
             $latest = 'IsLatestVersion'
             if ($Prerelease) { $latest = 'IsAbsoluteLatestVersion' }
             $ids = @(foreach ($n in $Names) { "Id eq '$($n.Replace("'", "''"))'" }) -join ' or '
-            $query = "`$filter=$([uri]::EscapeDataString("$latest and ($ids)"))&`$select=Id,Version,Published,Dependencies"
+            $query = "`$filter=$([uri]::EscapeDataString("$latest and ($ids)"))&`$select=Id,Version,Published,Dependencies,GUID"
             $response = @(Invoke-RestMethod -Uri "$ApiUrl/Packages()?$query" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop)
             $byId = @{}
             foreach ($entry in $response) {
@@ -213,6 +213,9 @@ $script:MMLookupScript = {
         if ($found) {
             $version = $null
             $pre = $null
+            # The module's GUID, to tell a different module of the same name from the installed one.
+            # PSResourceGet's results don't include it.
+            $guid = $null
             if ($source -eq 'Api') {
                 $name = [string]$found.Id
                 # Typed values come as elements (<d:Published m:type="Edm.DateTime">), others as text.
@@ -220,11 +223,18 @@ $script:MMLookupScript = {
                 if ($text -is [System.Xml.XmlElement]) { $text = $text.InnerText }
                 $published = $null
                 try { $published = [datetime]::Parse([string]$text, [cultureinfo]::InvariantCulture) } catch { $published = $null }
+                if ($found.PSObject.Properties['GUID']) {
+                    $guid = $found.GUID
+                    if ($guid -is [System.Xml.XmlElement]) { $guid = $guid.InnerText }
+                }
             }
             else {
                 $name = $found.Name
                 $published = $found.PublishedDate
+                if ($source -eq 'PowerShellGet' -and $found.PSObject.Properties['AdditionalMetadata'] -and $found.AdditionalMetadata -and
+                    $found.AdditionalMetadata.PSObject.Properties['GUID']) { $guid = $found.AdditionalMetadata.GUID }
             }
+            if ([string]::IsNullOrWhiteSpace([string]$guid)) { $guid = $null } else { $guid = [string]$guid }
             if ($source -eq 'PSResourceGet') {
                 $version = $found.Version
                 $pre = $found.Prerelease
@@ -282,6 +292,7 @@ $script:MMLookupScript = {
                 PrereleaseLabel = $pre
                 PublishedDate   = $published
                 Dependencies    = $deps
+                Guid            = $guid
                 Error           = $null
                 # Installed versions the publisher has unlisted; $null when that wasn't checked.
                 UnlistedVersions = $unlistedVersions
@@ -334,6 +345,7 @@ $script:MMLookupScript = {
                 PrereleaseLabel = $null
                 PublishedDate   = $null
                 Dependencies    = @()
+                Guid            = $null
                 Error           = $message
                 UnlistedVersions = $unlistedVersions
             }

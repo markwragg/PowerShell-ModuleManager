@@ -14,6 +14,12 @@ function Get-ManagedModule {
         Modules that ship with PowerShell or Windows (scope 'System') are hidden unless
         -IncludeSystem or -Scope System is used.
 
+        Different modules can share a name, such as a module that ships with Windows and a
+        community module of the same name from the PowerShell Gallery. They're told apart by
+        their GUIDs and listed separately, so a name can appear more than once; Key is unique.
+        Versions installed from a repository are one module whatever their GUIDs, as some
+        publishers change a module's GUID between versions.
+
         With -IncludeSize, each module also has its size on disk (SizeMB, all its versions) and
         the space removing its old versions would free (ReclaimableMB): the versions
         Uninstall-ManagedModule -OldVersions would remove, so not the newest, versions that ship
@@ -105,20 +111,24 @@ function Get-ManagedModule {
             # What Uninstall-ManagedModule -OldVersions would remove. Dependencies are checked
             # against every installed module, so this needs them all, not just the ones listed.
             $old = Get-MMOldVersion -Installation @(Get-MMInstalledVersion -IncludeSystem) -Name $names.ToArray() -Scope $Scope
-            $reclaimable = @{}
+            # By folder, as different modules can share a name (see Group-MMInstallation).
+            $removable = @{}
             foreach ($i in $old.Removable) {
                 $key = Get-MMPathKey $i.ModuleBase
                 if (-not $bytes.ContainsKey($key)) { $bytes[$key] = [long](Get-MMFolderSize $i.ModuleBase) }
-                $moduleKey = $i.Name.ToLowerInvariant()
-                $reclaimable[$moduleKey] = [long]$reclaimable[$moduleKey] + $bytes[$key]
+                $removable[$key] = $true
             }
 
             foreach ($m in $modules) {
                 $total = 0L
-                foreach ($i in $m.Installations) { $total += $bytes[(Get-MMPathKey $i.ModuleBase)] }
+                $reclaimable = 0L
+                foreach ($i in $m.Installations) {
+                    $key = Get-MMPathKey $i.ModuleBase
+                    $total += $bytes[$key]
+                    if ($removable.ContainsKey($key)) { $reclaimable += $bytes[$key] }
+                }
                 $m | Add-Member -NotePropertyName SizeMB -NotePropertyValue ([Math]::Round($total / 1MB, 1)) -Force
-                $m | Add-Member -NotePropertyName ReclaimableMB -Force -NotePropertyValue (
-                    [Math]::Round([long]$reclaimable[$m.Name.ToLowerInvariant()] / 1MB, 1))
+                $m | Add-Member -NotePropertyName ReclaimableMB -Force -NotePropertyValue ([Math]::Round($reclaimable / 1MB, 1))
                 # Shown with the size columns (see ModuleManager.Format.ps1xml).
                 $m.PSObject.TypeNames.Insert(0, 'ModuleManager.ModuleInfo.Size')
             }

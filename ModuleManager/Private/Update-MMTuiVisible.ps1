@@ -74,7 +74,7 @@ function Update-MMTuiVisible {
         elseif (-not (& $match $r)) { continue }
         $r.Open = $kids.Count -gt 0
         $top.Add($r)
-        $shownChildren[$r.Name] = $kids
+        $shownChildren[$r.Key] = $kids
     }
 
     # Sort the top level, and the members shown under each family; a family sorts by its most
@@ -106,7 +106,7 @@ function Update-MMTuiVisible {
     $visible = [System.Collections.Generic.List[object]]::new()
     foreach ($r in $rows) {
         $visible.Add($r)
-        $kids = @(& $sortRows @($shownChildren[$r.Name]))
+        $kids = @(& $sortRows @($shownChildren[$r.Key]))
         for ($i = 0; $i -lt $kids.Count; $i++) {
             $kids[$i].Indent = 1
             $kids[$i].Last = ($i -eq $kids.Count - 1)
@@ -117,7 +117,7 @@ function Update-MMTuiVisible {
 
     if ($State.CurrentName) {
         for ($i = 0; $i -lt $State.Visible.Count; $i++) {
-            if ($State.Visible[$i].Name -eq $State.CurrentName) { $State.Cursor = $i; break }
+            if ($State.Visible[$i].Key -eq $State.CurrentName) { $State.Cursor = $i; break }
         }
     }
     Set-MMTuiCursor $State $State.Cursor

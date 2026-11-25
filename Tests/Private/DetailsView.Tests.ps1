@@ -296,4 +296,44 @@ Describe 'Unlisted modules and versions' {
             Get-MMUpdateStatus -Module $module -Result $result | Should -Be $Expected
         }
     }
+
+    It 'Reports NotInRepository for a repository module with a different GUID, only when both are known (<Case>)' -ForEach @(
+        @{ Case = 'different GUIDs'; Installed = '1e28c697-2370-42f2-ace1-5ac8777f8053'; Repository = 'b06963f5-6381-4324-9743-7a831548a71a'; Expected = 'NotInRepository' }
+        @{ Case = 'same GUID, braces and case differ'; Installed = '{1E8F5A4C-F11B-41A5-BDBD-4695CA4A503E}'; Repository = '1e8f5a4c-f11b-41a5-bdbd-4695ca4a503e'; Expected = 'LocalNewer' }
+        @{ Case = 'repository GUID unknown'; Installed = '1e28c697-2370-42f2-ace1-5ac8777f8053'; Repository = $null; Expected = 'LocalNewer' }
+        @{ Case = 'installed GUID unknown'; Installed = $null; Repository = 'b06963f5-6381-4324-9743-7a831548a71a'; Expected = 'LocalNewer' }
+        @{ Case = 'installed GUID not valid'; Installed = 'not-a-guid'; Repository = 'b06963f5-6381-4324-9743-7a831548a71a'; Expected = 'LocalNewer' }
+    ) {
+        InModuleScope ModuleManager -Parameters $_ {
+            $module = [pscustomobject]@{ Version = '2.0.0'; ModuleVersion = [version]'2.0.0'; Prerelease = $null; Guid = $Installed }
+            $result = [pscustomobject]@{ Status = 'Found'; ModuleVersion = [version]'1.0.5'; PrereleaseLabel = $null; UnlistedVersions = $null; Guid = $Repository }
+            Get-MMUpdateStatus -Module $module -Result $result | Should -Be $Expected
+        }
+    }
+
+    It 'Explains Not in repo only when the repository has a different module of that name (<Case>)' -ForEach @(
+        @{ Case = 'different module'; Status = 'NotInRepository'; Found = 'Found'; Shown = $true }
+        @{ Case = 'not found'; Status = 'NotInRepository'; Found = 'NotFound'; Shown = $false }
+        @{ Case = 'same module'; Status = 'LocalNewer'; Found = 'Found'; Shown = $false }
+    ) {
+        $s = New-DetailState 'MMHand'
+        $s.Detail.Status = $Status
+        $s.Detail.Result = [pscustomobject]@{ Repository = 'PSGallery'; Status = $Found; UnlistedVersions = $null }
+        $note = [regex]::Escape("The MMHand module in PSGallery is a different module with the same name (its GUID doesn't match).")
+        if ($Shown) { Get-PlainFrame $s 160 30 | Should -Match $note } else { Get-PlainFrame $s 160 30 | Should -Not -Match $note }
+    }
+
+    It 'Reads the module GUID from the manifest, but not a dependency''s' {
+        InModuleScope ModuleManager {
+            $own = Join-Path $TestDrive 'Own.psd1'
+            "@{`n    ModuleVersion = '1.0'`n    GUID = '{1E28C697-2370-42F2-ACE1-5AC8777F8053}'`n}" | Set-Content -LiteralPath $own
+            (Read-MMManifest -Path $own -Full).Guid | Should -Be '{1E28C697-2370-42F2-ACE1-5AC8777F8053}'
+            # Every version's is read, not only the newest's.
+            (Read-MMManifest -Path $own).Guid | Should -Be '{1E28C697-2370-42F2-ACE1-5AC8777F8053}'
+
+            $dep = Join-Path $TestDrive 'Dep.psd1'
+            "@{`n    RequiredModules = @(@{ ModuleName = 'Other'; ModuleVersion = '1.0'; GUID = 'b06963f5-6381-4324-9743-7a831548a71a' })`n    ModuleVersion = '1.0'`n}" | Set-Content -LiteralPath $dep
+            (Read-MMManifest -Path $dep -Full).Guid | Should -BeNullOrEmpty
+        }
+    }
 }

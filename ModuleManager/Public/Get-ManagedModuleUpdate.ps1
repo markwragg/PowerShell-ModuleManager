@@ -16,7 +16,11 @@ function Get-ManagedModuleUpdate {
           UpdateAvailable  A newer version exists in the repository.
           UpToDate         The newest installed version matches the repository.
           LocalNewer       The installed version is newer than the repository version.
-          NotInRepository  The module was not found in the repository.
+          NotInRepository  The module was not found in the repository. This includes a
+                           repository module of the same name with a different GUID, which
+                           is another publisher's module (such as a community module named
+                           after one that ships with Windows). The GUIDs aren't checked for
+                           PSResourceGet's lookups, which don't report them.
           Unlisted         The module is in the repository but its publisher has unlisted it
                            (usually because it is deprecated), so it can't be updated.
           VersionUnlisted  The module is listed, but its publisher has unlisted the newest
@@ -118,20 +122,26 @@ function Get-ManagedModuleUpdate {
             if ($Outdated -and $status -ne 'UpdateAvailable') { continue }
             $latestDeps = @()
             if ($result -and $result.PSObject.Properties['Dependencies']) { $latestDeps = @($result.Dependencies) }
+            $latestVersion = $result.Version
+            $published = $result.PublishedDate
+            $message = $result.Error
+            # A different module of the same name (see Get-MMUpdateStatus): none of its details apply.
+            $note = Get-MMDifferentModuleNote -Name $m.Name -Status $status -Result $result
+            if ($note) { $latestVersion = $null; $published = $null; $latestDeps = @(); $message = $note }
 
             [pscustomobject]@{
                 PSTypeName       = 'ModuleManager.ModuleUpdate'
                 Name             = $m.Name
                 InstalledVersion = $m.Version
-                LatestVersion    = $result.Version
+                LatestVersion    = $latestVersion
                 Status           = $status
                 Repository       = $req.Repository
                 Scope            = $m.Scope
                 VersionCount     = $m.VersionCount
-                PublishedDate    = $result.PublishedDate
+                PublishedDate    = $published
                 IsLoaded         = $m.IsLoaded
                 Path             = $m.Path
-                Error            = $result.Error
+                Error            = $message
                 Dependencies     = $m.Dependencies
                 LatestDependencies = $latestDeps
                 Installations    = $m.Installations

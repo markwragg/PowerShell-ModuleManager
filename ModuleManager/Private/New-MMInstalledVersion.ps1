@@ -24,7 +24,7 @@ function New-MMInstalledVersion {
         $meta = $cached.Meta
     }
     else {
-        $manifest = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; RequiredModules = @(); Dependencies = @() }
+        $manifest = @{ ModuleVersion = $null; Prerelease = $null; Description = $null; Author = $null; ProjectUri = $null; Guid = $null; RequiredModules = @(); Dependencies = @() }
         if ($ManifestPath) { $manifest = Read-MMManifest -Path $ManifestPath -Full:$Full }
         $meta = Read-MMInstallMetadata -ModuleBase $ModuleBase
         $script:MMScanCache[$cacheKey] = @{ Stamp = $stamp; Manifest = $manifest; Meta = $meta }
@@ -65,6 +65,8 @@ function New-MMInstalledVersion {
         RootOrder       = $Root.Order
         Description     = $manifest.Description
         Author          = $manifest.Author
+        # The manifest's GUID, to tell apart different modules of the same name (see Group-MMInstallation).
+        Guid            = $(if ($manifest.ContainsKey('Guid')) { $manifest.Guid })
         RequiredModules = $manifest.RequiredModules
         Dependencies    = @($dependencies)
         # False when the dependencies weren't read: for an older version with no install record,

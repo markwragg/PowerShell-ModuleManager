@@ -13,7 +13,8 @@ function Update-MMTuiStatus {
         if ($result) {
             $row.Result = $result
             $row.Status = Get-MMUpdateStatus -Module $row.Info -Result $result
-            $row.Latest = [string]$result.Version
+            # A different module of the same name (see Get-MMUpdateStatus) has no latest version to show.
+            if ($row.Status -eq 'NotInRepository') { $row.Latest = '' } else { $row.Latest = [string]$result.Version }
         }
         elseif ($checking) { $row.Status = 'Checking'; $row.Latest = '' }
         else { $row.Status = 'Unknown'; $row.Latest = '' }

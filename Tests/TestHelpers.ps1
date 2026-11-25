@@ -36,13 +36,17 @@ function New-FakeModule {
         -InstalledBy ('PSResourceGet' or 'PowerShellGet', with -Repository) writes the type name and
         InstalledLocation (the module root, or the version folder) that package manager writes.
         -UpdatedDate (with -Repository) adds the UpdatedDate that Update-Module (PowerShellGet) writes.
+        -Guid is the manifest's GUID. By default it's the same for every version of a name, as
+        with real modules, so versions of a name are one module (see Group-MMInstallation).
     #>
     param(
         [string]$Root, [string]$Name, [string]$Version, [string]$Prerelease,
         [string[]]$RequiredModules, [string]$Repository, [switch]$Unversioned, [switch]$ObjDate,
         [string[]]$Dependency, [switch]$PowerShellGetFormat, [string]$ManifestText, [string]$ProjectUri,
-        [ValidateSet('PSResourceGet', 'PowerShellGet')][string]$InstalledBy, [string]$UpdatedDate
+        [ValidateSet('PSResourceGet', 'PowerShellGet')][string]$InstalledBy, [string]$UpdatedDate,
+        [string]$Guid
     )
+    if (-not $Guid) { $Guid = Get-FakeModuleGuid $Name }
     $dir = if ($Unversioned) { Join-Path $Root $Name } else { Join-Path (Join-Path $Root $Name) $Version }
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
     $req = ''
@@ -53,7 +57,7 @@ function New-FakeModule {
 @{
     # Prerelease = 'commented-out'
     ModuleVersion = '$Version'
-    GUID = '$([guid]::NewGuid())'
+    GUID = '$Guid'
     Author = 'Test Author'
     Description = 'Fake module $Name'
     $req
@@ -110,6 +114,13 @@ function New-FakeModule {
 "@ | Set-Content -LiteralPath (Join-Path $dir 'PSGetModuleInfo.xml')
     }
     $dir
+}
+
+function Get-FakeModuleGuid([string]$Name) {
+    # The same GUID for a name every time.
+    $md5 = [Security.Cryptography.MD5]::Create()
+    try { [guid]::new($md5.ComputeHash([Text.Encoding]::UTF8.GetBytes($Name.ToLowerInvariant()))).ToString() }
+    finally { $md5.Dispose() }
 }
 
 function Reset-FakeModules {

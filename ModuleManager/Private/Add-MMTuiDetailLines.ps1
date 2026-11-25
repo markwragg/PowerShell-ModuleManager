@@ -40,6 +40,12 @@ function Add-MMTuiDetailLines {
         $Lines.Add((Format-MMTuiLine @(, @(" ! The owner has unlisted this package. This could mean that the module is deprecated or shouldn't be used anymore.", 'Yellow')) $Width))
         $headLines++
     }
+    # Why a module of a name that's in the repository is Not in repo.
+    $note = Get-MMDifferentModuleNote -Name $info.Name -Status $row.Status -Result $row.Result
+    if ($note -and $optional - $headLines -ge 1) {
+        $Lines.Add((Format-MMTuiLine @(, @(" $note", 'Yellow')) $Width))
+        $headLines++
+    }
     if ($info.Description -and $optional - $headLines -ge 1) {
         $Lines.Add((Format-MMTuiLine @(, @(" $($info.Description)", 'Dim')) $Width))
         $headLines++
@@ -88,9 +94,10 @@ function Add-MMTuiDetailLines {
     $dependsLines = @(); $requiredLines = @(); $dependsItems = @(); $requiredItems = @()
     $wantDepends = 0; $wantRequired = 0
     # Installed versions the publisher has unlisted (see Start-MMGalleryLookup). When the whole
-    # module is, the warning above says so, so the panel doesn't repeat it.
+    # module is, the warning above says so, so the panel doesn't repeat it. Not when the
+    # repository's module of that name is a different one (see Get-MMUpdateStatus).
     $unlisted = @()
-    if ($row.Result -and $row.Result.PSObject.Properties['UnlistedVersions']) { $unlisted = @($row.Result.UnlistedVersions) }
+    if ($row.Status -ne 'NotInRepository' -and $row.Result -and $row.Result.PSObject.Properties['UnlistedVersions']) { $unlisted = @($row.Result.UnlistedVersions) }
     $unlistedLine = $null
     if ($current -and $row.Status -ne 'Unlisted' -and $unlisted -contains [string]$current.Version) {
         $unlistedLine = Format-MMTuiLine @(@(' Unlisted:    ', 'Dim'), @("The owner has unlisted this version. This could mean that it's deprecated or shouldn't be used anymore.", 'Yellow')) $Width
