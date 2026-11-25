@@ -1,6 +1,6 @@
 # Change Log
 
-## !Deploy
+## [0.13.2] - 2026-11-25
 
 * [fix] `Uninstall-ManagedModule` and `Move-ManagedModule` give an error, and leave the name alone, when a module name (not a wildcard pattern) matches versions of more than one module that they would remove or move, such as a `TLS` module copied in by hand and the PowerShell Gallery's `TLS`. They used to act on every module of that name. The error lists the modules the name could mean, for example `'TLS' matches 2 different modules with that name: TLS 1.0.5 (CurrentUser, from PSGallery) and TLS 2.0.0 (AllUsers, copied in by hand).`; use `-Scope` or `-Version` to choose, or pipe the versions from `Get-ManagedModule TLS -AllVersions`. Versions that ship with Windows don't count, as they're never removed or moved, so with only Windows' `TLS` and the gallery's installed, `Uninstall-ManagedModule TLS` removes the gallery's as before. `Uninstall-ManagedModule -OldVersions` isn't affected, as it already works out each module's old versions separately.
 
