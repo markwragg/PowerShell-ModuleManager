@@ -51,12 +51,14 @@ Describe 'Different modules with the same name' {
     }
 
     It 'Shows them as separate rows in the terminal UI, and keeps the details view on the right one' {
-        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions } {
+        InModuleScope ModuleManager -Parameters @{ Options = $TuiOptions; OwnGuid = $script:OwnGuid } {
             $s = New-MMTuiState -Options $Options
             Update-MMTuiRows $s; Update-MMTuiVisible $s
             $rows = @($s.Visible | Where-Object Name -EQ 'MMSame')
             $rows.Count | Should -Be 2
-            $rows[0].Key | Should -Not -Be $rows[1].Key
+            # The main module first, in either edition (Windows PowerShell's Sort-Object doesn't keep ties in order).
+            $rows[0].Key | Should -Be 'mmsame'
+            $rows[1].Key | Should -Be "mmsame|$OwnGuid"
 
             # The cursor stays on the second MMSame, not the first, when the rows are worked out again.
             Set-MMTuiCursor $s ([array]::IndexOf($s.Visible, $rows[1]))

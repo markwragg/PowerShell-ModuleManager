@@ -87,18 +87,20 @@ function Update-MMTuiVisible {
         $s
     }
     $sortName = $State.Sorts[$State.Sort]
+    # Key last, so different modules of the same name keep the same order (the main one first, see
+    # Group-MMInstallation): Sort-Object in Windows PowerShell doesn't keep the order of ties.
     $sortRows = {
         param($in)
         switch ($sortName) {
-            'Status' { @($in | Sort-Object $statusKey, Name) }
-            'Versions' { @($in | Sort-Object @{ Expression = { $_.Info.VersionCount }; Descending = $true }, @{ Expression = 'Name'; Descending = $false }) }
-            'Scope' { @($in | Sort-Object { $_.Info.Scope }, Name) }
+            'Status' { @($in | Sort-Object $statusKey, Name, Key) }
+            'Versions' { @($in | Sort-Object @{ Expression = { $_.Info.VersionCount }; Descending = $true }, @{ Expression = 'Name'; Descending = $false }, @{ Expression = 'Key'; Descending = $false }) }
+            'Scope' { @($in | Sort-Object { $_.Info.Scope }, Name, Key) }
             # Most first; modules still being worked out last.
             'Reclaimable' {
                 @($in | Sort-Object @{ Expression = { $b = Get-MMTuiReclaimSize $State $_; if ($null -eq $b) { -2L } else { $b } }; Descending = $true },
-                    @{ Expression = 'Name'; Descending = $false })
+                    @{ Expression = 'Name'; Descending = $false }, @{ Expression = 'Key'; Descending = $false })
             }
-            default { @($in | Sort-Object Name) }
+            default { @($in | Sort-Object Name, Key) }
         }
     }
     $rows = & $sortRows $top.ToArray()
